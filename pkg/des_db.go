@@ -17,9 +17,6 @@ package pkg
 
 import (
 	"fmt"
-	// "log"
-	// "os"
-	// "time"
 
 	"gorm.io/driver/postgres" // go get gorm.io/driver/postgres
 	"gorm.io/gorm"            // go get gorm.io/gorm

@@ -55,13 +55,13 @@ func main() {
 	/* API ROUTES */
 	api := fiber.New()
 	app.Mount("/api", api)
+	app.Get("/user/me", middleware.DeserializeUser, controllers.GetMe)
 
 	/* AUTH & USER ROUTES */
 	api.Route("/auth", func(router fiber.Router) {
 		router.Post("/register", controllers.SignUpUser)
 		router.Post("/login", controllers.SignInUser)
 		router.Get("/logout", middleware.DeserializeUser, controllers.LogoutUser)
-		router.Get("/me", middleware.DeserializeUser, controllers.GetMe)
 	})
 
 	/* DEVICE ROUTES */
