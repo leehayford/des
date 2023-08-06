@@ -18,7 +18,6 @@ package main
 import (
     "fmt"
 	"log"
-	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -37,16 +36,9 @@ func main() {
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
 
-	/* LOGGING */
-	file, err := os.Open("./logs.log")
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	defer file.Close()
-
 	/* MAIN SER$VER */
 	app := fiber.New()
-	app.Use(logger.New(logger.Config{Output: file}))
+	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "*",  //"http://localhost:3000",
 		AllowHeaders:     "Origin, Content-Type, Accept",
@@ -90,6 +82,6 @@ func main() {
 		})
 	})
 
-	log.Fatal(app.Listen("127.0.0.1:8007"))
+	log.Fatal(app.Listen(":8007"))
 
 }
