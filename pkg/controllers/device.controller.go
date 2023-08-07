@@ -26,7 +26,7 @@ import (
 )
 
 func RegisterDesDev(c *fiber.Ctx) (err error) {
-	var device *models.DESDev
+	var device models.DESDev
 
 	if err := c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": err.Error()})
@@ -40,9 +40,9 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 	device.DESDevRegTime = time.Now().UTC().UnixMicro()
 	device.DESDevRegAddr = c.IP()
 
-	res := pkg.DES.DB.Create(device)
+	res := pkg.DES.DB.Create(&device)
 	fmt.Println(res.Error)
 	fmt.Println(res.RowsAffected)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": fiber.Map{"user": &device}})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": fiber.Map{"device": &device}})
 } 

@@ -118,11 +118,12 @@ func (des *DESDatabase) CreateDESDatabase(drop bool) (err error) {
 		if err != nil {
 			return err
 		}
-	
+		role := string("admin")
 		newUser := models.User{
 			Name:     ADM_USER,
 			Email:    strings.ToLower(ADM_EMAIL),
 			Password: string(hashedPassword),
+			Role: &role,
 			// Photo:    &payload.Photo,
 		}
 		if result := DES.DB.Create(&newUser); result.Error != nil {
