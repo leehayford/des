@@ -71,7 +71,10 @@ func SignUpUser(c *fiber.Ctx) error {
 func SignInUser(c *fiber.Ctx) error {
 	var payload *models.SignInInput
 
+	fmt.Println("SignInUser(c *fiber.Ctx)")
+
 	if err := c.BodyParser(&payload); err != nil {
+		fmt.Println("SignInUser(c *fiber.Ctx) -> c.BodyParser")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": err.Error()})
 	}
 

@@ -40,8 +40,8 @@ func main() {
 	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "*",  //"http://localhost:3000",
-		AllowHeaders:     "Origin, Content-Type, Accept",
+		AllowOrigins:     "http://localhost:8080",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowMethods:     "GET, POST",
 		AllowCredentials: true,
 	}))	
@@ -82,6 +82,6 @@ func main() {
 		})
 	})
 
-	log.Fatal(app.Listen(":8007"))
+	log.Fatal(app.Listen("127.0.0.1:8007"))
 
 }
