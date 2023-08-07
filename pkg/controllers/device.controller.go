@@ -46,3 +46,16 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": fiber.Map{"device": &device}})
 } 
+
+func GetDesDevList(c *fiber.Ctx) (err error) {
+	var devices []models.DESDev
+
+	if res := pkg.DES.DB.Find(&devices); res.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "fail", 
+			"message":  fmt.Sprintf("GetDesDevList(...) -> query failed: %v", err),
+		})
+	}
+	
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "data": fiber.Map{"devices": devices}})
+}

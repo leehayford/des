@@ -67,6 +67,7 @@ func main() {
 	/* DEVICE ROUTES */
 	api.Route("/device", func(router fiber.Router) {
 		router.Post("/register", controllers.RegisterDesDev)
+		router.Get("/list", controllers.GetDesDevList)
 	})
 
 	/* JOB ROUTES */
