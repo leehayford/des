@@ -17,10 +17,12 @@ package pkg
 
 import (
 	"fmt"
+	"strings"
 
 	"gorm.io/driver/postgres" // go get gorm.io/driver/postgres
 	"gorm.io/gorm"            // go get gorm.io/gorm
 	"gorm.io/gorm/logger"
+	"golang.org/x/crypto/bcrypt" // go get golang.org/x/crypto/bcrypt
 
 	"github.com/leehayford/des/pkg/models"
 )
@@ -111,6 +113,22 @@ func (des *DESDatabase) CreateDESDatabase(drop bool) (err error) {
 			&models.DESDev{},
 			&models.DESJob{},
 		)	
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(ADM_PW), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+	
+		newUser := models.User{
+			Name:     ADM_USER,
+			Email:    strings.ToLower(ADM_EMAIL),
+			Password: string(hashedPassword),
+			// Photo:    &payload.Photo,
+		}
+		if result := DES.DB.Create(&newUser); result.Error != nil {
+			fmt.Printf("\nCreate admin user failed...\n%s\n", result.Error.Error())
+		}
+
 	} else {
 		err = DES.DB.AutoMigrate(
 			&models.User{},

@@ -15,12 +15,16 @@ License:
 
 package models
 
+import (
+	"github.com/google/uuid" // go get github.com/google/uuid
+)
+
 type DESDev struct {
 	DESDevID int `gorm:"unique; primaryKey" json:"des_dev_id"`	
 	
 	DESDevRegTime   int64  `gorm:"not null" json:"des_dev_reg_time"`
 	DESDevRegAddr   string `json:"des_dev_reg_addr"`
-	DESDevRegUesrID int64  `gorm:"not null" json:"des_dev_reg_user_id"`
+	DESDevRegUesrID *uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4()" json:"des_dev_reg_user_id"`
 	DESDevRegApp    string `gorm:"not null" json:"des_dev_reg_app"`
 
 	DESDevSerial  string   `gorm:"not null; varchar(10)" json:"des_dev_serial"`

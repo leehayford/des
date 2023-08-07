@@ -15,12 +15,16 @@ License:
 
 package models
 
+import (
+	"github.com/google/uuid" // go get github.com/google/uuid
+)
+
 type DESJob struct {
 	DESJobID int64 `gorm:"unique; primaryKey" json:"des_job_id"`
 
 	DESJobRegTime   int64  `gorm:"not null" json:"des_job_reg_time"`
 	DESJobRegAddr   string `json:"des_job_reg_addr"`
-	DESJobRegUesrID int64  `gorm:"not null" json:"des_job_reg_user_id"`
+	DESJobRegUesrID *uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4()" json:"des_job_reg_user_id"`
 	DESJobRegApp    string `gorm:"not null" json:"des_job_reg_app"`
 
 	DESJobName  string `gorm:"not null; unique; varchar(27)" json:"des_job_name"`
