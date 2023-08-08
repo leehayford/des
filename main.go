@@ -32,7 +32,7 @@ import (
 
 func main() {
 
-	pkg.DES.CreateDESDatabase(false)
+	// pkg.DES.CreateDESDatabase(false)
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
 
@@ -66,13 +66,15 @@ func main() {
 
 	/* DEVICE ROUTES */
 	api.Route("/device", func(router fiber.Router) {
-		router.Post("/register", controllers.RegisterDesDev)
-		router.Get("/list", controllers.GetDesDevList)
+		router.Post("/register", middleware.DesDevAuth, controllers.RegisterDesDev)
+		router.Get("/list", middleware.DesDevAuth, controllers.GetDesDevList)
+		router.Post("/serial", middleware.DesDevAuth, controllers.GetDesDevBySerial)
 	})
 
 	/* JOB ROUTES */
 	api.Route("/job", func(router fiber.Router) {
-		
+		router.Post("/register", controllers.RegisterDesJob)
+		router.Get("/list", controllers.GetDesJobList)
 	})
 
 	api.All("*", func(c *fiber.Ctx) error {

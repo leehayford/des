@@ -22,10 +22,11 @@ import (
 	"github.com/golang-jwt/jwt" // go get github.com/golang-jwt/jwt
 	
 	"github.com/leehayford/des/pkg"
-	"github.com/leehayford/des/pkg/models"
+	// "github.com/leehayford/des/pkg/models"
 )
 
-func DeserializeUser(c *fiber.Ctx) error {
+/* AUTHENTICATE USER AND GET THEIR ROLE */
+func DesDevAuth(c *fiber.Ctx) (err error) {
 
 	authorization := c.Get("Authorization")
 	fmt.Printf("AUTHORIZATION: \n%s\n", authorization)
@@ -64,18 +65,8 @@ func DeserializeUser(c *fiber.Ctx) error {
 			"message": "invalid token claim",
 		})
 	}
-	// fmt.Printf("\nCLAIMS SUB:\n%v\n", claims["sub"])
-	// fmt.Printf("\nCLAIMS ROL:\n%v\n", claims["rol"])
+
+	/* PASS ROLE ALONG TO THE NEXT HANDLER */
 	c.Locals("role", claims["rol"])
-
-	user := models.User{}
-	pkg.DES.DB.First(&user, "id = ?", fmt.Sprint(claims["sub"]))
-
-	if user.ID.String() != claims["sub"] {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "fail", "message": "the user belonging to this token no logger exists"})
-	}
-
-	c.Locals("user", models.FilterUserRecord(&user))
-
 	return c.Next()
 }

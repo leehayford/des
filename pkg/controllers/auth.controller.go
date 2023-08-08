@@ -101,6 +101,7 @@ func SignInUser(c *fiber.Ctx) error {
 	claims := tokenByte.Claims.(jwt.MapClaims)
 
 	claims["sub"] = user.ID
+	claims["rol"] = user.Role
 	claims["exp"] = now.Add(pkg.JWT_EXPIRED_IN).Unix()
 	claims["iat"] = now.Unix()
 	claims["nbf"] = now.Unix()
@@ -136,6 +137,9 @@ func LogoutUser(c *fiber.Ctx) error {
 
 func GetMe(c *fiber.Ctx) error {
 	user := c.Locals("user").(models.UserResponse)
+	
+	role := c.Locals("role")
+	fmt.Printf("\nROLE:\n%s\n", role)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "data": fiber.Map{"user": user}})
 }
