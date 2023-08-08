@@ -45,7 +45,6 @@ func DeserializeUser(c *fiber.Ctx) error {
 		if _, ok := jwtToken.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
 		}
-
 		return []byte(pkg.JWT_SECRET), nil
 	})
 	if err != nil {

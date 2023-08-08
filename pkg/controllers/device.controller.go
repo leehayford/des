@@ -17,9 +17,11 @@ package controllers
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt" // go get github.com/golang-jwt/jwt
 
 	"github.com/leehayford/des/pkg"
 	"github.com/leehayford/des/pkg/models"
@@ -48,6 +50,36 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 } 
 
 func GetDesDevList(c *fiber.Ctx) (err error) {
+
+	var tokenString string
+	authorization := c.Get("Authorization")
+	tokenString = c.Cookies("token")
+	fmt.Printf("TOKEN RECEIVED: \n%s\n", tokenString)
+	if strings.HasPrefix(authorization, "Bearer ") {
+		tokenString = strings.TrimPrefix(authorization, "Bearer ")
+	// } else if c.Cookies("token") != "" {
+	// 	tokenString = c.Cookies("token")
+	}
+
+	if tokenString == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "You are not logged in"})
+	}
+	tokenByte, err := jwt.Parse(tokenString, func(jwtToken *jwt.Token) (interface{}, error) {
+		if _, ok := jwtToken.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
+		}
+		return []byte(pkg.JWT_SECRET), nil
+	})
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("invalidate token: %v", err)})
+	}
+
+	claims, ok := tokenByte.Claims.(jwt.MapClaims)
+	if !ok || !tokenByte.Valid {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "invalid token claim"})
+	}
+	fmt.Printf("TOKEN CLAIMS: \n%s\n", claims)
+
 	var devices []models.DESDev
 
 	if res := pkg.DES.DB.Find(&devices); res.Error != nil {
