@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -14,7 +13,6 @@ License:
 */
 
 package models
-
 
 type DESJob struct {
 	DESJobID int64 `gorm:"unique; primaryKey" json:"des_job_id"`

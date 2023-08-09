@@ -17,7 +17,6 @@ package controllers
 
 import (
 	"fmt"
-	// "strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -27,25 +26,42 @@ import (
 	"github.com/leehayford/des/pkg/models"
 )
 
+/*
+USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 JOBS ON THIS DES
+*/
 func RegisterDesJob(c *fiber.Ctx) (err error) {
-	var job models.DESJob
-
-	if err := c.BodyParser(&job); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": err.Error()})
+	
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status": "fail", 
+			"message": "You must be an administrator to register jobs",
+		})
 	}
 
-	errors := models.ValidateStruct(job)
-	if errors != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "errors": errors})
+	job := models.DESJob{}
+	if err := c.BodyParser(&job); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail", 
+			"message": err.Error(),
+		})
+	}
+
+	if errors := models.ValidateStruct(job); errors != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail", 
+			"errors": errors,
+		})
 	}
 
 	job.DESJobRegTime = time.Now().UTC().UnixMicro()
 	job.DESJobRegAddr = c.IP()
-	// job.DESJobRegUserID = ?
-
-	res := pkg.DES.DB.Create(&job)
-	fmt.Println(res.Error)
-	fmt.Println(res.RowsAffected)
+	if job_res := pkg.DES.DB.Create(&job); job_res.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "fail", 
+			"message": job_res.Error.Error(),
+		})
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": fiber.Map{"job": &job}})
 }

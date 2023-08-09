@@ -27,7 +27,7 @@ import (
 	"github.com/leehayford/des/pkg"
 	"github.com/leehayford/des/pkg/controllers"
 	"github.com/leehayford/des/pkg/middleware"
-	// "github.com/leehayford/des/pkg/models"
+	"github.com/leehayford/des/pkg/c001v001"
 )
 
 func main() {
@@ -64,12 +64,18 @@ func main() {
 		router.Get("/logout", middleware.DeserializeUser, controllers.LogoutUser)
 	})
 
-	/* DEVICE ROUTES */
+	/* DES DEVICE ROUTES */
 	api.Route("/device", func(router fiber.Router) {
-		router.Post("/register", middleware.DesDevAuth, controllers.RegisterDesDev)
+		// router.Post("/register", middleware.DesDevAuth, controllers.RegisterDesDev)
 		router.Get("/list", middleware.DesDevAuth, controllers.GetDesDevList)
 		router.Post("/serial", middleware.DesDevAuth, controllers.GetDesDevBySerial)
 	})
+
+	/* C001V001 DEVICE ROUTES */
+	api.Route("/001/001/device", func(router fiber.Router) {
+		router.Post("/register", middleware.DesDevAuth, (&c001v001.Device{}).RegisterDevice)
+	})
+	
 
 	/* JOB ROUTES */
 	api.Route("/job", func(router fiber.Router) {

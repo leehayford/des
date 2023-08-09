@@ -29,3 +29,4 @@ type DESDev struct {
 	DESJobs []DESJob `gorm:"foreignKey:DESJobDevID" json:"-"`
 	User User `gorm:"foreignKey:DESDevRegUserID" json:"-"`
 }
+

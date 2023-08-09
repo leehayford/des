@@ -25,6 +25,18 @@ import (
 	"github.com/leehayford/des/pkg/models"
 )
 
+/*
+USED WHEN:
+ - DATACAN ADMIN WEB CLIENTS REGISTER NEW DEVICES ON THIS DES
+ - WEB CLIENTS REQUEST ACCESS TO DEVICES/JOBS REGISTERED ON THIS DES
+
+CLASS & VERSION AGNOSTIC
+*/
+type DESRegistration struct {
+	models.DESDev //`json:"des_device"`
+	models.DESJob    //`json:"des_job"`
+}
+
 func RegisterDesDev(c *fiber.Ctx) (err error) {
 
 	role := c.Locals("role")
@@ -49,15 +61,55 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 		})
 	}
 
+	/*
+		CREATE A DEVICE RECORD IN THE DES DB FOR THIS DEVICE
+		 - Creates a new DESevice in the DES database
+		 - Gets the C001V001Device's DeviceID from the DES Database
+	*/
 	device.DESDevRegTime = time.Now().UTC().UnixMicro()
 	device.DESDevRegAddr = c.IP()
-	res := pkg.DES.DB.Create(&device)
-	fmt.Println(res.Error)
-	fmt.Println(res.RowsAffected)
+	if device_res := pkg.DES.DB.Create(&device); device_res.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "fail", 
+			"message": device_res.Error.Error(),
+		})
+	}
+
+	/*
+		CREATE THE DEFAULT JOB FOR THIS DEVICE
+		 - SERIALNUM-0000000000000000
+		 - Create the registration job record in the DES database
+		 - Create a new Job database for the job data
+		 - Sets the the Device's active job
+		 -
+	*/
+	job := models.DESJob{
+		DESJobRegTime: device.DESDevRegTime,
+		DESJobRegAddr: device.DESDevRegAddr,
+		DESJobRegUserID: device.DESDevRegUserID,
+		DESJobRegApp: device.DESDevRegApp,
+
+		DESJobName: fmt.Sprintf("%s_0000000000000000", device.DESDevSerial),
+		DESJobStart: device.DESDevRegTime,
+		DESJobEnd: 0,
+
+		DESJobDevID: device.DESDevID,
+	}
+	if job_res := pkg.DES.DB.Create(&job); job_res.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "fail", 
+			"message": job_res.Error.Error(),
+		})
+	}
+
+	reg := DESRegistration{
+		DESDev: device,
+		DESJob: job,
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status": "success", 
-		"data": fiber.Map{"device": &device},
+		"data": fiber.Map{"device": &reg},
 	})
 } 
 
