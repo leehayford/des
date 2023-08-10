@@ -23,7 +23,7 @@ type DESJob struct {
 	DESJobRegUserID string `gorm:"not null; varchar(36)" json:"des_job_reg_user_id"`
 	DESJobRegApp    string `gorm:"not null; varchar(36)" json:"des_job_reg_app"`
 
-	DESJobName  string `gorm:"not null; unique; varchar(27)" json:"des_job_name"`
+	DESJobName  string `gorm:"not null; unique; varchar(24)" json:"des_job_name"`
 	DESJobStart int64  `gorm:"not null" json:"des_job_start"`
 	DESJobEnd   int64  `gorm:"not null" json:"des_job_end"`
 	DESJobDevID int64 `json:"des_job_dev_id"`

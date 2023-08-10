@@ -50,7 +50,7 @@ func RegisterDesJob(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	job.DESJobRegTime = time.Now().UTC().UnixMicro()
+	job.DESJobRegTime = time.Now().UTC().UnixMilli()
 	job.DESJobRegAddr = c.IP()
 	if job_res := DES.DB.Create(&job); job_res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -66,7 +66,10 @@ func GetDesJobList(c *fiber.Ctx) (err error) {
 
 	jobs := []DESJob{}
 
-	if res := DES.DB.Find(&jobs); res.Error != nil {
+	/* MOST RECENT JOBS FIRST */
+	qry := DES.DB.Order("des_job_start DESC") 
+
+	if res := qry.Find(&jobs); res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "fail", 
 			"message":  fmt.Sprintf("GetDesJobList(...) -> query failed:\n%s\n", res.Error.Error()),
@@ -113,3 +116,4 @@ func GetDesJobByName(c *fiber.Ctx) (err error) {
 		"data": fiber.Map{"job": reg},
 	})
 }
+

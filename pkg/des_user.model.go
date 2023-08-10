@@ -16,23 +16,23 @@ License:
 package pkg
 
 import (
-	"time"
+	// "time"
 
 	"github.com/google/uuid" // go get github.com/google/uuid
 	"github.com/go-playground/validator/v10" // go get github.com/go-playground/validator/v10
 )
 
 type User struct {
-	ID        *uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key"`
+	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key"`
 	Name      string     `gorm:"type:varchar(100);not null"`
 	Email     string     `gorm:"type:varchar(100);uniqueIndex;not null"`
 	Password  string     `gorm:"type:varchar(100);not null"`
-	Role      *string    `gorm:"type:varchar(50);default:'user';not null"`
-	Provider  *string    `gorm:"type:varchar(50);default:'local';not null"`
-	Photo     *string    `gorm:"not null;default:'default.png'"`
-	Verified  *bool      `gorm:"not null;default:false"`
-	CreatedAt *time.Time `gorm:"not null;default:now()"`
-	UpdatedAt *time.Time `gorm:"not null;default:now()"`
+	Role      string    `gorm:"type:varchar(50);default:'user';not null"`
+	Provider  string    `gorm:"type:varchar(50);default:'local';not null"`
+	Photo     string    `gorm:"not null;default:'default.png'"`
+	Verified  bool      `gorm:"not null;default:false"`
+	CreatedAt int64 `gorm:"autoCreateTime:milli"`
+	UpdatedAt int64 `gorm:"autoUpdateTime:milli"`
 }
 
 type SignUpInput struct {
@@ -55,20 +55,20 @@ type UserResponse struct {
 	Role      string    `json:"role,omitempty"`
 	Provider  string    `json:"provider"`
 	Photo     string    `json:"photo,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt int64 `json:"created_at"`
+	UpdatedAt int64 `json:"updated_at"`
 }
 
 func FilterUserRecord(user *User) UserResponse {
 	return UserResponse{
-		ID:        *user.ID,
+		ID:        user.ID,
 		Name:      user.Name,
 		Email:     user.Email,
-		Role:      *user.Role,
-		Photo:     *user.Photo,
-		Provider:  *user.Provider,
-		CreatedAt: *user.CreatedAt,
-		UpdatedAt: *user.UpdatedAt,
+		Role:      user.Role,
+		Photo:     user.Photo,
+		Provider:  user.Provider,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
 	}
 }
 

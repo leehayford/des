@@ -121,7 +121,7 @@ func (des *DESDatabase) CreateDESDatabase(drop bool) (err error) {
 			Name:     ADM_USER,
 			Email:    strings.ToLower(ADM_EMAIL),
 			Password: string(hashedPassword),
-			Role: &role,
+			Role: role,
 			// Photo:    &payload.Photo,
 		}
 		if result := DES.DB.Create(&newUser); result.Error != nil {

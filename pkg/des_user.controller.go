@@ -52,7 +52,7 @@ func SignUpUser(c *fiber.Ctx) error {
 		Name:     payload.Name,
 		Email:    strings.ToLower(payload.Email),
 		Password: string(hashedPassword),
-		Photo:    &payload.Photo,
+		Photo:    payload.Photo,
 	}
 
 	result := DES.DB.Create(&newUser)

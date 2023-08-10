@@ -63,7 +63,7 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 		 - Creates a new DESevice in the DES database
 		 - Gets the C001V001Device's DeviceID from the DES Database
 	*/
-	device.DESDevRegTime = time.Now().UTC().UnixMicro()
+	device.DESDevRegTime = time.Now().UTC().UnixMilli()
 	device.DESDevRegAddr = c.IP()
 	if device_res := DES.DB.Create(&device); device_res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -86,7 +86,7 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 		DESJobRegUserID: device.DESDevRegUserID,
 		DESJobRegApp: device.DESDevRegApp,
 
-		DESJobName: fmt.Sprintf("%s_0000000000000000", device.DESDevSerial),
+		DESJobName: fmt.Sprintf("%s_0000000000000", device.DESDevSerial),
 		DESJobStart: device.DESDevRegTime,
 		DESJobEnd: 0,
 
@@ -112,9 +112,26 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 
 func GetDesDevList(c *fiber.Ctx) (err error) {
 
-	devices := []DESDev{} // make([]models.DESDev, 0)
+	devices := []DESDev{} 
 
-	if res := DES.DB.Order("des_dev_serial desc").Find(&devices); res.Error != nil {
+	/* 
+	WHERE A DEVICE HAS MORE THAN ONE REGISTRATION RECORD
+	WE WANT THE LATEST
+	*/
+	subQry := DES.DB.
+	Table("des_devs").
+	Select(`des_dev_serial, MAX(des_dev_reg_time) AS max_time`).
+	Group("des_dev_serial")
+
+	qry := DES.DB.
+	Select(" * ").
+	Joins(`JOIN ( ? ) x 
+		ON des_devs.des_dev_serial = x.des_dev_serial 
+		AND des_devs.des_dev_reg_time = x.max_time`, 
+		subQry,).
+	Order("des_devs.des_dev_serial DESC")
+
+	if res := qry.Find(&devices); res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "fail", 
 			"message":  fmt.Sprintf("GetDesDevList(...) -> query failed:\n%s\n", res.Error.Error()),
@@ -139,7 +156,7 @@ func GetDesDevBySerial(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	if res := DES.DB.First(&reg.DESDev, "des_dev_serial =?", reg.DESDev.DESDevSerial); res.Error != nil {
+	if res := DES.DB.Order("des_dev_reg_time desc").First(&reg.DESDev, "des_dev_serial =?", reg.DESDev.DESDevSerial); res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "fail", 
 			"message":  fmt.Sprintf("GetDesDevBySerial(...) -> query failed:\n%s\n", res.Error.Error()),

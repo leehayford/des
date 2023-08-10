@@ -44,7 +44,7 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 		 - Creates a new DESevice in the DES database
 		 - Gets the C001V001Device's DeviceID from the DES Database
 	*/
-	device.DESDevRegTime = time.Now().UTC().UnixMicro()
+	device.DESDevRegTime = time.Now().UTC().UnixMilli()
 	device.DESDevRegAddr = c.IP()
 	if device_res := pkg.DES.DB.Create(&device); device_res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -65,7 +65,7 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 				DESJobRegUserID: device.DESDevRegUserID,
 				DESJobRegApp: device.DESDevRegApp,
 		
-				DESJobName: fmt.Sprintf("%s_0000000000000000", device.DESDevSerial),
+				DESJobName: fmt.Sprintf("%s_0000000000000", device.DESDevSerial),
 				DESJobStart: device.DESDevRegTime,
 				DESJobEnd: 0,
 		
@@ -91,5 +91,4 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 		"data": fiber.Map{"device": &reg},
 		"message": "C001V001 Device Registered.",
 	})
-
 }

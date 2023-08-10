@@ -13,7 +13,7 @@ type JobConfig struct {
 	CfgApp    string `gorm:"not null; varchar(36)" json:"cfg_app"`
 
 	/*JOB*/
-	CfgJobName  string  `gorm:"not null; unique; varchar(27)" json:"cfg_job_name"`
+	CfgJobName  string  `gorm:"not null; unique; varchar(24)" json:"cfg_job_name"`
 	CfgJobStart int64   `json:"cfg_job_start"`
 	CfgJobEnd   int64   `json:"cfg_job_end"`
 	CfgSCVD     float32 `json:"cfg_scvd"`
