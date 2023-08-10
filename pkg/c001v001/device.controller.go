@@ -57,17 +57,20 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 		CREATE THE DEFAULT JOB FOR THIS DEVICE
 	*/
 	job := Job{
-		DESJob: pkg.DESJob{
-			DESJobRegTime: device.DESDevRegTime,
-			DESJobRegAddr: device.DESDevRegAddr,
-			DESJobRegUserID: device.DESDevRegUserID,
-			DESJobRegApp: device.DESDevRegApp,
-	
-			DESJobName: fmt.Sprintf("%s_0000000000000000", device.DESDevSerial),
-			DESJobStart: device.DESDevRegTime,
-			DESJobEnd: 0,
-	
-			DESJobDevID: device.DESDevID,
+		DESRegistration: pkg.DESRegistration{
+			DESDev: device,
+			DESJob: pkg.DESJob{
+				DESJobRegTime: device.DESDevRegTime,
+				DESJobRegAddr: device.DESDevRegAddr,
+				DESJobRegUserID: device.DESDevRegUserID,
+				DESJobRegApp: device.DESDevRegApp,
+		
+				DESJobName: fmt.Sprintf("%s_0000000000000000", device.DESDevSerial),
+				DESJobStart: device.DESDevRegTime,
+				DESJobEnd: 0,
+		
+				DESJobDevID: device.DESDevID,
+			},
 		},
 	} 
 	if err = job.RegisterJob(); err != nil {
