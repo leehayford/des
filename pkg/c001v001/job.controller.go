@@ -63,7 +63,6 @@ func (job *Job) RegisterJob() (err error) {
 		db.Create(&EVT_TYP_MODE_HI_FLOW)
 		db.Create(&EVT_TYP_MODE_LO_FLOW)
 
-
 		job.Admins = []JobAdmin{job.RegisterJob_Default_JobAdmin()}
 		if adm_res := db.Create(&job.Admins[0]); adm_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobAdmins[0]) -> Error:\n%s\n", adm_res.Error.Error())
@@ -95,10 +94,10 @@ func (job *Job) RegisterJob_Default_JobAdmin() (adm JobAdmin) {
 		AdmApp:    job.DESJobRegApp,
 
 		/* BROKER */
-		AdmDefHost: pkg.BROKER_HOST,
-		AdmDefPort: pkg.BROKER_PORT,
-		AdmOpHost:  pkg.BROKER_HOST,
-		AdmOpsPort: pkg.BROKER_PORT,
+		AdmDefHost: pkg.MQTT_HOST,
+		AdmDefPort: pkg.MQTT_PORT,
+		AdmOpHost:  pkg.MQTT_HOST,
+		AdmOpsPort: pkg.MQTT_PORT,
 
 		/* DEVICE */
 		AdmClass:   DEVICE_CLASS,
@@ -175,12 +174,12 @@ func (job *Job) RegisterJob_Default_JobConfig() (cfg JobConfig) {
 }
 func (job *Job) RegisterJob_Default_JobEvent() (evt Evt) {
 	return Evt{
-		EvtTime: job.DESJobRegTime,
-		EvtAddr: job.DESJobRegAddr,
+		EvtTime:   job.DESJobRegTime,
+		EvtAddr:   job.DESJobRegAddr,
 		EvtUserID: job.DESJobRegUserID,
-		EvtApp: job.DESJobRegApp,
-		EvtCode: EVT_TYP_REGISTER_DEVICE.EvtTypCode,
-		EvtTitle: "A Device is Born",
-		EvtMsg: "Congratulations, it's a c001v001...",
+		EvtApp:    job.DESJobRegApp,
+		EvtCode:   EVT_TYP_REGISTER_DEVICE.EvtTypCode,
+		EvtTitle:  "A Device is Born",
+		EvtMsg:    "Congratulations, it's a c001v001...",
 	}
 }
