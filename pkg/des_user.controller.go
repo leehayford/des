@@ -13,28 +13,26 @@ License:
 	2. Prohibits <Third Party> from taking any action which might interfere with DataCan's right to use, modify, distributre this software in perpetuity.
 */
 
-package controllers
+package pkg
 
 import (
 	"fmt"
 	"strings"
 	"time"
+
 	"github.com/gofiber/fiber/v2" // go get github.com/gofiber/fiber/v2
 	"github.com/golang-jwt/jwt" // go get github.com/golang-jwt/jwt
 	"golang.org/x/crypto/bcrypt" // go get golang.org/x/crypto/bcrypt
-	
-	"github.com/leehayford/des/pkg"
-	"github.com/leehayford/des/pkg/models"
 )
 
 func SignUpUser(c *fiber.Ctx) error {
-	var payload *models.SignUpInput
+	var payload *SignUpInput
 
 	if err := c.BodyParser(&payload); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": err.Error()})
 	}
 
-	errors := models.ValidateStruct(payload)
+	errors := ValidateStruct(payload)
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "errors": errors})
 
@@ -50,14 +48,14 @@ func SignUpUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": err.Error()})
 	}
 
-	newUser := models.User{
+	newUser := User{
 		Name:     payload.Name,
 		Email:    strings.ToLower(payload.Email),
 		Password: string(hashedPassword),
 		Photo:    &payload.Photo,
 	}
 
-	result := pkg.DES.DB.Create(&newUser)
+	result := DES.DB.Create(&newUser)
 
 	if result.Error != nil && strings.Contains(result.Error.Error(), "duplicate key value violates unique") {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "fail", "message": "User with that email already exists"})
@@ -65,64 +63,71 @@ func SignUpUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"status": "error", "message": "Something bad happened"})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": fiber.Map{"user": models.FilterUserRecord(&newUser)}})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": fiber.Map{"user": FilterUserRecord(&newUser)}})
 }
 
 func SignInUser(c *fiber.Ctx) error {
-	var payload *models.SignInInput
-
-	fmt.Println("SignInUser(c *fiber.Ctx)")
+	payload := SignInInput{} // fmt.Println("SignInUser(c *fiber.Ctx)")
 
 	if err := c.BodyParser(&payload); err != nil {
 		fmt.Println("SignInUser(c *fiber.Ctx) -> c.BodyParser")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail", 
+			"message": err.Error(),
+		})
+	}
+	if errors := ValidateStruct(payload); errors != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail", 
+			"message": errors,
+		})
 	}
 
-	errors := models.ValidateStruct(payload)
-	if errors != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errors)
-
+	user := User{}
+	if result := DES.DB.First(&user, "email = ?", strings.ToLower(payload.Email)); result.Error != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail", 
+			"message": "Invalid email or Password",
+		})
 	}
-
-	var user models.User
-	result := pkg.DES.DB.First(&user, "email = ?", strings.ToLower(payload.Email))
-	if result.Error != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": "Invalid email or Password"})
-	}
-
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(payload.Password))
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": "Invalid email or Password"})
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(payload.Password)); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail", 
+			"message": "Invalid email or Password",
+		})
 	}
 
 	tokenByte := jwt.New(jwt.SigningMethodHS256)
-
 	now := time.Now().UTC()
 	claims := tokenByte.Claims.(jwt.MapClaims)
-
 	claims["sub"] = user.ID
 	claims["rol"] = user.Role
-	claims["exp"] = now.Add(pkg.JWT_EXPIRED_IN).Unix()
+	claims["exp"] = now.Add(JWT_EXPIRED_IN).Unix()
 	claims["iat"] = now.Unix()
 	claims["nbf"] = now.Unix()
 
-	tokenString, err := tokenByte.SignedString([]byte(pkg.JWT_SECRET))
-
+	tokenString, err := tokenByte.SignedString([]byte(JWT_SECRET))
 	if err != nil {
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("generating JWT Token failed: %v", err)})
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+			"status": "fail", 
+			"message": fmt.Sprintf("generating JWT Token failed: %v", err),
+		})
 	}
 
 	c.Cookie(&fiber.Cookie{
 		Name:     "token",
 		Value:    tokenString,
 		Path:     "/",
-		MaxAge:   pkg.JWT_MAXAGE * 60,
+		MaxAge:   JWT_MAXAGE * 60,
 		Secure:   false,
 		HTTPOnly: true,
 		Domain:   "localhost",
 	})
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "token": tokenString})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"token": tokenString,
+	})
 }
 
 func LogoutUser(c *fiber.Ctx) error {
@@ -136,10 +141,19 @@ func LogoutUser(c *fiber.Ctx) error {
 }
 
 func GetMe(c *fiber.Ctx) error {
-	user := c.Locals("user").(models.UserResponse)
-	
-	role := c.Locals("role")
-	fmt.Printf("\nROLE:\n%s\n", role)
+	id := c.Locals("sub") // fmt.Printf("\nID:\t%s\n", id)
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "data": fiber.Map{"user": user}})
+	user := User{}
+	DES.DB.First(&user, "id = ?", id)
+	if user.ID.String() != id {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status": "fail", 
+			"message": "the user belonging to this token no logger exists",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success", 
+		"data": fiber.Map{"user": FilterUserRecord(&user)},
+	})
 }

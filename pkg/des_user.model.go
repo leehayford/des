@@ -13,7 +13,7 @@ License:
 	2. Prohibits <Third Party> from taking any action which might interfere with DataCan's right to use, modify, distributre this software in perpetuity.
 */
 
-package models
+package pkg
 
 import (
 	"time"
@@ -53,8 +53,8 @@ type UserResponse struct {
 	Name      string    `json:"name,omitempty"`
 	Email     string    `json:"email,omitempty"`
 	Role      string    `json:"role,omitempty"`
-	Photo     string    `json:"photo,omitempty"`
 	Provider  string    `json:"provider"`
+	Photo     string    `json:"photo,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

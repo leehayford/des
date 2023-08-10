@@ -13,16 +13,13 @@ License:
 	2. Prohibits <Third Party> from taking any action which might interfere with DataCan's right to use, modify, distributre this software in perpetuity.
 */
 
-package controllers
+package pkg
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-
-	"github.com/leehayford/des/pkg"
-	"github.com/leehayford/des/pkg/models"
 )
 
 /*
@@ -33,8 +30,8 @@ USED WHEN:
 CLASS & VERSION AGNOSTIC
 */
 type DESRegistration struct {
-	models.DESDev //`json:"des_device"`
-	models.DESJob    //`json:"des_job"`
+	DESDev //`json:"des_device"`
+	DESJob    //`json:"des_job"`
 }
 
 func RegisterDesDev(c *fiber.Ctx) (err error) {
@@ -47,14 +44,14 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	device := models.DESDev{}
+	device := DESDev{}
 	if err = c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail", 
 			"message": err.Error(),
 		})
 	}
-	if errors := models.ValidateStruct(device); errors != nil {
+	if errors := ValidateStruct(device); errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail", 
 			"errors": errors,
@@ -68,7 +65,7 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 	*/
 	device.DESDevRegTime = time.Now().UTC().UnixMicro()
 	device.DESDevRegAddr = c.IP()
-	if device_res := pkg.DES.DB.Create(&device); device_res.Error != nil {
+	if device_res := DES.DB.Create(&device); device_res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "fail", 
 			"message": device_res.Error.Error(),
@@ -83,7 +80,7 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 		 - Sets the the Device's active job
 		 -
 	*/
-	job := models.DESJob{
+	job := DESJob{
 		DESJobRegTime: device.DESDevRegTime,
 		DESJobRegAddr: device.DESDevRegAddr,
 		DESJobRegUserID: device.DESDevRegUserID,
@@ -95,7 +92,7 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 
 		DESJobDevID: device.DESDevID,
 	}
-	if job_res := pkg.DES.DB.Create(&job); job_res.Error != nil {
+	if job_res := DES.DB.Create(&job); job_res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "fail", 
 			"message": job_res.Error.Error(),
@@ -115,9 +112,9 @@ func RegisterDesDev(c *fiber.Ctx) (err error) {
 
 func GetDesDevList(c *fiber.Ctx) (err error) {
 
-	devices := []models.DESDev{} // make([]models.DESDev, 0)
+	devices := []DESDev{} // make([]models.DESDev, 0)
 
-	if res := pkg.DES.DB.Order("des_dev_serial desc").Find(&devices); res.Error != nil {
+	if res := DES.DB.Order("des_dev_serial desc").Find(&devices); res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "fail", 
 			"message":  fmt.Sprintf("GetDesDevList(...) -> query failed:\n%s\n", res.Error.Error()),
@@ -132,32 +129,27 @@ func GetDesDevList(c *fiber.Ctx) (err error) {
 	})
 }
 
-type Serial struct {
-	Serial string `json:"serial"`
-}
 func GetDesDevBySerial(c *fiber.Ctx) (err error) {
 
-	sn := Serial{}
-	if err = c.BodyParser(&sn); err != nil {
+	reg := DESRegistration{}
+	if err = c.BodyParser(&reg); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail", 
 			"message": fmt.Sprintf("GetDesDevBySerial(...) -> BodyParser failed:\n%s\n", err.Error()),
 		})
 	}
 
-	device := models.DESDev{} 
-
-	if res := pkg.DES.DB.First(&device, "des_dev_serial =?", sn.Serial); res.Error != nil {
+	if res := DES.DB.First(&reg.DESDev, "des_dev_serial =?", reg.DESDev.DESDevSerial); res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "fail", 
 			"message":  fmt.Sprintf("GetDesDevBySerial(...) -> query failed:\n%s\n", res.Error.Error()),
-			"data": fiber.Map{"device": device},
+			"data": fiber.Map{"device": reg},
 		})
 	}
 	
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success", 
 		"message": "You are a tolerable person!",
-		"data": fiber.Map{"device": device},
+		"data": fiber.Map{"device": reg},
 	})
 }

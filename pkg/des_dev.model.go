@@ -13,15 +13,15 @@ License:
 	2. Prohibits <Third Party> from taking any action which might interfere with DataCan's right to use, modify, distributre this software in perpetuity.
 */
 
-package models
+package pkg
 
 type DESDev struct {
-	DESDevID int `gorm:"unique; primaryKey" json:"des_dev_id"`	
+	DESDevID int64 `gorm:"unique; primaryKey" json:"des_dev_id"`	
 	
 	DESDevRegTime   int64  `gorm:"not null" json:"des_dev_reg_time"`
 	DESDevRegAddr   string `json:"des_dev_reg_addr"`
-	DESDevRegUserID string `gorm:"not null" json:"des_dev_reg_user_id"`
-	DESDevRegApp    string `gorm:"not null" json:"des_dev_reg_app"`
+	DESDevRegUserID string `gorm:"not null; varchar(36)" json:"des_dev_reg_user_id"`
+	DESDevRegApp    string `gorm:"not null; varchar(36)" json:"des_dev_reg_app"`
 
 	DESDevSerial  string   `gorm:"not null; varchar(10)" json:"des_dev_serial"`
 	DESDevVersion string   `gorm:"not null; varchar(3)" json:"des_dev_version"`

@@ -8,8 +8,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/leehayford/des/pkg"
-	desModels "github.com/leehayford/des/pkg/models"
-	desControllers "github.com/leehayford/des/pkg/controllers"
 )
 
 /*
@@ -27,14 +25,14 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	device := desModels.DESDev{}
+	device := pkg.DESDev{}
 	if err = c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail", 
 			"message": err.Error(),
 		})
 	}
-	if errors := desModels.ValidateStruct(device); errors != nil {
+	if errors := pkg.ValidateStruct(device); errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail", 
 			"errors": errors,
@@ -59,7 +57,7 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 		CREATE THE DEFAULT JOB FOR THIS DEVICE
 	*/
 	job := Job{
-		DESJob: desModels.DESJob{
+		DESJob: pkg.DESJob{
 			DESJobRegTime: device.DESDevRegTime,
 			DESJobRegAddr: device.DESDevRegAddr,
 			DESJobRegUserID: device.DESDevRegUserID,
@@ -80,7 +78,7 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 	}
 
 
-	reg := desControllers.DESRegistration{
+	reg := pkg.DESRegistration{
 		DESDev: device,
 		DESJob: job.DESJob,
 	}

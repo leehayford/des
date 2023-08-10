@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -16,23 +15,20 @@ License:
 package main
 
 import (
-    "fmt"
+	"fmt"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 
-	
 	"github.com/leehayford/des/pkg"
-	"github.com/leehayford/des/pkg/controllers"
-	"github.com/leehayford/des/pkg/middleware"
 	"github.com/leehayford/des/pkg/c001v001"
 )
 
 func main() {
 
-	// pkg.DES.CreateDESDatabase(false)
+	pkg.DES.CreateDESDatabase(false)
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
 
@@ -44,10 +40,10 @@ func main() {
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowMethods:     "GET, POST",
 		AllowCredentials: true,
-	}))	
+	}))
 	app.Get("app/healthchecker", func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON( fiber.Map{
-			"status": "success",
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status":  "success",
 			"message": "Data Exchange Server",
 		})
 	})
@@ -55,32 +51,37 @@ func main() {
 	/* API ROUTES */
 	api := fiber.New()
 	app.Mount("/api", api)
-	app.Get("/user/me", middleware.DeserializeUser, controllers.GetMe)
+	app.Get("/user/me", pkg.DesAuth, pkg.GetMe)
 
 	/* AUTH & USER ROUTES */
 	api.Route("/auth", func(router fiber.Router) {
-		router.Post("/register", controllers.SignUpUser)
-		router.Post("/login", controllers.SignInUser)
-		router.Get("/logout", middleware.DeserializeUser, controllers.LogoutUser)
+		router.Post("/register", pkg.SignUpUser)
+		router.Post("/login", pkg.SignInUser)
+		router.Get("/logout", pkg.DesAuth, pkg.LogoutUser)
 	})
 
 	/* DES DEVICE ROUTES */
 	api.Route("/device", func(router fiber.Router) {
-		// router.Post("/register", middleware.DesDevAuth, controllers.RegisterDesDev)
-		router.Get("/list", middleware.DesDevAuth, controllers.GetDesDevList)
-		router.Post("/serial", middleware.DesDevAuth, controllers.GetDesDevBySerial)
+		// router.Post("/register", pkg.DesAuth, controllers.RegisterDesDev)
+		router.Get("/list", pkg.DesAuth, pkg.GetDesDevList)
+		router.Post("/serial", pkg.DesAuth, pkg.GetDesDevBySerial)
+	})
+
+	/* DES JOB ROUTES */
+	api.Route("/job", func(router fiber.Router) {
+		// router.Post("/register", pkg.DesAuth, pkg.RegisterDesJob)
+		router.Get("/list", pkg.DesAuth, pkg.GetDesJobList)
+		router.Post("/name", pkg.DesAuth, pkg.GetDesJobByName)
 	})
 
 	/* C001V001 DEVICE ROUTES */
 	api.Route("/001/001/device", func(router fiber.Router) {
-		router.Post("/register", middleware.DesDevAuth, (&c001v001.Device{}).RegisterDevice)
+		router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).RegisterDevice)
 	})
-	
 
-	/* JOB ROUTES */
-	api.Route("/job", func(router fiber.Router) {
-		router.Post("/register", controllers.RegisterDesJob)
-		router.Get("/list", controllers.GetDesJobList)
+	/* C001V001 JOB ROUTES */
+	api.Route("/001/001/job", func(router fiber.Router) {
+		// router.Post("/config", pkg.DesAuth, (&c001v001.Job{}).Configure)
 	})
 
 	api.All("*", func(c *fiber.Ctx) error {

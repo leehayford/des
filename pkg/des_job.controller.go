@@ -13,17 +13,13 @@ License:
 	2. Prohibits <Third Party> from taking any action which might interfere with DataCan's right to use, modify, distributre this software in perpetuity.
 */
 
-package controllers
+package pkg
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt" // go get github.com/golang-jwt/jwt
-
-	"github.com/leehayford/des/pkg"
-	"github.com/leehayford/des/pkg/models"
 )
 
 /*
@@ -39,7 +35,7 @@ func RegisterDesJob(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	job := models.DESJob{}
+	job := DESJob{}
 	if err := c.BodyParser(&job); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail", 
@@ -47,7 +43,7 @@ func RegisterDesJob(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	if errors := models.ValidateStruct(job); errors != nil {
+	if errors := ValidateStruct(job); errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail", 
 			"errors": errors,
@@ -56,7 +52,7 @@ func RegisterDesJob(c *fiber.Ctx) (err error) {
 
 	job.DESJobRegTime = time.Now().UTC().UnixMicro()
 	job.DESJobRegAddr = c.IP()
-	if job_res := pkg.DES.DB.Create(&job); job_res.Error != nil {
+	if job_res := DES.DB.Create(&job); job_res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "fail", 
 			"message": job_res.Error.Error(),
@@ -68,40 +64,52 @@ func RegisterDesJob(c *fiber.Ctx) (err error) {
 
 func GetDesJobList(c *fiber.Ctx) (err error) {
 
+	jobs := []DESJob{}
 
-
-	/* TODO: MOVE TO des_job.middleware.go */
-	tokenString := c.Cookies("token")
-	fmt.Printf("TOKEN RECEIVED: \n%s\n", tokenString)
-	if tokenString == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "You are not logged in"})
-	}
-	tokenByte, err := jwt.Parse(tokenString, func(jwtToken *jwt.Token) (interface{}, error) {
-		if _, ok := jwtToken.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
-		}
-		return []byte(pkg.JWT_SECRET), nil
-	})
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("invalidate token: %v", err)})
-	}
-	claims, ok := tokenByte.Claims.(jwt.MapClaims)
-	if !ok || !tokenByte.Valid {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "invalid token claim"})
-	}
-	fmt.Printf("TOKEN CLAIMS: \n%s\n", claims)
-	/* TODO: MOVE TO des_job.middleware.go */
-
-
-
-	var jobs []models.DESJob
-
-	if res := pkg.DES.DB.Find(&jobs); res.Error != nil {
+	if res := DES.DB.Find(&jobs); res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "fail", 
-			"message":  fmt.Sprintf("GetDesJobList(...) -> query failed: %v", err),
+			"message":  fmt.Sprintf("GetDesJobList(...) -> query failed:\n%s\n", res.Error.Error()),
+			"data": fiber.Map{"jobs": jobs},
 		})
 	}
 	
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "data": fiber.Map{"jobs": jobs}})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success", 
+		"message": "You are a tolerable person!",
+		"data": fiber.Map{"jobs": jobs},
+	})
+}
+
+func GetDesJobByName(c *fiber.Ctx) (err error) {
+
+	reg := DESRegistration{}
+	if err = c.BodyParser(&reg); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail", 
+			"message": fmt.Sprintf("GetDesJobByName(...) -> BodyParser failed:\n%s\n", err.Error()),
+		})
+	}
+
+	if res := DES.DB.First(&reg.DESJob, "des_job_name =?", reg.DESJob.DESJobName); res.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "fail", 
+			"message":  fmt.Sprintf("GetDesJobByName(...) -> get job query failed:\n%s\n", res.Error.Error()),
+			"data": fiber.Map{"job": reg},
+		})
+	}
+	
+	if res := DES.DB.First(&reg.DESDev, "des_dev_id =?", reg.DESJob.DESJobDevID); res.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "fail", 
+			"message":  fmt.Sprintf("GetDesJobByName(...) -> get job device query failed:\n%s\n", res.Error.Error()),
+			"data": fiber.Map{"job": reg},
+		})
+	}
+	
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success", 
+		"message": "You are a tolerable person!",
+		"data": fiber.Map{"job": reg},
+	})
 }

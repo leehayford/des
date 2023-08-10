@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -13,20 +12,18 @@ License:
 	2. Prohibits <Third Party> from taking any action which might interfere with DataCan's right to use, modify, distributre this software in perpetuity.
 */
 
-package middleware
+package pkg
 
 import (
 	"fmt"
 	"strings"
+
 	"github.com/gofiber/fiber/v2" // go get github.com/gofiber/fiber/v2
-	"github.com/golang-jwt/jwt" // go get github.com/golang-jwt/jwt
-	
-	"github.com/leehayford/des/pkg"
-	// "github.com/leehayford/des/pkg/models"
+	"github.com/golang-jwt/jwt"   // go get github.com/golang-jwt/jwt
 )
 
 /* AUTHENTICATE USER AND GET THEIR ROLE */
-func DesDevAuth(c *fiber.Ctx) (err error) {
+func DesAuth(c *fiber.Ctx) (err error) {
 
 	authorization := c.Get("Authorization")
 	fmt.Printf("AUTHORIZATION: \n%s\n", authorization)
@@ -37,10 +34,9 @@ func DesDevAuth(c *fiber.Ctx) (err error) {
 	} else if c.Cookies("token") != "" {
 		tokenString = c.Cookies("token")
 	}
-
 	if tokenString == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": "You are not logged in",
 		})
 	}
@@ -49,24 +45,25 @@ func DesDevAuth(c *fiber.Ctx) (err error) {
 		if _, jwt_err := jwtToken.Method.(*jwt.SigningMethodHMAC); !jwt_err {
 			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
 		}
-		return []byte(pkg.JWT_SECRET), nil
+		return []byte(JWT_SECRET), nil
 	})
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": fmt.Sprintf("invalid token: %v", err),
 		})
 	}
 
+	/* GET THE USER ROLE & PASS ALONG TO THE NEXT HANDLER */
 	claims, ok := tokenByte.Claims.(jwt.MapClaims)
 	if !ok || !tokenByte.Valid {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": "invalid token claim",
 		})
 	}
-
-	/* PASS ROLE ALONG TO THE NEXT HANDLER */
 	c.Locals("role", claims["rol"])
+	c.Locals("sub", claims["sub"])
+
 	return c.Next()
 }

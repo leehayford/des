@@ -6,10 +6,9 @@ import (
 
 	// "github.com/gofiber/fiber/v2"
 
-	// "github.com/leehayford/des/pkg"
-	desModels "github.com/leehayford/des/pkg/models"
+	"github.com/leehayford/des/pkg"
 )
 
 type Device struct {
-	desModels.DESDev
+	pkg.DESDev
 }

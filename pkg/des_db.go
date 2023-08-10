@@ -23,8 +23,6 @@ import (
 	"gorm.io/gorm"            // go get gorm.io/gorm
 	"gorm.io/gorm/logger"
 	"golang.org/x/crypto/bcrypt" // go get golang.org/x/crypto/bcrypt
-
-	"github.com/leehayford/des/pkg/models"
 )
 
 /* All databases in the DES system have the following structure */
@@ -109,9 +107,9 @@ func (des *DESDatabase) CreateDESDatabase(drop bool) (err error) {
 
 	if (!exists) {
 		err = DES.DB.Migrator().CreateTable(
-			&models.User{},
-			&models.DESDev{},
-			&models.DESJob{},
+			&User{},
+			&DESDev{},
+			&DESJob{},
 		)	
 
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(ADM_PW), bcrypt.DefaultCost)
@@ -119,7 +117,7 @@ func (des *DESDatabase) CreateDESDatabase(drop bool) (err error) {
 			return err
 		}
 		role := string("admin")
-		newUser := models.User{
+		newUser := User{
 			Name:     ADM_USER,
 			Email:    strings.ToLower(ADM_EMAIL),
 			Password: string(hashedPassword),
@@ -132,9 +130,9 @@ func (des *DESDatabase) CreateDESDatabase(drop bool) (err error) {
 
 	} else {
 		err = DES.DB.AutoMigrate(
-			&models.User{},
-			&models.DESDev{},
-			&models.DESJob{},
+			&User{},
+			&DESDev{},
+			&DESJob{},
 		)
 	}
 	if err != nil {

@@ -12,20 +12,20 @@ License:
 	2. Prohibits <Third Party> from taking any action which might interfere with DataCan's right to use, modify, distributre this software in perpetuity.
 */
 
-package models
+package pkg
 
 type DESJob struct {
 	DESJobID int64 `gorm:"unique; primaryKey" json:"des_job_id"`
 
 	DESJobRegTime   int64  `gorm:"not null" json:"des_job_reg_time"`
 	DESJobRegAddr   string `json:"des_job_reg_addr"`
-	DESJobRegUserID string `gorm:"not null" json:"des_job_reg_user_id"`
-	DESJobRegApp    string `gorm:"not null" json:"des_job_reg_app"`
+	DESJobRegUserID string `gorm:"not null; varchar(36)" json:"des_job_reg_user_id"`
+	DESJobRegApp    string `gorm:"not null; varchar(36)" json:"des_job_reg_app"`
 
 	DESJobName  string `gorm:"not null; unique; varchar(27)" json:"des_job_name"`
 	DESJobStart int64  `gorm:"not null" json:"des_job_start"`
 	DESJobEnd   int64  `gorm:"not null" json:"des_job_end"`
-	DESJobDevID int `json:"des_job_dev_id"`
+	DESJobDevID int64 `json:"des_job_dev_id"`
 	DESDev DESDev `gorm:"foreignKey:DESJobDevID" json:"-"`
 	User User `gorm:"foreignKey:DESJobRegUserID" json:"-"`
 }
