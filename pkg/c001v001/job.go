@@ -12,9 +12,9 @@ import (
 )
 
 type Job struct {
-	Admins  []JobAdmin  `json:"admins"`
-	Configs []JobConfig `json:"configs"`
-	Events  []Evt       `json:"events"`
+	Admins  []Admin     `json:"admins"`
+	Configs []Config    `json:"configs"`
+	Events  []Event     `json:"events"`
 	Samples []JobSample `json:"samples"`
 	pkg.DESRegistration
 }

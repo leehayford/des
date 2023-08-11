@@ -1,11 +1,11 @@
 package pkg
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
-	// "github.com/leehayford/go-mqtt-tsdb/pkg"
 )
 
 type DESMQTTClient struct {
@@ -113,3 +113,14 @@ func (pub MQTTPublication) Pub(client DESMQTTClient) bool {
 		return token.WaitTimeout(time.Millisecond * 100)
 	}
 }
+
+func MakeMQTTMessage(mqtt interface{}) (msg string) {
+
+	js, err := json.Marshal(mqtt)
+	if err != nil {
+		Trace(err)
+	}
+	return string(js)
+}
+
+

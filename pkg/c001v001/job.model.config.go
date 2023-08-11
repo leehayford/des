@@ -1,10 +1,9 @@
-
 package c001v001
 
 /*
 CONFIG - AS WRITTEN TO JOB DATABASE
 */
-type JobConfig struct {
+type Config struct {
 	CfgID int64 `gorm:"unique; primaryKey" json:"cfg_id"`
 
 	CfgTime   int64  `gorm:"not null" json:"cfg_time"`
@@ -73,32 +72,32 @@ type MQTT_JobConfig struct {
 	CfgDiagTrans  int32 `json:"cfg_diag_trans"`
 }
 
-func (cfg *JobConfig) FilterCfgRecord() MQTT_JobConfig {
+func (cfg *Config) FilterCfgRecord() MQTT_JobConfig {
 	return MQTT_JobConfig{
-		CfgTime: cfg.CfgTime,
-		CfgAddr: cfg.CfgAddr,
+		CfgTime:   cfg.CfgTime,
+		CfgAddr:   cfg.CfgAddr,
 		CfgUserID: cfg.CfgUserID,
-		CfgApp: cfg.CfgApp,
+		CfgApp:    cfg.CfgApp,
 
-		CfgJobName: cfg.CfgJobName,
+		CfgJobName:  cfg.CfgJobName,
 		CfgJobStart: cfg.CfgJobStart,
-		CfgJobEnd: cfg.CfgJobEnd,
-		CfgSCVD: cfg.CfgSCVD,
+		CfgJobEnd:   cfg.CfgJobEnd,
+		CfgSCVD:     cfg.CfgSCVD,
 		CfgSCVDMult: cfg.CfgSCVDMult,
-		CfgSSPRate: cfg.CfgSSPRate,
-		CfgSSPDur: cfg.CfgSSPDur,
-		CfgHiSCVF: cfg.CfgHiSCVF,
-		CfgFlowTog: cfg.CfgFlowTog,
+		CfgSSPRate:  cfg.CfgSSPRate,
+		CfgSSPDur:   cfg.CfgSSPDur,
+		CfgHiSCVF:   cfg.CfgHiSCVF,
+		CfgFlowTog:  cfg.CfgFlowTog,
 
 		CfgVlvTgt: cfg.CfgVlvTgt,
 		CfgVlvPos: cfg.CfgVlvPos,
 
 		CfgOpSample: cfg.CfgOpSample,
-		CfgOpLog: cfg.CfgOpLog,
-		CfgOpTrans: cfg.CfgOpTrans,
+		CfgOpLog:    cfg.CfgOpLog,
+		CfgOpTrans:  cfg.CfgOpTrans,
 
 		CfgDiagSample: cfg.CfgDiagSample,
-		CfgDiagLog: cfg.CfgDiagLog,
-		CfgDiagTrans: cfg.CfgDiagTrans,
+		CfgDiagLog:    cfg.CfgDiagLog,
+		CfgDiagTrans:  cfg.CfgDiagTrans,
 	}
-} 
+}

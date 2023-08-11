@@ -1,4 +1,3 @@
-
 package c001v001
 
 import (
@@ -15,12 +14,12 @@ USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
 PERFORMS DES DEVICE REGISTRATION
 PERFORMS CLASS/VERSION SPECIFIC REGISTRATION ACTIONS
 */
-func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
-	
+func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
+
 	role := c.Locals("role")
 	if role != "admin" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": "You must be an administrator to register devices",
 		})
 	}
@@ -28,13 +27,13 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 	device := pkg.DESDev{}
 	if err = c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": err.Error(),
 		})
 	}
 	if errors := pkg.ValidateStruct(device); errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "fail", 
+			"status": "fail",
 			"errors": errors,
 		})
 	}
@@ -48,7 +47,7 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 	device.DESDevRegAddr = c.IP()
 	if device_res := pkg.DES.DB.Create(&device); device_res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": device_res.Error.Error(),
 		})
 	}
@@ -60,26 +59,25 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 		DESRegistration: pkg.DESRegistration{
 			DESDev: device,
 			DESJob: pkg.DESJob{
-				DESJobRegTime: device.DESDevRegTime,
-				DESJobRegAddr: device.DESDevRegAddr,
+				DESJobRegTime:   device.DESDevRegTime,
+				DESJobRegAddr:   device.DESDevRegAddr,
 				DESJobRegUserID: device.DESDevRegUserID,
-				DESJobRegApp: device.DESDevRegApp,
-		
-				DESJobName: fmt.Sprintf("%s_0000000000000", device.DESDevSerial),
+				DESJobRegApp:    device.DESDevRegApp,
+
+				DESJobName:  fmt.Sprintf("%s_0000000000000", device.DESDevSerial),
 				DESJobStart: device.DESDevRegTime,
-				DESJobEnd: 0,
-		
+				DESJobEnd:   0,
+
 				DESJobDevID: device.DESDevID,
 			},
 		},
-	} 
+	}
 	if err = job.RegisterJob(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": err.Error(),
 		})
 	}
-
 
 	reg := pkg.DESRegistration{
 		DESDev: device,
@@ -87,8 +85,8 @@ func (dev *Device) RegisterDevice(c *fiber.Ctx) (err error) {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status": "success", 
-		"data": fiber.Map{"device": &reg},
+		"status":  "success",
+		"data":    fiber.Map{"device": &reg},
 		"message": "C001V001 Device Registered.",
 	})
 }

@@ -28,9 +28,13 @@ import (
 
 func main() {
 
-	pkg.DES.CreateDESDatabase(false)
+	// pkg.DES.CreateDESDatabase(false)
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
+
+	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
+	fmt.Println("Connecting all C001V001 MQTT Device Clients...")
+	c001v001.MQTTDeviceClient_CreateAndConnectAll()
 
 	/* MAIN SER$VER */
 	app := fiber.New()
@@ -63,8 +67,8 @@ func main() {
 	/* DES DEVICE ROUTES */
 	api.Route("/device", func(router fiber.Router) {
 		// router.Post("/register", pkg.DesAuth, controllers.RegisterDesDev)
-		router.Get("/list", pkg.DesAuth, pkg.GetDesDevList)
-		router.Post("/serial", pkg.DesAuth, pkg.GetDesDevBySerial)
+		router.Get("/list", pkg.DesAuth, pkg.HandleGetDesDevList)
+		router.Post("/serial", pkg.DesAuth, pkg.HandleGetDesDevBySerial)
 	})
 
 	/* DES JOB ROUTES */
@@ -76,7 +80,7 @@ func main() {
 
 	/* C001V001 DEVICE ROUTES */
 	api.Route("/001/001/device", func(router fiber.Router) {
-		router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).RegisterDevice)
+		router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
 	})
 
 	/* C001V001 JOB ROUTES */

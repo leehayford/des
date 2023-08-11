@@ -30,3 +30,28 @@ type DESDev struct {
 	User User `gorm:"foreignKey:DESDevRegUserID" json:"-"`
 }
 
+
+func GetDesDevList(devices *[]DESDev) (err error) {
+
+	/*
+		WHERE A DEVICE HAS MORE THAN ONE REGISTRATION RECORD
+		WE WANT THE LATEST
+	*/
+	subQry := DES.DB.
+		Table("des_devs").
+		Select(`des_dev_serial, MAX(des_dev_reg_time) AS max_time`).
+		Group("des_dev_serial")
+
+	qry := DES.DB.
+		Select(" * ").
+		Joins(`JOIN ( ? ) x 
+		ON des_devs.des_dev_serial = x.des_dev_serial 
+		AND des_devs.des_dev_reg_time = x.max_time`,
+			subQry).
+		Order("des_devs.des_dev_serial DESC")
+
+		res := qry.Find(&devices)
+		return res.Error
+}
+
+

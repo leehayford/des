@@ -1,12 +1,11 @@
-
 package c001v001
 
 /*
 ADMIN - AS WRITTEN TO JOB DATABASE
 */
-type JobAdmin struct {
+type Admin struct {
 	AdmID int64 `gorm:"unique; primaryKey" json:"adm_id"`
-	
+
 	AdmTime   int64  `gorm:"not null" json:"adm_time"`
 	AdmAddr   string `json:"adm_addr"`
 	AdmUserID string `gorm:"not null; varchar(36)" json:"adm_user_id"`
@@ -62,7 +61,7 @@ type JobAdmin struct {
 /*
 ADMIN - MQTT MESSAGE STRUCTURE
 */
-type MQTT_JobAdmin struct {
+type MQTT_Admin struct {
 	AdmTime   int64  `json:"adm_time"`
 	AdmAddr   string `json:"adm_addr"`
 	AdmUserID string `json:"adm_user_id"`
@@ -115,45 +114,45 @@ type MQTT_JobAdmin struct {
 	AdmLFSDiffMax  float32 `json:"adm_lfs_diff_max"`  // 10.0 psi
 }
 
-func (adm *JobAdmin) FilterAdmRecord() MQTT_JobAdmin {
-	return MQTT_JobAdmin{
-		AdmTime: adm.AdmTime,
-		AdmAddr: adm.AdmAddr,
+func (adm *Admin) FilterAdmRecord() MQTT_Admin {
+	return MQTT_Admin{
+		AdmTime:   adm.AdmTime,
+		AdmAddr:   adm.AdmAddr,
 		AdmUserID: adm.AdmUserID,
-		AdmApp: adm.AdmApp,
+		AdmApp:    adm.AdmApp,
 
 		AdmDefHost: adm.AdmDefHost,
 		AdmDefPort: adm.AdmDefPort,
-		AdmOpHost: adm.AdmOpHost,
+		AdmOpHost:  adm.AdmOpHost,
 		AdmOpsPort: adm.AdmOpsPort,
 
-		AdmSerial: adm.AdmSerial,
+		AdmSerial:  adm.AdmSerial,
 		AdmVersion: adm.AdmVersion,
-		AdmClass: adm.AdmClass,
+		AdmClass:   adm.AdmClass,
 
-		AdmBatHiAmp: adm.AdmBatHiAmp,
+		AdmBatHiAmp:  adm.AdmBatHiAmp,
 		AdmBatLoVolt: adm.AdmBatLoVolt,
 
 		AdmMotHiAmp: adm.AdmMotHiAmp,
 
-		AdmHFSFlow: adm.AdmHFSFlow,
-		AdmHFSFlowMin: adm.AdmHFSFlowMin,
-		AdmHFSFlowMax: adm.AdmHFSFlowMax,
-		AdmHFSPress: adm.AdmHFSPress,
+		AdmHFSFlow:     adm.AdmHFSFlow,
+		AdmHFSFlowMin:  adm.AdmHFSFlowMin,
+		AdmHFSFlowMax:  adm.AdmHFSFlowMax,
+		AdmHFSPress:    adm.AdmHFSPress,
 		AdmHFSPressMin: adm.AdmHFSPressMin,
 		AdmHFSPressMax: adm.AdmHFSPressMax,
-		AdmHFSDiff: adm.AdmHFSDiff,
-		AdmHFSDiffMin: adm.AdmHFSDiffMin,
-		AdmHFSDiffMax: adm.AdmHFSDiffMax,
+		AdmHFSDiff:     adm.AdmHFSDiff,
+		AdmHFSDiffMin:  adm.AdmHFSDiffMin,
+		AdmHFSDiffMax:  adm.AdmHFSDiffMax,
 
-		AdmLFSFlow: adm.AdmLFSFlow,
-		AdmLFSFlowMin: adm.AdmLFSFlowMin,
-		AdmLFSFlowMax: adm.AdmLFSFlowMax,
-		AdmLFSPress: adm.AdmLFSPress,
+		AdmLFSFlow:     adm.AdmLFSFlow,
+		AdmLFSFlowMin:  adm.AdmLFSFlowMin,
+		AdmLFSFlowMax:  adm.AdmLFSFlowMax,
+		AdmLFSPress:    adm.AdmLFSPress,
 		AdmLFSPressMin: adm.AdmLFSPressMin,
 		AdmLFSPressMax: adm.AdmLFSPressMax,
-		AdmLFSDiff: adm.AdmLFSDiff,
-		AdmLFSDiffMin: adm.AdmLFSDiffMin,
-		AdmLFSDiffMax: adm.AdmLFSDiffMax,
+		AdmLFSDiff:     adm.AdmLFSDiff,
+		AdmLFSDiffMin:  adm.AdmLFSDiffMin,
+		AdmLFSDiffMax:  adm.AdmLFSDiffMax,
 	}
 }

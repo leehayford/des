@@ -1,11 +1,31 @@
 package c001v001
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/leehayford/des/pkg"
 )
+
+func (job *Job) Write(model interface{}) (err error) {
+
+	db := job.JDB()
+	db.Connect()
+	defer db.Close()
+	if res := db.Create(model); res.Error != nil {
+		return res.Error
+	}
+	return db.Close()
+}
+
+func (job *Job) WriteMQTT(msg []byte, model interface{}) (err error) {
+
+	if err = json.Unmarshal(msg, model); err != nil {
+		return pkg.Trace(err)
+	}
+	return job.Write(model)
+}
 
 /*
 USED WHEN NEW C001V001 JOBS ARE GREATED
@@ -35,10 +55,10 @@ func (job *Job) RegisterJob() (err error) {
 		defer db.Close()
 
 		if err = db.Migrator().CreateTable(
-			&JobAdmin{},
-			&JobConfig{},
-			&EvtTyp{},
-			&Evt{},
+			&Admin{},
+			&Config{},
+			&EventTyp{},
+			&Event{},
 			&JobSample{},
 		); err != nil {
 			return err
@@ -63,19 +83,19 @@ func (job *Job) RegisterJob() (err error) {
 		db.Create(&EVT_TYP_MODE_HI_FLOW)
 		db.Create(&EVT_TYP_MODE_LO_FLOW)
 
-		job.Admins = []JobAdmin{job.RegisterJob_Default_JobAdmin()}
+		job.Admins = []Admin{job.RegisterJob_Default_JobAdmin()}
 		if adm_res := db.Create(&job.Admins[0]); adm_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobAdmins[0]) -> Error:\n%s\n", adm_res.Error.Error())
 			return adm_res.Error
 		}
 
-		job.Configs = []JobConfig{job.RegisterJob_Default_JobConfig()}
+		job.Configs = []Config{job.RegisterJob_Default_JobConfig()}
 		if cfg_res := db.Create(&job.Configs[0]); cfg_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Configs[0]) -> Error:\n%s\n", cfg_res.Error.Error())
 			return cfg_res.Error
 		}
 
-		job.Events = []Evt{job.RegisterJob_Default_JobEvent()}
+		job.Events = []Event{job.RegisterJob_Default_JobEvent()}
 		if evt_res := db.Create(&job.Events[0]); evt_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Events[0]) -> Error:\n%s\n", evt_res.Error.Error())
 			return evt_res.Error
@@ -86,8 +106,8 @@ func (job *Job) RegisterJob() (err error) {
 	}
 	return
 }
-func (job *Job) RegisterJob_Default_JobAdmin() (adm JobAdmin) {
-	return JobAdmin{
+func (job *Job) RegisterJob_Default_JobAdmin() (adm Admin) {
+	return Admin{
 		AdmTime:   job.DESJobRegTime,
 		AdmAddr:   job.DESJobRegAddr,
 		AdmUserID: job.DESJobRegUserID,
@@ -140,8 +160,8 @@ func (job *Job) RegisterJob_Default_JobAdmin() (adm JobAdmin) {
 		AdmLFSDiffMax:  10.0, // 10.0 psi
 	}
 }
-func (job *Job) RegisterJob_Default_JobConfig() (cfg JobConfig) {
-	return JobConfig{
+func (job *Job) RegisterJob_Default_JobConfig() (cfg Config) {
+	return Config{
 		CfgTime:   job.DESJobRegTime,
 		CfgAddr:   job.DESJobRegAddr,
 		CfgUserID: job.DESJobRegUserID,
@@ -172,8 +192,8 @@ func (job *Job) RegisterJob_Default_JobConfig() (cfg JobConfig) {
 		CfgDiagSample: 10000,  // millisecond
 	}
 }
-func (job *Job) RegisterJob_Default_JobEvent() (evt Evt) {
-	return Evt{
+func (job *Job) RegisterJob_Default_JobEvent() (evt Event) {
+	return Event{
 		EvtTime:   job.DESJobRegTime,
 		EvtAddr:   job.DESJobRegAddr,
 		EvtUserID: job.DESJobRegUserID,
