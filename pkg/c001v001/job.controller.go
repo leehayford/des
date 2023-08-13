@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gofiber/fiber/v2"
+
 	"github.com/leehayford/des/pkg"
 )
 
@@ -59,29 +61,32 @@ func (job *Job) RegisterJob() (err error) {
 			&Config{},
 			&EventTyp{},
 			&Event{},
-			&JobSample{},
+			&Sample{},
 		); err != nil {
 			return err
 		}
 
 		/* CREATE EVENT TYPES */
-		db.Create(&EVT_TYP_REGISTER_DEVICE)
+		for _, typ := range EVENT_TYPES {
+			db.Create(&typ)
+		}
+		// db.Create(&EVT_TYP_REGISTER_DEVICE)
 
-		db.Create(&EVT_TYP_JOB_START)
-		db.Create(&EVT_TYP_JOB_END)
-		db.Create(&EVT_TYP_JOB_CONFIG)
-		db.Create(&EVT_TYP_JOB_SSP)
+		// db.Create(&EVT_TYP_JOB_START)
+		// db.Create(&EVT_TYP_JOB_END)
+		// db.Create(&EVT_TYP_JOB_CONFIG)
+		// db.Create(&EVT_TYP_JOB_SSP)
 
-		db.Create(&EVT_TYP_ALARM_HI_BAT_AMP)
-		db.Create(&EVT_TYP_ALARM_LO_BAT_VOLT)
-		db.Create(&EVT_TYP_ALARM_HI_MOT_AMP)
-		db.Create(&EVT_TYP_ALARM_HI_PRESS)
-		db.Create(&EVT_TYP_ALARM_HI_FLOW)
+		// db.Create(&EVT_TYP_ALARM_HI_BAT_AMP)
+		// db.Create(&EVT_TYP_ALARM_LO_BAT_VOLT)
+		// db.Create(&EVT_TYP_ALARM_HI_MOT_AMP)
+		// db.Create(&EVT_TYP_ALARM_HI_PRESS)
+		// db.Create(&EVT_TYP_ALARM_HI_FLOW)
 
-		db.Create(&EVT_TYP_MODE_VENT)
-		db.Create(&EVT_TYP_MODE_BUILD)
-		db.Create(&EVT_TYP_MODE_HI_FLOW)
-		db.Create(&EVT_TYP_MODE_LO_FLOW)
+		// db.Create(&EVT_TYP_MODE_VENT)
+		// db.Create(&EVT_TYP_MODE_BUILD)
+		// db.Create(&EVT_TYP_MODE_HI_FLOW)
+		// db.Create(&EVT_TYP_MODE_LO_FLOW)
 
 		job.Admins = []Admin{job.RegisterJob_Default_JobAdmin()}
 		if adm_res := db.Create(&job.Admins[0]); adm_res.Error != nil {
@@ -198,8 +203,28 @@ func (job *Job) RegisterJob_Default_JobEvent() (evt Event) {
 		EvtAddr:   job.DESJobRegAddr,
 		EvtUserID: job.DESJobRegUserID,
 		EvtApp:    job.DESJobRegApp,
-		EvtCode:   EVT_TYP_REGISTER_DEVICE.EvtTypCode,
+		EvtCode:   EVENT_TYPES[0].EvtTypCode,
 		EvtTitle:  "A Device is Born",
-		EvtMsg:    "Congratulations, it's a c001v001...",
+		EvtMsg:    `Congratulations, it's a class 001, version 001 device! This test is here to take up space; normal people would use the function that shits out latin but I don't. Partly because I don't remember what it is and the other reason is I don't feel like lookingit up.`,
 	}
+}
+
+func (job *Job) GetJobData() (err error) {
+	db := job.JDB()
+	db.Connect()
+	defer db.Close()
+	db.Select("*").Table("admins").Order("adm_time DESC").Scan(&job.Admins)
+	db.Select("*").Table("configs").Order("cfg_time DESC").Scan(&job.Configs)
+	db.Select("*").Table("events").Order("evt_time DESC").Scan(&job.Events)
+	db.Select("*").Table("samples").Order("smp_time DESC").Scan(&job.Samples)
+	db.Close() // pkg.Json("GetJobData(): job", job)
+	return
+}
+
+func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "You are a tolerable person!",
+		"data":    fiber.Map{"event_types": EVENT_TYPES},
+	})
 }

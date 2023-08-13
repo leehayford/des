@@ -11,7 +11,7 @@ const DEVICE_VERSION = "001"
 
 type Device struct {
 	Job `json:"job"` // The active job for this device ( last job if it has ended )
-	pkg.DESRegistration
+	pkg.DESRegistration `json:"reg"`
 	pkg.DESMQTTClient `json:"-"`
 }
 

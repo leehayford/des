@@ -17,8 +17,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/gofiber/fiber/v2"
+    "github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 
@@ -55,6 +57,7 @@ func main() {
 	/* API ROUTES */
 	api := fiber.New()
 	app.Mount("/api", api)
+	app.Get("/user", pkg.GetUsers)
 	app.Get("/user/me", pkg.DesAuth, pkg.GetMe)
 
 	/* AUTH & USER ROUTES */
@@ -81,11 +84,21 @@ func main() {
 	/* C001V001 DEVICE ROUTES */
 	api.Route("/001/001/device", func(router fiber.Router) {
 		router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
+		router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
 	})
 
 	/* C001V001 JOB ROUTES */
 	api.Route("/001/001/job", func(router fiber.Router) {
 		// router.Post("/config", pkg.DesAuth, (&c001v001.Job{}).Configure)
+		router.Get("/event/list", c001v001.HandleGetEventTypeLists)
+	})
+
+	/* C001V001 DEMO ROUTES */
+	api.Route("/001/001/demo", func(router fiber.Router) {
+		router.Get("/sim", adaptor.HTTPHandler(
+			http.HandlerFunc( 
+				(&c001v001.DemoDeviceClient{}).SSEDemoDeviceClient_Connect,
+			)))
 	})
 
 	api.All("*", func(c *fiber.Ctx) error {

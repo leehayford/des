@@ -157,3 +157,23 @@ func GetMe(c *fiber.Ctx) error {
 		"data": fiber.Map{"user": FilterUserRecord(&user)},
 	})
 }
+
+func GetUsers(c *fiber.Ctx) error {
+	
+	fmt.Printf("\nGetUsers( ):\n")	
+
+	usrs := []User{}
+	DES.DB.Find(&usrs)
+	fmt.Printf("\nusrs: %d\n", len(usrs))	
+
+	users := []UserResponse{}
+	for _, usr := range usrs {
+		users = append(users, FilterUserRecord(&usr))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success", 
+		"message": "These are all tolerable people!",
+		"data": fiber.Map{"users": users},
+	})
+}

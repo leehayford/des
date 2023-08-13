@@ -51,48 +51,70 @@ type EventTyp struct {
 	EvtTypDesc string `json:"evt_typ_desc"`
 }
 
-/*ADMIN EVENT TYPES*/
-var EVT_TYP_REGISTER_DEVICE EventTyp = EventTyp{EvtTypCode: 0,
-	EvtTypName: "DEVICE REGISTRATION"}
+var EVENT_TYPES = []EventTyp{
 
-/*OPERATIONAL EVENT TYPES*/
-var EVT_TYP_JOB_START EventTyp = EventTyp{EvtTypCode: 1,
-	EvtTypName: "JOB STARTED"}
+	/*ADMIN EVENT TYPES*/
+	{EvtTypCode: 0, EvtTypName: "DEVICE REGISTRATION"},
 
-var EVT_TYP_JOB_END EventTyp = EventTyp{EvtTypCode: 2,
-	EvtTypName: "JOB ENDED"}
+	/*OPERATIONAL EVENT TYPES*/
+	{EvtTypCode: 1, EvtTypName: "JOB STARTED"},
 
-var EVT_TYP_JOB_CONFIG EventTyp = EventTyp{EvtTypCode: 3,
-	EvtTypName: "CONFIGURATION CHANGED"}
+	{EvtTypCode: 2, EvtTypName: "JOB ENDED"},
 
-var EVT_TYP_JOB_SSP EventTyp = EventTyp{EvtTypCode: 4,
-	EvtTypName: "SHUT-IN PRESSURE STABILIZED"}
+	{EvtTypCode: 3, EvtTypName: "CONFIGURATION CHANGED"},
 
-/*OPERATION ALARM EVENT TYPES*/
-var EVT_TYP_ALARM_HI_BAT_AMP EventTyp = EventTyp{EvtTypCode: 5,
-	EvtTypName: "ALARM HIGH BATTERY CURRENT"}
+	{EvtTypCode: 4, EvtTypName: "SHUT-IN PRESSURE STABILIZED"},
 
-var EVT_TYP_ALARM_LO_BAT_VOLT EventTyp = EventTyp{EvtTypCode: 6,
-	EvtTypName: "ALARM LOW BATTERY VOLTAGE"}
+	/*OPERATION ALARM EVENT TYPES*/
+	{EvtTypCode: 5, EvtTypName: "ALARM HIGH BATTERY CURRENT"},
 
-var EVT_TYP_ALARM_HI_MOT_AMP EventTyp = EventTyp{EvtTypCode: 7,
-	EvtTypName: "ALARM HIGH MOTOR CURRENT"}
+	{EvtTypCode: 6, EvtTypName: "ALARM LOW BATTERY VOLTAGE"},
 
-var EVT_TYP_ALARM_HI_PRESS EventTyp = EventTyp{EvtTypCode: 8,
-	EvtTypName: "ALARM HIGH PRESSURE"}
+	{EvtTypCode: 7, EvtTypName: "ALARM HIGH MOTOR CURRENT"},
 
-var EVT_TYP_ALARM_HI_FLOW EventTyp = EventTyp{EvtTypCode: 9,
-	EvtTypName: "ALARM HIGH FLOW"}
+	{EvtTypCode: 8, EvtTypName: "ALARM HIGH PRESSURE"},
 
-/*OPERATION MODE EVENT TYPES*/
-var EVT_TYP_MODE_VENT EventTyp = EventTyp{EvtTypCode: 10,
-	EvtTypName: "MODE VENT"}
+	{EvtTypCode: 9, EvtTypName: "ALARM HIGH FLOW"},
 
-var EVT_TYP_MODE_BUILD EventTyp = EventTyp{EvtTypCode: 11,
-	EvtTypName: "MODE BUILD"}
+	/*OPERATION MODE EVENT TYPES*/
+	{EvtTypCode: 10, EvtTypName: "MODE VENT"},
 
-var EVT_TYP_MODE_HI_FLOW EventTyp = EventTyp{EvtTypCode: 12,
-	EvtTypName: "MODE HIGH FLOW"}
+	{EvtTypCode: 11, EvtTypName: "MODE BUILD"},
 
-var EVT_TYP_MODE_LO_FLOW EventTyp = EventTyp{EvtTypCode: 13,
-	EvtTypName: "MODE LOW FLOW"}
+	{EvtTypCode: 12, EvtTypName: "MODE HIGH FLOW"},
+
+	{EvtTypCode: 13, EvtTypName: "MODE LOW FLOW"},
+
+}
+
+// /*ADMIN EVENT TYPES*/
+// var EVT_TYP_REGISTER_DEVICE EventTyp = EventTyp{EvtTypCode: 0, EvtTypName: "DEVICE REGISTRATION"}
+
+// /*OPERATIONAL EVENT TYPES*/
+// var EVT_TYP_JOB_START EventTyp = EventTyp{EvtTypCode: 1, EvtTypName: "JOB STARTED"}
+
+// var EVT_TYP_JOB_END EventTyp = EventTyp{EvtTypCode: 2, EvtTypName: "JOB ENDED"}
+
+// var EVT_TYP_JOB_CONFIG EventTyp = EventTyp{EvtTypCode: 3, EvtTypName: "CONFIGURATION CHANGED"}
+
+// var EVT_TYP_JOB_SSP EventTyp = EventTyp{EvtTypCode: 4, EvtTypName: "SHUT-IN PRESSURE STABILIZED"}
+
+// /*OPERATION ALARM EVENT TYPES*/
+// var EVT_TYP_ALARM_HI_BAT_AMP EventTyp = EventTyp{EvtTypCode: 5, EvtTypName: "ALARM HIGH BATTERY CURRENT"}
+
+// var EVT_TYP_ALARM_LO_BAT_VOLT EventTyp = EventTyp{EvtTypCode: 6, EvtTypName: "ALARM LOW BATTERY VOLTAGE"}
+
+// var EVT_TYP_ALARM_HI_MOT_AMP EventTyp = EventTyp{EvtTypCode: 7, EvtTypName: "ALARM HIGH MOTOR CURRENT"}
+
+// var EVT_TYP_ALARM_HI_PRESS EventTyp = EventTyp{EvtTypCode: 8, EvtTypName: "ALARM HIGH PRESSURE"}
+
+// var EVT_TYP_ALARM_HI_FLOW EventTyp = EventTyp{EvtTypCode: 9, EvtTypName: "ALARM HIGH FLOW"}
+
+// /*OPERATION MODE EVENT TYPES*/
+// var EVT_TYP_MODE_VENT EventTyp = EventTyp{EvtTypCode: 10, EvtTypName: "MODE VENT"}
+
+// var EVT_TYP_MODE_BUILD EventTyp = EventTyp{EvtTypCode: 11, EvtTypName: "MODE BUILD"}
+
+// var EVT_TYP_MODE_HI_FLOW EventTyp = EventTyp{EvtTypCode: 12, EvtTypName: "MODE HIGH FLOW"}
+
+// var EVT_TYP_MODE_LO_FLOW EventTyp = EventTyp{EvtTypCode: 13, EvtTypName: "MODE LOW FLOW"}

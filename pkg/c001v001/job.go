@@ -12,7 +12,7 @@ type Job struct {
 	Configs []Config    `json:"configs"`
 	Events  []Event     `json:"events"`
 	Samples []JobSample `json:"samples"`
-	pkg.DESRegistration
+	pkg.DESRegistration `json:"reg"`
 }
 
 func (job *Job) JDB() *pkg.DBI {
