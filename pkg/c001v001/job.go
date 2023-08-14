@@ -11,7 +11,7 @@ type Job struct {
 	Admins  []Admin     `json:"admins"`
 	Configs []Config    `json:"configs"`
 	Events  []Event     `json:"events"`
-	Samples []JobSample `json:"samples"`
+	Samples []Sample `json:"samples"`
 	pkg.DESRegistration `json:"reg"`
 }
 
@@ -19,6 +19,3 @@ func (job *Job) JDB() *pkg.DBI {
 	return &pkg.DBI{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(job.DESJobName))}
 }
 
-type JobSample struct {
-	SmpID int64 `gorm:"unique; primaryKey" json:"smp_id"`
-}

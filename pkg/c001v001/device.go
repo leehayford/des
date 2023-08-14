@@ -15,7 +15,6 @@ type Device struct {
 	pkg.DESMQTTClient `json:"-"`
 }
 
-
 func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 
 	/*
@@ -62,7 +61,6 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 		err = res.Error
 		return 
 }
-
 
 /* Create a device client for all registered devices */
 func MQTTDeviceClient_CreateAndConnectAll() (err error) {

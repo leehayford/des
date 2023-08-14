@@ -1,4 +1,3 @@
-
 package c001v001
 
 import (
@@ -6,15 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"net/http"
+
 	"net/url"
 	"time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
+	"github.com/gofiber/contrib/websocket"
 
 	"github.com/leehayford/des/pkg"
 )
-
 
 /*
 	MQTT DEVICE CLIENT
@@ -31,65 +30,46 @@ type Sim struct {
 type DemoDeviceClient struct {
 	Device
 	Sim
-	sizeChan    chan int
-	sentChan    chan int
-	SSEClientID string
-	http.Flusher
-	CTX    context.Context
-	Cancel context.CancelFunc
+	sizeChan   chan int
+	sentChan   chan int
+	WSClientID string
+	CTX        context.Context
+	Cancel     context.CancelFunc
 	pkg.DESMQTTClient
 }
 
-func (demo DemoDeviceClient) SSEDemoDeviceClient_Connect(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("(demo *DemoDeviceClient) SSEDemoDeviceClient_Connect( ... ): So far, so good...")
-	
-	simStr, _ := url.QueryUnescape(r.URL.Query().Get("sim"))
-	des_regStr, _ := url.QueryUnescape(r.URL.Query().Get("des_reg"))
+func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
+	fmt.Println("WSDemoDeviceClient_Connect( ... ): So far, so good...")
+
+	simStr, _ := url.QueryUnescape(c.Query("sim"))
+	des_regStr, _ := url.QueryUnescape(c.Query("des_reg"))
 
 	des_reg := pkg.DESRegistration{}
 	if err := json.Unmarshal([]byte(des_regStr), &des_reg); err != nil {
 		pkg.Trace(err)
-		/*TODO: PROPER HTTP STATUS ETC */
-		// w.Write([]byte("CONNECTION FAILED - BAD DESR DATA IN REQUEST"))
 	}
-	des_reg.DESDevRegAddr = r.RemoteAddr
-	des_reg.DESJobRegAddr = r.RemoteAddr
+	des_reg.DESDevRegAddr = c.RemoteAddr().String()
+	des_reg.DESJobRegAddr = c.RemoteAddr().String()
 
 	sim := Sim{}
 	if err := json.Unmarshal([]byte(simStr), &sim); err != nil {
 		pkg.Trace(err)
-		/*TODO: PROPER HTTP STATUS ETC */
-		// w.Write([]byte("CONNECTION FAILED - BAD SIM DATA IN REQUEST"))
 	}
 
-	ssecid := fmt.Sprintf("%s-DEMO-%s-%s",
-		r.RemoteAddr,
+	wscid := fmt.Sprintf("%s-DEMO-%s-%s",
+		c.RemoteAddr().String(),
 		des_reg.DESDevRegUserID,
 		des_reg.DESJobName,
 	)
-	
+
 	demo = DemoDeviceClient{
-		Device:      Device{ 
-			DESRegistration: des_reg, 
-			Job:	Job{ DESRegistration: des_reg },
+		Device: Device{
+			DESRegistration: des_reg,
+			Job:             Job{DESRegistration: des_reg},
 		},
-		Sim:         sim,
-		SSEClientID: ssecid,
-	} 
-	fmt.Printf("\nHandleDemo_Run_Sim(...) -> ddc: %v\n\n", demo)
-
-	ok := false
-	demo.Flusher, ok = w.(http.Flusher)
-	if !ok {
-		fmt.Println("(demo *DemoDeviceClient) SSEDemoDeviceClient_Connect( ... ): Could not initialize http.Flusher.")
-		return
-	}
-
-	fmt.Printf("\n(demo *DemoDeviceClient) SSEDemoDeviceClient_Connect(...) -> demo.DeviceSerial: %s\n\n", demo.DESDevSerial)
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+		Sim:        sim,
+		WSClientID: wscid,
+	} // fmt.Printf("\nHandleDemo_Run_Sim(...) -> ddc: %v\n\n", demo)
 
 	demo.sizeChan = make(chan int)
 	defer func() {
@@ -102,37 +82,41 @@ func (demo DemoDeviceClient) SSEDemoDeviceClient_Connect(w http.ResponseWriter, 
 		demo.sentChan = nil
 	}()
 
-	demo.CTX, demo.Cancel = context.WithCancel(context.TODO())
-	defer demo.Cancel()
-
 	demo.MQTTDemoDeviceClient_Connect()
 
 	go demo.Demo_Run_Sim()
 
-	for ok {
+	open := true
+	go func() {
+		for {
+			_, msg, err := c.ReadMessage()
+			if err != nil {
+				fmt.Printf("WSDemoDeviceClient_Connect -> c.ReadMessage() ERROR:\n%s", err.Error())
+				break
+			}
+			if string(msg) == "close" {
+				fmt.Printf("WSDemoDeviceClient_Connect -> go func() -> c.ReadMessage(): %s\n", string(msg))
+				demo.MQTTDemoDeviceClient_Disconnect()
+				open = false
+				break
+			}
+		}
+		fmt.Printf("WSDemoDeviceClient_Connect -> go func() done\n")
+	}()
+
+	for open {
 		select {
 
-		case <-r.Context().Done():
-			demo.MQTTDemoDeviceClient_Disconnect()
-			demo.Cancel()
-			ok = false
-			return
+		case size := <-demo.sizeChan:
+			c.WriteJSON(size)
 
-		case size := <- demo.sizeChan:
-			fmt.Fprintf(w, "data: %d\n\n", size)
-			demo.Flusher.Flush()
-
-		case sent := <- demo.sentChan:
-			fmt.Fprintf(w, "data: %d\n\n", sent)
-			demo.Flusher.Flush()
+		case sent := <-demo.sentChan:
+			c.WriteJSON(sent)
 
 		}
-
 	}
+	return
 }
-
-
-
 
 /*
 	 NOT FOR PRODUCTION - SIMULATES A C001V001 DEVICE
@@ -174,7 +158,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
 	/* DISCONNECT THE DESMQTTCLient */
 	demo.DESMQTTClient_Disconnect()
 
-	fmt.Printf("(demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect( ... ): Complete; OKCancel.\n")
+	fmt.Printf("(demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect( ... ): Complete.\n")
 }
 
 /*
@@ -195,7 +179,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 
 			/* SIMULATE HAVING DONE SOMETHING */
 			time.Sleep(time.Millisecond * 500)
-			adm.AdmTime = time.Now().UTC().UnixMicro()
+			adm.AdmTime = time.Now().UTC().UnixMilli()
 
 			demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
 		},
@@ -217,7 +201,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 
 			/* SIMULATE HAVING DONE SOMETHING */
 			time.Sleep(time.Millisecond * 500)
-			mqtt.CfgTime = time.Now().UTC().UnixMicro()
+			mqtt.CfgTime = time.Now().UTC().UnixMilli()
 
 			demo.MQTTPublication_DemoDeviceClient_SIGConfig(mqtt)
 		},
@@ -239,7 +223,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 
 			/* SIMULATE HAVING DONE SOMETHING */
 			time.Sleep(time.Millisecond * 500)
-			mqtt.EvtTime = time.Now().UTC().UnixMicro()
+			mqtt.EvtTime = time.Now().UTC().UnixMilli()
 
 			demo.MQTTPublication_DemoDeviceClient_SIGEvent(mqtt)
 		},
@@ -291,8 +275,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts *
 	b64, err := json.Marshal(mqtts)
 	if err != nil {
 		pkg.Trace(err)
-	}
-
+	} // pkg.Json("MQTT_Sample:", b64)
 	return (pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGSample(),
@@ -302,7 +285,6 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts *
 		Qos:      0,
 	}).Pub(demo.DESMQTTClient)
 }
-
 
 /*DEMO SIM -> PUBLISH TO MQTT */
 func (demo *DemoDeviceClient) Demo_Run_Sim() {
@@ -329,7 +311,7 @@ func YSinX(t0, ti time.Time, max, shift float64) (y float32) {
 	dt := ti.Sub(t0).Seconds()
 	a := max / 2
 
-	return float32(a * (math.Sin(dt*freq + (freq / shift)) + 1))
+	return float32(a * (math.Sin(dt*freq+(freq/shift)) + 1))
 }
 func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
 
@@ -337,11 +319,11 @@ func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
 	dt := ti.Sub(t0).Seconds()
 	a := max / 2
 
-	return float32(a * (math.Cos(dt*freq + (freq / shift)) + 1))
+	return float32(a * (math.Cos(dt*freq+(freq/shift)) + 1))
 }
 func Demo_Make_Sim_Sample(t0, ti time.Time, job string) MQTT_Sample {
 
-	tumic := ti.UnixMicro()
+	tumic := ti.UnixMilli()
 	data := []pkg.TimeSeriesData{
 		/* "AAABgss3rYBCxs2nO2VgQj6qrwk/JpeNPv6JZUFWw+1BUWVuAAQABA==" */
 		{ // methane
@@ -425,7 +407,7 @@ func Demo_EncodeMQTTSampleMessage(job string, i int, data []pkg.TimeSeriesData) 
 
 	msg := MQTT_Sample{
 		DesJobName: job,
-		Data:  []string{b64},
+		Data:       []string{b64},
 	}
 
 	return msg

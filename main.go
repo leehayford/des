@@ -17,10 +17,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
-    "github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 
@@ -43,7 +42,7 @@ func main() {
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "http://localhost:8080, http://localhost:5173, http://localhost:58714",
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Cache-Control",
 		AllowMethods:     "GET, POST",
 		AllowCredentials: true,
 	}))
@@ -85,6 +84,9 @@ func main() {
 	api.Route("/001/001/device", func(router fiber.Router) {
 		router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
 		router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
+		router.Get("/ws", pkg.DesAuth, websocket.New(
+			(&c001v001.DeviceUserClient{}).WSDeviceUserClient_Connect,
+		))
 	})
 
 	/* C001V001 JOB ROUTES */
@@ -95,10 +97,9 @@ func main() {
 
 	/* C001V001 DEMO ROUTES */
 	api.Route("/001/001/demo", func(router fiber.Router) {
-		router.Get("/sim", adaptor.HTTPHandler(
-			http.HandlerFunc( 
-				(&c001v001.DemoDeviceClient{}).SSEDemoDeviceClient_Connect,
-			)))
+		router.Get("/sim", pkg.DesAuth, websocket.New(
+			(&c001v001.DemoDeviceClient{}).WSDemoDeviceClient_Connect,
+		))
 	})
 
 	api.All("*", func(c *fiber.Ctx) error {

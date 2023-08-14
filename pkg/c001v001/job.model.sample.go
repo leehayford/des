@@ -34,6 +34,11 @@ type MQTT_Sample struct {
 	Data  []string `json:"data"`
 }
 
+type SSESample struct {
+	Type string `json:"type"`
+	Data Sample `json:"data"`
+}
+
 func (job *Job) WriteMQTTSample(msg []byte) (err error) {
 
 	// Decode the payload into an MQTTSampleMessage
@@ -46,7 +51,7 @@ func (job *Job) WriteMQTTSample(msg []byte) (err error) {
 
 		// Decode base64 string
 		sample := &Sample{SmpJobName: mqtts.DesJobName}
-		if err = job.DecodeMQTTSample(b64); err != nil {
+		if err = job.DecodeMQTTSample(b64, sample); err != nil {
 			return err
 		}
 
@@ -59,23 +64,22 @@ func (job *Job) WriteMQTTSample(msg []byte) (err error) {
 	return err
 }
 
-func (job *Job) DecodeMQTTSample(b64 string) (err error) {
+func (job *Job) DecodeMQTTSample(b64 string, smp *Sample) (err error) {
 
 	bytes := pkg.Base64ToBytes(b64)
 
-	sample := Sample{}
-	sample.SmpTime = pkg.BytesToInt64(bytes[0:8])
-	sample.SmpCH4 = pkg.BytesToFloat32(bytes[8:12])
-	sample.SmpHiFlow = pkg.BytesToFloat32(bytes[12:16])
-	sample.SmpLoFlow = pkg.BytesToFloat32(bytes[16:20])
-	sample.SmpPress = pkg.BytesToFloat32(bytes[20:24])
-	sample.SmpBatAmp = pkg.BytesToFloat32(bytes[24:28])
-	sample.SmpBatVolt = pkg.BytesToFloat32(bytes[28:32])
-	sample.SmpMotVolt = pkg.BytesToFloat32(bytes[32:36])
-	sample.SmpVlvTgt = pkg.BytesToUInt32(bytes[36:38])
-	sample.SmpVlvPos = pkg.BytesToUInt32(bytes[38:40])
+	smp.SmpTime = pkg.BytesToInt64(bytes[0:8])
+	smp.SmpCH4 = pkg.BytesToFloat32(bytes[8:12])
+	smp.SmpHiFlow = pkg.BytesToFloat32(bytes[12:16])
+	smp.SmpLoFlow = pkg.BytesToFloat32(bytes[16:20])
+	smp.SmpPress = pkg.BytesToFloat32(bytes[20:24])
+	smp.SmpBatAmp = pkg.BytesToFloat32(bytes[24:28])
+	smp.SmpBatVolt = pkg.BytesToFloat32(bytes[28:32])
+	smp.SmpMotVolt = pkg.BytesToFloat32(bytes[32:36])
+	smp.SmpVlvTgt = pkg.BytesToUInt32(bytes[36:38])
+	smp.SmpVlvPos = pkg.BytesToUInt32(bytes[38:40])
 
-	// pkg.Json("DecodeMQTTSampleData(...) ->  sample:", sample)
+	// pkg.Json("DecodeMQTTSampleData(...) ->  smp:", smp)
 
 	return err
 }

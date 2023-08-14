@@ -59,7 +59,7 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect() (err error) {
 	return err
 }
 func (desm *DESMQTTClient) DESMQTTClient_Disconnect() (err error) {
-	desm.Client.Disconnect(10) // Wait 10 milliseconds
+	desm.Client.Disconnect(0) // Wait 10 milliseconds
 	return err
 }
 

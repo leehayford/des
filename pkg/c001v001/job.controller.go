@@ -106,7 +106,7 @@ func (job *Job) RegisterJob() (err error) {
 			return evt_res.Error
 		}
 
-		job.Samples = []JobSample{}
+		job.Samples = []Sample{}
 
 	}
 	return

@@ -26,13 +26,16 @@ import (
 func DesAuth(c *fiber.Ctx) (err error) {
 
 	authorization := c.Get("Authorization")
-	fmt.Printf("AUTHORIZATION: \n%s\n", authorization)
+	// fmt.Printf("AUTHORIZATION: \n%s\n", authorization)
+	// fmt.Printf("ACCESS_TOKEN: \n%s\n", c.Query("access_token"))
 
 	tokenString := ""
 	if strings.HasPrefix(authorization, "Bearer ") {
 		tokenString = strings.TrimPrefix(authorization, "Bearer ")
 	} else if c.Cookies("token") != "" {
 		tokenString = c.Cookies("token")
+	} else if c.Query("access_token") != "" {
+		tokenString = c.Query("access_token")
 	}
 	if tokenString == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

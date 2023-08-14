@@ -17,7 +17,10 @@ package pkg
 
 import (
 	"fmt"
+	// "log"
+	// "os"
 	"strings"
+	// "time"
 
 	"gorm.io/driver/postgres" // go get gorm.io/driver/postgres
 	"gorm.io/gorm"            // go get gorm.io/gorm
@@ -38,7 +41,7 @@ func (dbi *DBI) Connect() (err error) {
 	}
 
 	dbi.DB.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
-	dbi.DB.Logger = logger.Default.LogMode(logger.Info)
+	dbi.DB.Logger = logger.Default.LogMode(logger.Error)
 
 	return err
 }
