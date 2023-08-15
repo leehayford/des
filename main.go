@@ -29,7 +29,7 @@ import (
 
 func main() {
 
-	// pkg.DES.CreateDESDatabase(false)
+	pkg.DES.CreateDESDatabase(false)
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
 
