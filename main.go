@@ -66,12 +66,12 @@ func main() {
 		router.Get("/logout", pkg.DesAuth, pkg.LogoutUser)
 	})
 
-	/* DES DEVICE ROUTES */
-	api.Route("/device", func(router fiber.Router) {
-		// router.Post("/register", pkg.DesAuth, controllers.RegisterDesDev)
-		router.Get("/list", pkg.DesAuth, pkg.HandleGetDesDevList)
-		router.Post("/serial", pkg.DesAuth, pkg.HandleGetDesDevBySerial)
-	})
+	// /* DES DEVICE ROUTES */
+	// api.Route("/device", func(router fiber.Router) {
+	// 	// router.Post("/register", pkg.DesAuth, controllers.RegisterDesDev)
+	// 	router.Get("/list", pkg.DesAuth, pkg.HandleGetDesDevList)
+	// 	router.Post("/serial", pkg.DesAuth, pkg.HandleGetDesDevBySerial)
+	// })
 
 	/* DES JOB ROUTES */
 	api.Route("/job", func(router fiber.Router) {

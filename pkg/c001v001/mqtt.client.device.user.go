@@ -1,4 +1,3 @@
-
 package c001v001
 
 import (
@@ -9,22 +8,22 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/gofiber/contrib/websocket"
 	phao "github.com/eclipse/paho.mqtt.golang"
+	"github.com/gofiber/contrib/websocket"
 
 	"github.com/leehayford/des/pkg"
 )
 
 type DeviceUserClient struct {
 	Device
-	adminChan   chan string
-	configChan  chan string
-	eventChan   chan string
-	sampleChan  chan string
-	diagChan    chan string
+	adminChan  chan string
+	configChan chan string
+	eventChan  chan string
+	sampleChan chan string
+	diagChan   chan string
 	WSClientID string
-	CTX    context.Context
-	Cancel context.CancelFunc
+	CTX        context.Context
+	Cancel     context.CancelFunc
 	pkg.DESMQTTClient
 }
 
@@ -44,15 +43,15 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 		c.RemoteAddr().String(),
 		des_reg.DESDevRegUserID,
 		des_reg.DESJobName,
-	)  // fmt.Printf("WSDeviceUserClient_Connect -> wscid: %s\n", wscid)
+	) // fmt.Printf("WSDeviceUserClient_Connect -> wscid: %s\n", wscid)
 
 	duc = DeviceUserClient{
-		Device:      Device{ 
-			DESRegistration: des_reg, 
-			Job:	Job{ DESRegistration: des_reg },
+		Device: Device{
+			DESRegistration: des_reg,
+			Job:             Job{DESRegistration: des_reg},
 		},
 		WSClientID: wscid,
-	}  // fmt.Printf("\nHandle_ConnectDeviceUser(...) -> duc: %v\n\n", duc)
+	} // fmt.Printf("\nHandle_ConnectDeviceUser(...) -> duc: %v\n\n", duc)
 
 	duc.adminChan = make(chan string)
 	defer func() {
@@ -83,14 +82,14 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	duc.MQTTDeviceUserClient_Connect()
 
 	open := true
-	go func() {  
+	go func() {
 		for {
 			_, msg, err := c.ReadMessage()
 			if err != nil {
 				fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() ERROR:\n%s", err.Error())
 				break
 			}
-			if (string(msg) == "close") {
+			if string(msg) == "close" {
 				fmt.Printf("WSDeviceUserClient_Connect -> go func() -> c.ReadMessage(): %s\n", string(msg))
 				duc.MQTTDeviceUserClient_Disconnect()
 				open = false
@@ -179,8 +178,8 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 	/* DISCONNECT THE DESMQTTCLient */
 	duc.DESMQTTClient_Disconnect()
 
-	/* ENSURE ALL SSE MESSAGES HAVE CLEARED BEFORE CLOSING CHANELS*/
-	// time.Sleep(time.Second * 3 ) 
+	/* ENSURE ALL WS MESSAGES HAVE CLEARED BEFORE CLOSING CHANELS*/
+	// time.Sleep(time.Second * 3 )
 
 	// close(duc.adminChan)
 	// duc.adminChan = nil
@@ -190,7 +189,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	// close(duc.eventChan)
 	// duc.eventChan = nil
-	
+
 	// close(duc.sampleChan)
 	// duc.sampleChan = nil
 
@@ -199,7 +198,6 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	fmt.Printf("(duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( ... ): Complete.\n")
 }
-
 
 /*
 SUBSCRIPTIONS
@@ -213,7 +211,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 		Topic: duc.MQTTTopic_SIGAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			/* WRANGLE SSE DATA */
+			/* WRANGLE WS DATA */
 			adm := Admin{}
 			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
 				pkg.Trace(err)
@@ -229,9 +227,9 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 			if err != nil {
 				pkg.Trace(err)
 			}
-			pkg.Json("(adm *Admin) SendSSEAdmin(...) -> adm :", adm)
+			pkg.Json("MQTTSubscription_DeviceUserClient_SIGAdmin(...) -> adm :", adm)
 
-			/* SEND SSE DATA */
+			/* SEND WS DATA */
 			duc.adminChan <- string(js)
 
 		},
@@ -246,7 +244,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.M
 		Topic: duc.MQTTTopic_SIGConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			/* WRANGLE SSE DATA */
+			/* WRANGLE WS DATA */
 			cfg := Config{}
 			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
 				pkg.Trace(err)
@@ -262,9 +260,9 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.M
 			if err != nil {
 				pkg.Trace(err)
 			}
-			pkg.Json("(cfg *Config) SendSSEAdmin(...) -> cfg :", cfg)
+			pkg.Json("MQTTSubscription_DeviceUserClient_SIGConfig(...) -> cfg :", cfg)
 
-			/* SEND SSE DATA */
+			/* SEND WS DATA */
 			duc.configChan <- string(js)
 
 		},
@@ -279,7 +277,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQ
 		Topic: duc.MQTTTopic_SIGEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			/* WRANGLE SSE DATA */
+			/* WRANGLE WS DATA */
 			evt := Event{}
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
 				pkg.Trace(err)
@@ -295,9 +293,9 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQ
 			if err != nil {
 				pkg.Trace(err)
 			}
-			pkg.Json("(cfg *Event) SendSSEAdmin(...) -> evt :", evt)
+			pkg.Json("MQTTSubscription_DeviceUserClient_SIGEvent(...) -> evt :", evt)
 
-			/* SEND SSE DATA */
+			/* SEND WS DATA */
 			duc.eventChan <- string(js)
 
 		},
@@ -312,7 +310,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 		Topic: duc.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			/* WRANGLE AND SEND SSE DATA */
+			/* WRANGLE AND SEND WS DATA */
 			// Decode the payload into an MQTT_Sample
 			mqtts := MQTT_Sample{}
 			if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
@@ -328,7 +326,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 				}
 
 				// Create a JSON version thereof
-				js, err := json.Marshal(&SSESample{Type: "sample",Data: *sample,})
+				js, err := json.Marshal(&WSSample{Type: "sample", Data: *sample})
 				if err != nil {
 					pkg.Trace(err)
 				} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)
@@ -347,11 +345,9 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGDiagSample() p
 		Qos:   0,
 		Topic: duc.MQTTTopic_SIGDiagSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			/* WRANGLE SSE DATA */
-			/* SEND SSE DATA */
+			/* WRANGLE WS DATA */
+			/* SEND WS DATA */
 			duc.diagChan <- "diag_sample data..."
 		},
 	}
 }
-
-

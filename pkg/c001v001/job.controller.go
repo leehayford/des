@@ -217,6 +217,9 @@ func (job *Job) GetJobData() (err error) {
 	db.Select("*").Table("configs").Order("cfg_time DESC").Scan(&job.Configs)
 	db.Select("*").Table("events").Order("evt_time DESC").Scan(&job.Events)
 	db.Select("*").Table("samples").Order("smp_time DESC").Scan(&job.Samples)
+	for _, smp := range job.Samples {
+		job.XYPoints.AppendXYSample(smp)
+	}
 	db.Close() // pkg.Json("GetJobData(): job", job)
 	return
 }

@@ -131,3 +131,6 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	})
 }
 
+func HandleGetDeviceBySerial( c *fiber.Ctx) (err error) {
+	return
+}

@@ -1,4 +1,3 @@
-
 package c001v001
 
 import (
@@ -7,8 +6,8 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
-/* 
-SAMPLE - AS WRITTEN TO JOB DATABASE 
+/*
+SAMPLE - AS WRITTEN TO JOB DATABASE
 */
 type Sample struct {
 	SmpID      int64   `gorm:"unique; primaryKey" json:"smp_id"`
@@ -25,19 +24,19 @@ type Sample struct {
 	SmpJobName string  `json:"smp_job_name"`
 }
 
-
-/* 
-SAMPLE - MQTT MESSAGE STRUCTURE 
+/*
+SAMPLE - MQTT MESSAGE STRUCTURE
 */
 type MQTT_Sample struct {
 	DesJobName string   `json:"des_job_name"`
-	Data  []string `json:"data"`
+	Data       []string `json:"data"`
 }
 
-type SSESample struct {
+type WSSample struct {
 	Type string `json:"type"`
 	Data Sample `json:"data"`
 }
+
 
 func (job *Job) WriteMQTTSample(msg []byte) (err error) {
 
