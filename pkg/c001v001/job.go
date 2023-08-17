@@ -9,6 +9,7 @@ import (
 
 type Job struct {
 	Admins              []Admin  `json:"admins"`
+	Headers  			[]Header `json:"headers"` 
 	Configs             []Config `json:"configs"`
 	Events              []Event  `json:"events"`
 	Samples             []Sample `json:"samples"`

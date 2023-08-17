@@ -25,14 +25,14 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	device := pkg.DESDev{}
-	if err = c.BodyParser(&device); err != nil {
+	reg := pkg.DESRegistration{}
+	if err = c.BodyParser(&reg); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
 	}
-	if errors := pkg.ValidateStruct(device); errors != nil {
+	if errors := pkg.ValidateStruct(reg); errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail",
 			"errors": errors,
@@ -44,9 +44,9 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 		 - Creates a new DESevice in the DES database
 		 - Gets the C001V001Device's DeviceID from the DES Database
 	*/
-	device.DESDevRegTime = time.Now().UTC().UnixMilli()
-	device.DESDevRegAddr = c.IP()
-	if device_res := pkg.DES.DB.Create(&device); device_res.Error != nil {
+	reg.DESDevRegTime = time.Now().UTC().UnixMilli()
+	reg.DESDevRegAddr = c.IP()
+	if device_res := pkg.DES.DB.Create(&reg.DESDev); device_res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": device_res.Error.Error(),
@@ -58,18 +58,19 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 	*/
 	job := Job{
 		DESRegistration: pkg.DESRegistration{
-			DESDev: device,
+			DESDev: reg.DESDev,
 			DESJob: pkg.DESJob{
-				DESJobRegTime:   device.DESDevRegTime,
-				DESJobRegAddr:   device.DESDevRegAddr,
-				DESJobRegUserID: device.DESDevRegUserID,
-				DESJobRegApp:    device.DESDevRegApp,
+				DESJobRegTime:   reg.DESDevRegTime,
+				DESJobRegAddr:   reg.DESDevRegAddr,
+				DESJobRegUserID: reg.DESDevRegUserID,
+				DESJobRegApp:    reg.DESDevRegApp,
 
-				DESJobName:  fmt.Sprintf("%s_0000000000000", device.DESDevSerial),
-				DESJobStart: device.DESDevRegTime,
+				DESJobName:  fmt.Sprintf("%s_0000000000000", reg.DESDevSerial),
+				DESJobStart: reg.DESDevRegTime,
 				DESJobEnd:   0,
-
-				DESJobDevID: device.DESDevID,
+				DESJobLng: reg.DESJobLng,
+				DESJobLat: reg.DESJobLat,
+				DESJobDevID: reg.DESDevID,
 			},
 		},
 	}
@@ -80,8 +81,8 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	reg := pkg.DESRegistration{
-		DESDev: device,
+	reg = pkg.DESRegistration{
+		DESDev: reg.DESDev,
 		DESJob: job.DESJob,
 	}
 

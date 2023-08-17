@@ -58,6 +58,7 @@ func (job *Job) RegisterJob() (err error) {
 
 		if err = db.Migrator().CreateTable(
 			&Admin{},
+			&Header{},
 			&Config{},
 			&EventTyp{},
 			&Event{},
@@ -70,28 +71,17 @@ func (job *Job) RegisterJob() (err error) {
 		for _, typ := range EVENT_TYPES {
 			db.Create(&typ)
 		}
-		// db.Create(&EVT_TYP_REGISTER_DEVICE)
-
-		// db.Create(&EVT_TYP_JOB_START)
-		// db.Create(&EVT_TYP_JOB_END)
-		// db.Create(&EVT_TYP_JOB_CONFIG)
-		// db.Create(&EVT_TYP_JOB_SSP)
-
-		// db.Create(&EVT_TYP_ALARM_HI_BAT_AMP)
-		// db.Create(&EVT_TYP_ALARM_LO_BAT_VOLT)
-		// db.Create(&EVT_TYP_ALARM_HI_MOT_AMP)
-		// db.Create(&EVT_TYP_ALARM_HI_PRESS)
-		// db.Create(&EVT_TYP_ALARM_HI_FLOW)
-
-		// db.Create(&EVT_TYP_MODE_VENT)
-		// db.Create(&EVT_TYP_MODE_BUILD)
-		// db.Create(&EVT_TYP_MODE_HI_FLOW)
-		// db.Create(&EVT_TYP_MODE_LO_FLOW)
 
 		job.Admins = []Admin{job.RegisterJob_Default_JobAdmin()}
 		if adm_res := db.Create(&job.Admins[0]); adm_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobAdmins[0]) -> Error:\n%s\n", adm_res.Error.Error())
 			return adm_res.Error
+		}
+
+		job.Headers = []Header{job.RegisterJob_Default_JobHeader()}
+		if hdr_res := db.Create(&job.Headers[0]); hdr_res.Error != nil {
+			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobHeaderss[0]) -> Error:\n%s\n", hdr_res.Error.Error())
+			return hdr_res.Error
 		}
 
 		job.Configs = []Config{job.RegisterJob_Default_JobConfig()}
@@ -108,6 +98,7 @@ func (job *Job) RegisterJob() (err error) {
 
 		job.Samples = []Sample{}
 
+		db.Close()
 	}
 	return
 }
@@ -165,6 +156,23 @@ func (job *Job) RegisterJob_Default_JobAdmin() (adm Admin) {
 		AdmLFSDiffMax:  10.0, // 10.0 psi
 	}
 }
+func (job *Job) RegisterJob_Default_JobHeader() (hdr Header) {
+	return Header{
+		HdrTime:   job.DESJobRegTime,
+		HdrAddr:   job.DESJobRegAddr,
+		HdrUserID: job.DESJobRegUserID,
+		HdrApp:    job.DESJobRegApp,
+
+		HdrWellCo: "UNKNOWN",
+		HdrWellName: job.DESJobName,
+		HdrWellSFLoc: "UNKNOWN",
+		HdrWellBHLoc: "UNKNOWN",
+		HdrWellLic: "UNKNOWN",
+
+		HdrGeoLng: job.DESJobLng,
+		HdrGeoLat: job.DESJobLat,
+	}
+}
 func (job *Job) RegisterJob_Default_JobConfig() (cfg Config) {
 	return Config{
 		CfgTime:   job.DESJobRegTime,
@@ -214,13 +222,15 @@ func (job *Job) GetJobData() (err error) {
 	db.Connect()
 	defer db.Close()
 	db.Select("*").Table("admins").Order("adm_time DESC").Scan(&job.Admins)
+	db.Select("*").Table("headers").Order("hdr_time DESC").Scan(&job.Headers)
 	db.Select("*").Table("configs").Order("cfg_time DESC").Scan(&job.Configs)
 	db.Select("*").Table("events").Order("evt_time DESC").Scan(&job.Events)
 	db.Select("*").Table("samples").Order("smp_time DESC").Scan(&job.Samples)
 	for _, smp := range job.Samples {
 		job.XYPoints.AppendXYSample(smp)
 	}
-	db.Close() // pkg.Json("GetJobData(): job", job)
+	db.Close() 
+	pkg.Json("GetJobData(): job", job)
 	return
 }
 
