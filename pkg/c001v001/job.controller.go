@@ -230,7 +230,7 @@ func (job *Job) GetJobData() (err error) {
 		job.XYPoints.AppendXYSample(smp)
 	}
 	db.Close() 
-	pkg.Json("GetJobData(): job", job)
+	// pkg.Json("GetJobData(): job", job)
 	return
 }
 
