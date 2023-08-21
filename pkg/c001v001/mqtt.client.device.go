@@ -40,6 +40,8 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 
 	device.MQTTSubscription_DeviceClient_SIGAdmin().Sub(device.DESMQTTClient)
 
+	device.MQTTSubscription_DeviceClient_SIGHeader().Sub(device.DESMQTTClient)
+
 	device.MQTTSubscription_DeviceClient_SIGConfig().Sub(device.DESMQTTClient)
 
 	device.MQTTSubscription_DeviceClient_SIGEvent().Sub(device.DESMQTTClient)
@@ -54,6 +56,8 @@ func (device *Device) MQTTDeviceClient_Dicconnect() {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	device.MQTTSubscription_DeviceClient_SIGAdmin().UnSub(device.DESMQTTClient)
+
+	device.MQTTSubscription_DeviceClient_SIGHeader().UnSub(device.DESMQTTClient)
 
 	device.MQTTSubscription_DeviceClient_SIGConfig().UnSub(device.DESMQTTClient)
 
@@ -84,6 +88,19 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		},
 	}
 }
+
+/* SUBSCRIPTION -> HEADER -> UPON RECEIPT, WRITE TO JOB DATABASE */
+func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: device.MQTTTopic_SIGHeader(),
+		Handler: func(c phao.Client, msg phao.Message) {
+			device.Job.WriteMQTT(msg.Payload(), Header{})
+		},
+	}
+}
+
 
 /* SUBSCRIPTION -> CONFIGURATION -> UPON RECEIPT, WRITE TO JOB DATABASE */
 func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscription {
@@ -149,6 +166,21 @@ func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) bool {
 
 	return cmd.Pub(device.DESMQTTClient)
 }
+
+/* PUBLICATION -> HEADER */
+func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) bool {
+
+	cmd := pkg.MQTTPublication{
+		Topic:    device.MQTTTopic_CMDHeader(),
+		Message:  pkg.MakeMQTTMessage(hdr.FilterHdrRecord()),
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	}
+
+	return cmd.Pub(device.DESMQTTClient)
+}
+
 
 /* PUBLICATION -> CONFIGURATION */
 func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) bool {

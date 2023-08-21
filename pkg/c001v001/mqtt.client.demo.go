@@ -186,6 +186,29 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 	}
 }
 
+/* SUBSCRIPTIONS -> HEADER -> UPON RECEIPT, REPLY TO .../cmd/header */
+func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: demo.MQTTTopic_CMDHeader(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			mqtt := &Header{}
+			if err := json.Unmarshal(msg.Payload(), mqtt); err != nil {
+				pkg.Trace(err)
+			}
+
+			/* SIMULATE HAVING DONE SOMETHING */
+			time.Sleep(time.Millisecond * 500)
+			mqtt.HdrTime = time.Now().UTC().UnixMilli()
+
+			demo.MQTTPublication_DemoDeviceClient_SIGHeader(mqtt)
+		},
+	}
+}
+
+
 /* SUBSCRIPTIONS -> CONFIGURATION -> UPON RECEIPT, REPLY TO .../cmd/config */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
@@ -233,7 +256,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 /*
 PUBLICATIONS
 */
-/* PUBLICATION -> CONFIG -> SIMULATED CONFIGS */
+/* PUBLICATION -> ADMIN -> SIMULATED ADMINS */
 func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGAdmin(adm *Admin) bool {
 	return (pkg.MQTTPublication{
 
@@ -244,6 +267,19 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGAdmin(adm *Adm
 		Qos:      0,
 	}).Pub(demo.DESMQTTClient)
 }
+
+/* PUBLICATION -> HEADER -> SIMULATED HEADERS */
+func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGHeader(hdr *Header) bool {
+	return (pkg.MQTTPublication{
+
+		Topic:    demo.MQTTTopic_SIGHeader(),
+		Message:  pkg.MakeMQTTMessage(hdr.FilterHdrRecord()),
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	}).Pub(demo.DESMQTTClient)
+}
+
 
 /* PUBLICATION -> CONFIG -> SIMULATED CONFIGS */
 func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGConfig(cfg *Config) bool {

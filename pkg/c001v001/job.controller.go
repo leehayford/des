@@ -169,6 +169,10 @@ func (job *Job) RegisterJob_Default_JobHeader() (hdr Header) {
 		HdrWellBHLoc: "UNKNOWN",
 		HdrWellLic: "UNKNOWN",
 
+		HdrJobName:  job.DESJobName,
+		HdrJobStart: job.DESJobRegTime,
+		HdrJobEnd:   0,
+
 		HdrGeoLng: job.DESJobLng,
 		HdrGeoLat: job.DESJobLat,
 	}
@@ -181,9 +185,6 @@ func (job *Job) RegisterJob_Default_JobConfig() (cfg Config) {
 		CfgApp:    job.DESJobRegApp,
 
 		/* JOB */
-		CfgJobName:  job.DESJobName,
-		CfgJobStart: job.DESJobRegTime,
-		CfgJobEnd:   0,
 		CfgSCVD:     596.8, // m
 		CfgSCVDMult: 10.5,  // kPa / m
 		CfgSSPRate:  1.95,  // kPa / hour

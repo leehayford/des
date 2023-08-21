@@ -16,11 +16,12 @@ import (
 
 type DeviceUserClient struct {
 	Device
-	adminChan  chan string
-	configChan chan string
-	eventChan  chan string
-	sampleChan chan string
-	diagChan   chan string
+	outChan chan string
+	// adminChan  chan string
+	// configChan chan string
+	// eventChan  chan string
+	// sampleChan chan string
+	// diagChan   chan string
 	WSClientID string
 	CTX        context.Context
 	Cancel     context.CancelFunc
@@ -53,31 +54,37 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 		WSClientID: wscid,
 	} // fmt.Printf("\nHandle_ConnectDeviceUser(...) -> duc: %v\n\n", duc)
 
-	duc.adminChan = make(chan string)
+	duc.outChan = make(chan string)
 	defer func() {
-		close(duc.adminChan)
-		duc.adminChan = nil
+		close(duc.outChan)
+		duc.outChan = nil
 	}()
-	duc.configChan = make(chan string)
-	defer func() {
-		close(duc.configChan)
-		duc.configChan = nil
-	}()
-	duc.eventChan = make(chan string)
-	defer func() {
-		close(duc.eventChan)
-		duc.eventChan = nil
-	}()
-	duc.sampleChan = make(chan string)
-	defer func() {
-		close(duc.sampleChan)
-		duc.sampleChan = nil
-	}()
-	duc.diagChan = make(chan string)
-	defer func() {
-		close(duc.diagChan)
-		duc.diagChan = nil
-	}()
+
+	// duc.adminChan = make(chan string)
+	// defer func() {
+	// 	close(duc.adminChan)
+	// 	duc.adminChan = nil
+	// }()
+	// duc.configChan = make(chan string)
+	// defer func() {
+	// 	close(duc.configChan)
+	// 	duc.configChan = nil
+	// }()
+	// duc.eventChan = make(chan string)
+	// defer func() {
+	// 	close(duc.eventChan)
+	// 	duc.eventChan = nil
+	// }()
+	// duc.sampleChan = make(chan string)
+	// defer func() {
+	// 	close(duc.sampleChan)
+	// 	duc.sampleChan = nil
+	// }()
+	// duc.diagChan = make(chan string)
+	// defer func() {
+	// 	close(duc.diagChan)
+	// 	duc.diagChan = nil
+	// }()
 
 	duc.MQTTDeviceUserClient_Connect()
 
@@ -102,22 +109,28 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	for open {
 		select {
 
-		case admin := <-duc.adminChan:
-			c.WriteJSON(admin)
-
-		case config := <-duc.configChan:
-			c.WriteJSON(config)
-
-		case event := <-duc.eventChan:
-			c.WriteJSON(event)
-
-		case sample := <-duc.sampleChan:
-			if err := c.WriteJSON(sample); err != nil {
+		case data := <-duc.outChan:
+			if err := c.WriteJSON(data); err != nil {
 				pkg.Trace(err)
 			}
 
-		case diag := <-duc.diagChan:
-			c.WriteJSON(diag)
+		// case admin := <-duc.adminChan:
+		// 	c.WriteJSON(admin)
+
+		// case config := <-duc.configChan:
+		// 	c.WriteJSON(config)
+
+		// case event := <-duc.eventChan:
+		// 	c.WriteJSON(event)
+
+		// case sample := <-duc.sampleChan:
+		// 	if err := c.WriteJSON(sample); err != nil {
+		// 		pkg.Trace(err)
+		// 	}
+
+		// case diag := <-duc.diagChan:
+		// 	c.WriteJSON(diag)
+
 		}
 	}
 	return
@@ -152,6 +165,8 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().Sub(duc.DESMQTTClient)
 
+	duc.MQTTSubscription_DeviceUserClient_SIGHeader().Sub(duc.DESMQTTClient)
+
 	duc.MQTTSubscription_DeviceUserClient_SIGConfig().Sub(duc.DESMQTTClient)
 
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().Sub(duc.DESMQTTClient)
@@ -167,6 +182,8 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().UnSub(duc.DESMQTTClient)
 
+	duc.MQTTSubscription_DeviceUserClient_SIGHeader().UnSub(duc.DESMQTTClient)
+
 	duc.MQTTSubscription_DeviceUserClient_SIGConfig().UnSub(duc.DESMQTTClient)
 
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().UnSub(duc.DESMQTTClient)
@@ -178,30 +195,17 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 	/* DISCONNECT THE DESMQTTCLient */
 	duc.DESMQTTClient_Disconnect()
 
-	/* ENSURE ALL WS MESSAGES HAVE CLEARED BEFORE CLOSING CHANELS*/
-	// time.Sleep(time.Second * 3 )
-
-	// close(duc.adminChan)
-	// duc.adminChan = nil
-
-	// close(duc.configChan)
-	// duc.configChan = nil
-
-	// close(duc.eventChan)
-	// duc.eventChan = nil
-
-	// close(duc.sampleChan)
-	// duc.sampleChan = nil
-
-	// close(duc.diagChan)
-	// duc.diagChan = nil
-
 	fmt.Printf("(duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( ... ): Complete.\n")
 }
 
 /*
 SUBSCRIPTIONS
 */
+
+type WSMessage struct {
+	Type string `json:"type"`
+	Data interface{} `json:"data"`
+}
 
 /* SUBSCRIPTIONS -> ADMINISTRATION   */
 func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQTTSubscription {
@@ -223,18 +227,54 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 			defer db.Close()
 			db.Where("adm_time = ?", adm.AdmTime).First(&adm)
 			db.Close()
-			js, err := json.Marshal(adm)
+			js, err := json.Marshal(&WSMessage{Type: "admin", Data: adm})
+			// js, err := json.Marshal(adm)
 			if err != nil {
 				pkg.Trace(err)
 			}
 			pkg.Json("MQTTSubscription_DeviceUserClient_SIGAdmin(...) -> adm :", adm)
 
 			/* SEND WS DATA */
-			duc.adminChan <- string(js)
+			duc.outChan <- string(js)
 
 		},
 	}
 }
+
+/* SUBSCRIPTION -> HEADER   */
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: duc.MQTTTopic_SIGHeader(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* WRANGLE WS DATA */
+			hdr := Header{}
+			if err := json.Unmarshal(msg.Payload(), &hdr); err != nil {
+				pkg.Trace(err)
+			}
+			time.Sleep(time.Millisecond * 300) // wait for DB write to complete
+
+			db := duc.JDB()
+			db.Connect()
+			defer db.Close()
+			db.Where("hdr_time = ?", hdr.HdrTime).First(&hdr)
+			db.Close()
+			js, err := json.Marshal(&WSMessage{Type: "header", Data: hdr})
+			// js, err := json.Marshal(hdr)
+			if err != nil {
+				pkg.Trace(err)
+			}
+			pkg.Json("MQTTSubscription_DeviceUserClient_SIGHeader(...) -> hdr :", hdr)
+
+			/* SEND WS DATA */
+			duc.outChan <- string(js)
+
+		},
+	}
+}
+
 
 /* SUBSCRIPTION -> CONFIGURATION   */
 func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.MQTTSubscription {
@@ -256,14 +296,15 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.M
 			defer db.Close()
 			db.Where("cfg_time = ?", cfg.CfgTime).First(&cfg)
 			db.Close()
-			js, err := json.Marshal(cfg)
+			js, err := json.Marshal(&WSMessage{Type: "config", Data: cfg})
+			// js, err := json.Marshal(cfg)
 			if err != nil {
 				pkg.Trace(err)
 			}
 			pkg.Json("MQTTSubscription_DeviceUserClient_SIGConfig(...) -> cfg :", cfg)
 
 			/* SEND WS DATA */
-			duc.configChan <- string(js)
+			duc.outChan <- string(js)
 
 		},
 	}
@@ -289,14 +330,15 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQ
 			defer db.Close()
 			db.Where("evt_time = ?", evt.EvtTime).First(&evt)
 			db.Close()
-			js, err := json.Marshal(evt)
+			js, err := json.Marshal(&WSMessage{Type: "event", Data: evt})
+			// js, err := json.Marshal(evt)
 			if err != nil {
 				pkg.Trace(err)
 			}
 			pkg.Json("MQTTSubscription_DeviceUserClient_SIGEvent(...) -> evt :", evt)
 
 			/* SEND WS DATA */
-			duc.eventChan <- string(js)
+			duc.outChan <- string(js)
 
 		},
 	}
@@ -326,12 +368,12 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 				}
 
 				// Create a JSON version thereof
-				js, err := json.Marshal(&WSSample{Type: "sample", Data: *sample})
+				js, err := json.Marshal(&WSMessage{Type: "sample", Data: *sample})
 				if err != nil {
 					pkg.Trace(err)
 				} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)
 				// Ship it
-				duc.sampleChan <- string(js)
+				duc.outChan <- string(js)
 
 			}
 		},
@@ -347,7 +389,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGDiagSample() p
 		Handler: func(c phao.Client, msg phao.Message) {
 			/* WRANGLE WS DATA */
 			/* SEND WS DATA */
-			duc.diagChan <- "diag_sample data..."
+			duc.outChan <- "diag_sample data..."
 		},
 	}
 }

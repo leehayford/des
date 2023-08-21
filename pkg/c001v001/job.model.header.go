@@ -18,10 +18,61 @@ type Header struct {
 	HdrWellBHLoc string `json:"hdr_well_bh_loc"`
 	HdrWellLic string `json:"hdr_well_lic"`
 
+	HdrJobName  string  `gorm:"not null; unique; varchar(24)" json:"hdr_job_name"`
+	HdrJobStart int64   `json:"hdr_job_start"`
+	HdrJobEnd   int64   `json:"hdr_job_end"`
+
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
 	HdrGeoLng float32 `json:"hdr_geo_lng"`
 	HdrGeoLat float32 `json:"hdr_geo_lat"`
 
+}
+
+/*
+HEADER - MQTT MESSAGE STRUCTURE
+*/
+type MQTT_JobHeader struct {
+	HdrTime   int64  `json:"hdr_time"`
+	HdrAddr   string `json:"hdr_addr"`
+	HdrUserID string `json:"hdr_user_id"`
+	HdrApp    string `json:"hdr_app"`
+
+	/*WELL INFORMATION*/
+	HdrWellCo string `json:"hdr_well_co"`
+	HdrWellName string `json:"hdr_well_name"`
+	HdrWellSFLoc string `json:"hdr_well_sf_loc"`
+	HdrWellBHLoc string `json:"hdr_well_bh_loc"`
+	HdrWellLic string `json:"hdr_well_lic"`
+
+	HdrJobName  string  `json:"hdr_job_name"`
+	HdrJobStart int64   `json:"hdr_job_start"`
+	HdrJobEnd   int64   `json:"hdr_job_end"`
+
+	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
+	HdrGeoLng float32 `json:"hdr_geo_lng"`
+	HdrGeoLat float32 `json:"hdr_geo_lat"`
+}
+
+func (hdr *Header) FilterHdrRecord() MQTT_JobHeader {
+	return MQTT_JobHeader {
+		HdrTime: hdr.HdrTime,
+		HdrAddr: hdr.HdrAddr,
+		HdrUserID: hdr.HdrUserID,
+		HdrApp: hdr.HdrApp,
+
+		HdrWellCo: hdr.HdrWellCo,
+		HdrWellName: hdr.HdrWellName,
+		HdrWellSFLoc: hdr.HdrWellSFLoc,
+		HdrWellBHLoc: hdr.HdrWellBHLoc,
+		HdrWellLic: hdr.HdrWellLic,
+
+		HdrJobName: hdr.HdrJobName,
+		HdrJobStart: hdr.HdrJobStart,
+		HdrJobEnd:  hdr.HdrJobEnd,
+
+		HdrGeoLng: hdr.HdrGeoLng,
+		HdrGeoLat: hdr.HdrGeoLat,
+	}
 }
 
 /*

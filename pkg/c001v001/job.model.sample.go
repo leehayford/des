@@ -32,11 +32,6 @@ type MQTT_Sample struct {
 	Data       []string `json:"data"`
 }
 
-type WSSample struct {
-	Type string `json:"type"`
-	Data Sample `json:"data"`
-}
-
 
 func (job *Job) WriteMQTTSample(msg []byte) (err error) {
 

@@ -12,9 +12,9 @@ type Config struct {
 	CfgApp    string `gorm:"not null; varchar(36)" json:"cfg_app"`
 
 	/*JOB*/
-	CfgJobName  string  `gorm:"not null; unique; varchar(24)" json:"cfg_job_name"`
-	CfgJobStart int64   `json:"cfg_job_start"`
-	CfgJobEnd   int64   `json:"cfg_job_end"`
+	// CfgJobName  string  `gorm:"not null; unique; varchar(24)" json:"cfg_job_name"`
+	// CfgJobStart int64   `json:"cfg_job_start"`
+	// CfgJobEnd   int64   `json:"cfg_job_end"`
 	CfgSCVD     float32 `json:"cfg_scvd"`
 	CfgSCVDMult float32 `json:"cfg_scvd_mult"`
 	CfgSSPRate  float32 `json:"cfg_ssp_rate"`
@@ -47,9 +47,9 @@ type MQTT_JobConfig struct {
 	CfgApp    string `json:"cfg_app"`
 
 	/*JOB*/
-	CfgJobName  string  `json:"cfg_job_name"`
-	CfgJobStart int64   `json:"cfg_job_start"`
-	CfgJobEnd   int64   `json:"cfg_job_end"`
+	// CfgJobName  string  `json:"cfg_job_name"`
+	// CfgJobStart int64   `json:"cfg_job_start"`
+	// CfgJobEnd   int64   `json:"cfg_job_end"`
 	CfgSCVD     float32 `json:"cfg_scvd"`
 	CfgSCVDMult float32 `json:"cfg_scvd_mult"`
 	CfgSSPRate  float32 `json:"cfg_ssp_rate"`
@@ -79,9 +79,9 @@ func (cfg *Config) FilterCfgRecord() MQTT_JobConfig {
 		CfgUserID: cfg.CfgUserID,
 		CfgApp:    cfg.CfgApp,
 
-		CfgJobName:  cfg.CfgJobName,
-		CfgJobStart: cfg.CfgJobStart,
-		CfgJobEnd:   cfg.CfgJobEnd,
+		// CfgJobName:  cfg.CfgJobName,
+		// CfgJobStart: cfg.CfgJobStart,
+		// CfgJobEnd:   cfg.CfgJobEnd,
 		CfgSCVD:     cfg.CfgSCVD,
 		CfgSCVDMult: cfg.CfgSCVDMult,
 		CfgSSPRate:  cfg.CfgSSPRate,

@@ -93,6 +93,13 @@ func (device *Device) MQTTTopic_SIGAdmin() (topic string) {
 		device.DESDevSerial,
 	)
 }
+func (device *Device) MQTTTopic_SIGHeader() (topic string) {
+	return fmt.Sprintf("%s/%s/%s/sig/header",
+		device.DESDevClass,
+		device.DESDevVersion,
+		device.DESDevSerial,
+	)
+}
 func (device *Device) MQTTTopic_SIGConfig() (topic string) {
 	return fmt.Sprintf("%s/%s/%s/sig/config",
 		device.DESDevClass,
@@ -125,6 +132,13 @@ func (device *Device) MQTTTopic_SIGDiagSample() (topic string) {
 /* MQTT TOPICS - COMMAND */
 func (device *Device) MQTTTopic_CMDAdmin() (topic string) {
 	return fmt.Sprintf("%s/%s/%s/cmd/admin",
+		device.DESDevClass,
+		device.DESDevVersion,
+		device.DESDevSerial,
+	)
+}
+func (device *Device) MQTTTopic_CMDHeader() (topic string) {
+	return fmt.Sprintf("%s/%s/%s/cmd/header",
 		device.DESDevClass,
 		device.DESDevVersion,
 		device.DESDevSerial,
