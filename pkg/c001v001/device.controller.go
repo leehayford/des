@@ -116,7 +116,7 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 			
 			defer wg.Done()
 			job := Job{DESRegistration: r}
-			job.GetJobData() // pkg.Json("HandleGetDeviceList(): job", job)
+			job.GetJobData(50) // pkg.Json("HandleGetDeviceList(): job", job)
 	
 			device := Device{Job: job, DESRegistration: r}
 			devices = append(devices, device)

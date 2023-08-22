@@ -218,15 +218,15 @@ func (job *Job) RegisterJob_Default_JobEvent() (evt Event) {
 	}
 }
 
-func (job *Job) GetJobData() (err error) {
+func (job *Job) GetJobData(limit int) (err error) {
 	db := job.JDB()
 	db.Connect()
 	defer db.Close()
-	db.Select("*").Table("admins").Order("adm_time DESC").Scan(&job.Admins)
-	db.Select("*").Table("headers").Order("hdr_time DESC").Scan(&job.Headers)
-	db.Select("*").Table("configs").Order("cfg_time DESC").Scan(&job.Configs)
-	db.Select("*").Table("events").Order("evt_time DESC").Scan(&job.Events)
-	db.Select("*").Table("samples").Order("smp_time DESC").Scan(&job.Samples)
+	db.Select("*").Table("admins").Limit(limit).Order("adm_time DESC").Scan(&job.Admins)
+	db.Select("*").Table("headers").Limit(limit).Order("hdr_time DESC").Scan(&job.Headers)
+	db.Select("*").Table("configs").Limit(limit).Order("cfg_time DESC").Scan(&job.Configs)
+	db.Select("*").Table("events").Limit(limit).Order("evt_time DESC").Scan(&job.Events)
+	db.Select("*").Table("samples").Limit(limit).Order("smp_time DESC").Scan(&job.Samples)
 	for _, smp := range job.Samples {
 		job.XYPoints.AppendXYSample(smp)
 	}

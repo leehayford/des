@@ -22,6 +22,7 @@ import (
 	"strings"
 	// "time"
 
+	/* https://gorm.io/docs/ */
 	"gorm.io/driver/postgres" // go get gorm.io/driver/postgres
 	"gorm.io/gorm"            // go get gorm.io/gorm
 	"gorm.io/gorm/logger"
