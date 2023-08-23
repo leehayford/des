@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/rand"
 
 	"net/url"
 	"time"
@@ -70,6 +71,8 @@ func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
 		Sim:        sim,
 		WSClientID: wscid,
 	} // fmt.Printf("\nHandleDemo_Run_Sim(...) -> ddc: %v\n\n", demo)
+
+	demo.Device.Job.GetJobData(1)
 
 	demo.sizeChan = make(chan int)
 	defer func() {
@@ -334,7 +337,7 @@ func (demo *DemoDeviceClient) Demo_Run_Sim() {
 
 		demo.MQTTPublication_DemoDeviceClient_SIGSample(&mqtts)
 
-		time.Sleep(time.Millisecond * time.Duration(demo.Sim.Dur))
+		time.Sleep(time.Millisecond * time.Duration(demo.Job.Configs[0].CfgOpSample))
 		i++
 
 	}
@@ -363,47 +366,62 @@ func Demo_Make_Sim_Sample(t0, ti time.Time, job string) MQTT_Sample {
 	data := []pkg.TimeSeriesData{
 		/* "AAABgss3rYBCxs2nO2VgQj6qrwk/JpeNPv6JZUFWw+1BUWVuAAQABA==" */
 		{ // methane
-			Data: []pkg.TSDPoint{{X: tumic, Y: YSinX(t0, ti, 99.9, 0.1)}},
-			Min:  90,
-			Max:  110,
+			Data: []pkg.TSDPoint{{
+				X: tumic, 
+				Y: Demo_Val_Transition( t0, ti, time.Duration(time.Second * 250), 97.99999, 0.01, ),
+			}},
+			Min:  0,
+			Max:  100,
 		},
 		{ // high_flow
-			Data: []pkg.TSDPoint{{X: tumic, Y: YCosX(t0, ti, 2.1, 0.3)}},
+			Data: []pkg.TSDPoint{{
+				X: tumic, 
+				Y: Demo_Val_Transition( t0, ti, time.Duration(time.Second * 30), 1.79999, 0.01, ),
+			}},
 			Min:  0,
-			Max:  1,
+			Max:  250,
 		},
 		{ // low_flow
-			Data: []pkg.TSDPoint{{X: tumic, Y: YSinX(t0, ti, 1.9, 0.5)}},
+			Data: []pkg.TSDPoint{{
+				X: tumic, 
+				Y: Demo_Val_Transition( t0, ti, time.Duration(time.Second * 30), 1.79999, 0.01, ),
+			}},
 			Min:  0,
-			Max:  1,
+			Max:  2,
 		},
 		{ // pressure
-			Data: []pkg.TSDPoint{{X: tumic, Y: YCosX(t0, ti, 599.9, 0.7)}},
+			Data: []pkg.TSDPoint{{
+				X: tumic, 
+				Y: Demo_Val_Transition( t0, ti, time.Duration(time.Second * 600), 18.99999, 699.99999, ),
+			}},
 			Min:  0,
-			Max:  1,
+			Max:  1500,
 		},
 		{ // battery_current
-			Data: []pkg.TSDPoint{{X: tumic, Y: YSinX(t0, ti, 0.349, 0.9)}},
+			// Data: []pkg.TSDPoint{{X: tumic, Y: YSinX(t0, ti, 0.249, 0.09)}},
+			Data: []pkg.TSDPoint{{X: tumic, Y: 0.049 + rand.Float32()* 0.023}},
 			Min:  0,
 			Max:  1.5,
 		},
 		{ // battery_voltage
-			Data: []pkg.TSDPoint{{X: tumic, Y: YCosX(t0, ti, 13.9, 1.1)}},
+			// Data: []pkg.TSDPoint{{X: tumic, Y: YCosX(t0, ti, 13.9, 0.8)}},
+			Data: []pkg.TSDPoint{{X: tumic, Y: 12.733 + rand.Float32()* 0.072}},
 			Min:  0,
 			Max:  15,
 		},
 		{ // motor_voltage
-			Data: []pkg.TSDPoint{{X: tumic, Y: YSinX(t0, ti, 12.9, 1.3)}},
+			// Data: []pkg.TSDPoint{{X: tumic, Y: YSinX(t0, ti, 12.9, 0.9)}},
+			Data: []pkg.TSDPoint{{X: tumic, Y: 11.9+ rand.Float32()* 0.033}},
 			Min:  0,
 			Max:  15,
 		},
 		{ // valve_target
-			Data: []pkg.TSDPoint{{X: tumic, Y: 4}},
+			Data: []pkg.TSDPoint{{X: tumic, Y: 0}},
 			Min:  0,
 			Max:  10,
 		},
 		{ // valve_position
-			Data: []pkg.TSDPoint{{X: tumic, Y: 4}},
+			Data: []pkg.TSDPoint{{X: tumic, Y: 0}},
 			Min:  0,
 			Max:  10,
 		},
@@ -447,4 +465,46 @@ func Demo_EncodeMQTTSampleMessage(job string, i int, data []pkg.TimeSeriesData) 
 	}
 
 	return msg
+}
+
+
+type DemoValueTransSettings struct {
+	VMin float32 `json:"v_min"`
+	VMax float32 `json:"v_max"`
+	TSpanUp time.Duration `json:"t_span_up"`
+	TSpanDn time.Duration `json:"t_span_dn"`
+}
+
+func Demo_Val_Transition(t_start, ti time.Time, t_span time.Duration, v_start, v_end float32) (v float32) {
+
+	// dt := ti.Sub(t_start).Seconds()
+	t_rel := float64(ti.Sub(t_start).Seconds()/t_span.Seconds())
+
+	// fmt.Printf("dt: %f, t_span: %v, t_rel: %f\n", dt, t_span.Seconds(), t_rel)
+	v_span := float64(v_end - v_start)
+
+	a := v_span * math.Pow(t_rel, 2)
+	
+	var bx float64
+	if(t_rel > 0.5) {
+		bx = 0.45
+	} else {
+		bx = 0.5
+	}
+	b := 1-math.Pow((bx-t_rel), 4)
+	// fmt.Printf("\nt_rel: %f, a: %f, b: %f\n", t_rel, a, b)
+
+	if (b < 0.8) {
+
+		v = v_end
+	} else {
+
+		v =  v_start + float32(a * b) 
+	}
+	
+	res := float32(v_span) * 0.005
+	min := v - res
+	v = min + rand.Float32() * res
+	// fmt.Printf("%f : %f\n", t_rel, v)
+	return 
 }

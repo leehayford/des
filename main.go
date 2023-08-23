@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
@@ -27,8 +28,31 @@ import (
 	"github.com/leehayford/des/pkg/c001v001"
 )
 
+
+func DemoValTransTest() {
+
+	fmt.Printf( "DemoValTransTest()\n")
+	s := c001v001.DemoValueTransSettings{
+		VMin: 18,
+		VMax: 500,
+		TSpanUp: time.Duration(time.Second * 30),
+		TSpanDn: time.Duration(time.Second * 15),
+	}
+	t_start := time.Now()
+	v_start := s.VMin
+	// vi := v_start
+	for {
+		time.Sleep(time.Duration(time.Millisecond * 100))
+		ti := time.Now()
+		v := c001v001.Demo_Val_Transition(t_start, ti, s.TSpanUp, v_start, s.VMax)
+		// vi = v
+		fmt.Printf("%f\n", v)
+	}
+}
+
 func main() {
 
+	// DemoValTransTest()
 	pkg.DES.CreateDESDatabase(false)
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
