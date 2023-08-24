@@ -3,6 +3,7 @@ package c001v001
 import (
 	"encoding/json"
 	"fmt"
+	// "math/rand"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -170,11 +171,14 @@ func (job *Job) RegisterJob_Default_JobHeader() (hdr Header) {
 		HdrWellLic: "UNKNOWN",
 
 		HdrJobName:  job.DESJobName,
-		HdrJobStart: job.DESJobRegTime,
+		HdrJobStart: job.DESJobStart,
 		HdrJobEnd:   0,
 
 		HdrGeoLng: job.DESJobLng,
 		HdrGeoLat: job.DESJobLat,
+
+		// HdrGeoLng: -114.75 + rand.Float32() * ( -110.15 - 114.75 ),
+		// HdrGeoLat: 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
 	}
 }
 func (job *Job) RegisterJob_Default_JobConfig() (cfg Config) {
@@ -196,14 +200,14 @@ func (job *Job) RegisterJob_Default_JobConfig() (cfg Config) {
 		CfgVlvPos: 2, // vent
 
 		/* OP PERIODS*/
-		CfgOpLog:    10000, // millisecond
-		CfgOpTrans:  60000, // millisecond
 		CfgOpSample: 1000,  // millisecond
+		CfgOpLog:    1000, // millisecond
+		CfgOpTrans:  1000, // millisecond
 
 		/* DIAG PERIODS */
+		CfgDiagSample: 10000,  // millisecond
 		CfgDiagLog:    100000, // millisecond
 		CfgDiagTrans:  600000, // millisecond
-		CfgDiagSample: 10000,  // millisecond
 	}
 }
 func (job *Job) RegisterJob_Default_JobEvent() (evt Event) {

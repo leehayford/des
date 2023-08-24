@@ -10,6 +10,45 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
+
+func HandleGetDeviceList(c *fiber.Ctx) (err error) {
+
+	fmt.Printf("\nHandleGetDeviceList( )\n")
+	regs, err := GetDeviceList()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": fmt.Sprintf("GetDesDevList(...) -> query failed:\n%s\n", err),
+			"data":    fiber.Map{"regs": regs},
+		})
+	} // pkg.Json("GetDeviceList(): DESRegistrations", regs)
+
+	var wg sync.WaitGroup
+	wg.Add(len(regs)) // fmt.Printf("\nWait Group: %d\n", len(regs))
+
+	devices := []Device{}
+	for _, reg := range regs {
+
+		go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
+			
+			defer wg.Done()
+			job := Job{DESRegistration: r}
+			job.GetJobData(-1) // pkg.Json("HandleGetDeviceList(): job", job)
+	
+			device := Device{Job: job, DESRegistration: r}
+			devices = append(devices, device)
+
+		}(reg, &wg)
+	}
+	wg.Wait() // pkg.Json("HandleGetDeviceList( ) -> []Device{}:\n", devices)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "You are a tolerable person!",
+		"data":    fiber.Map{"devices": devices},
+	})
+}
+
 /*
 USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
 PERFORMS DES DEVICE REGISTRATION
@@ -66,7 +105,7 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 				DESJobRegApp:    reg.DESDevRegApp,
 
 				DESJobName:  fmt.Sprintf("%s_0000000000000", reg.DESDevSerial),
-				DESJobStart: reg.DESDevRegTime,
+				DESJobStart: 0,
 				DESJobEnd:   0,
 				DESJobLng: reg.DESJobLng,
 				DESJobLat: reg.DESJobLat,
@@ -86,6 +125,15 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 		DESJob: job.DESJob,
 	}
 
+	device := Device{
+		DESRegistration:     reg,
+		Job:           Job{DESRegistration: reg},
+		DESMQTTClient: pkg.DESMQTTClient{},
+	}
+	if err = device.MQTTDeviceClient_Connect(); err != nil {
+		return pkg.Trace(err)
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
 		"data":    fiber.Map{"device": &reg},
@@ -93,45 +141,42 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 	})
 }
 
+/*
+USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO START A NEW JOB ON THIS DEVICE
+SEND AN MQTT JOB HEADER TO THE DEVICE
+UPON RESPONSE AT '.../CMD/HEADER
+PERFORMS DES JOB REGISTRATION
+PERFORMS CLASS/VERSION SPECIFIC JOB REGISTRATION ACTIONS
+*/
+func (dev *Device) HandleStartNewJob( c *fiber.Ctx) (err error) {
 
-func HandleGetDeviceList(c *fiber.Ctx) (err error) {
-
-	fmt.Printf("\nHandleGetDeviceList( )\n")
-	regs, err := GetDeviceList()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": fmt.Sprintf("GetDesDevList(...) -> query failed:\n%s\n", err),
-			"data":    fiber.Map{"regs": regs},
+			"message": "You must be an administrator to register devices",
 		})
-	} // pkg.Json("GetDeviceList(): DESRegistrations", regs)
-
-	var wg sync.WaitGroup
-	wg.Add(len(regs)) // fmt.Printf("\nWait Group: %d\n", len(regs))
-
-	devices := []Device{}
-	for _, reg := range regs {
-
-		go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
-			
-			defer wg.Done()
-			job := Job{DESRegistration: r}
-			job.GetJobData(50) // pkg.Json("HandleGetDeviceList(): job", job)
-	
-			device := Device{Job: job, DESRegistration: r}
-			devices = append(devices, device)
-
-		}(reg, &wg)
 	}
-	wg.Wait() // pkg.Json("HandleGetDeviceList( ) -> []Device{}:\n", devices)
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"devices": devices},
-	})
-}
+	reg := pkg.DESRegistration{}
+	if err = c.BodyParser(&reg); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
 
-func HandleGetDeviceBySerial( c *fiber.Ctx) (err error) {
+	if errors := pkg.ValidateStruct(reg); errors != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail",
+			"errors": errors,
+		})
+	}
+
+	/* 
+	SEND AN MQTT JOB HEADER TO THE DEVICE
+	*/
+
+
 	return
 }

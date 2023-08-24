@@ -34,7 +34,7 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 	jobSubQry := pkg.DES.DB.
 		Table("des_jobs").
 		Where("des_jobs.des_job_end = 0").
-		Select("des_job_id, MAX(des_job_start) AS max_start").
+		Select("des_job_id, MAX(des_job_reg_time) AS max_reg_time").
 		Group("des_job_id")
 
 	jobQry := pkg.DES.DB.
@@ -42,7 +42,7 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 		Select("*").
 		Joins(`JOIN ( ? ) jobs
 			ON des_jobs.des_job_id = jobs.des_job_id
-			AND des_jobs.des_job_start = jobs.max_start`,
+			AND des_jobs.des_job_reg_time = jobs.max_reg_time`,
 			jobSubQry)
 		
 	qry := pkg.DES.DB.

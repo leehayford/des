@@ -275,7 +275,6 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader() pkg.M
 	}
 }
 
-
 /* SUBSCRIPTION -> CONFIGURATION   */
 func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{

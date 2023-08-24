@@ -27,7 +27,18 @@ type Sim struct {
 	Qty     int   `json:"qty"`
 	Dur     int64 `json:"dur"`
 	FillQty int64 `json:"fill_qty"`
+	MTxCh4 DemoModeTransition `json:"mtx_ch4"`
+	MTxFlow DemoModeTransition `json:"mtx_flow"`
+	MTxBuild DemoModeTransition `json:"mtx_build"`
 }
+
+type DemoModeTransition struct {
+	VMin    float32       `json:"v_min"`
+	VMax    float32       `json:"v_max"`
+	TSpanUp time.Duration `json:"t_span_up"`
+	TSpanDn time.Duration `json:"t_span_dn"`
+}
+
 type DemoDeviceClient struct {
 	Device
 	Sim
@@ -146,6 +157,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 		demo.DESMQTTClient.ClientOptions.ClientID)
 
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
 
@@ -155,6 +167,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
 
@@ -210,7 +223,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 		},
 	}
 }
-
 
 /* SUBSCRIPTIONS -> CONFIGURATION -> UPON RECEIPT, REPLY TO .../cmd/config */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.MQTTSubscription {
@@ -282,7 +294,6 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGHeader(hdr *He
 		Qos:      0,
 	}).Pub(demo.DESMQTTClient)
 }
-
 
 /* PUBLICATION -> CONFIG -> SIMULATED CONFIGS */
 func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGConfig(cfg *Config) bool {
@@ -367,51 +378,51 @@ func Demo_Make_Sim_Sample(t0, ti time.Time, job string) MQTT_Sample {
 		/* "AAABgss3rYBCxs2nO2VgQj6qrwk/JpeNPv6JZUFWw+1BUWVuAAQABA==" */
 		{ // methane
 			Data: []pkg.TSDPoint{{
-				X: tumic, 
-				Y: Demo_Val_Transition( t0, ti, time.Duration(time.Second * 250), 97.99999, 0.01, ),
+				X: tumic,
+				Y: Demo_Mode_Transition(t0, ti, time.Duration(time.Second*250), 97.99999, 0.01),
 			}},
-			Min:  0,
-			Max:  100,
+			Min: 0,
+			Max: 100,
 		},
 		{ // high_flow
 			Data: []pkg.TSDPoint{{
-				X: tumic, 
-				Y: Demo_Val_Transition( t0, ti, time.Duration(time.Second * 30), 1.79999, 0.01, ),
+				X: tumic,
+				Y: Demo_Mode_Transition(t0, ti, time.Duration(time.Second*30), 1.79999, 0.01),
 			}},
-			Min:  0,
-			Max:  250,
+			Min: 0,
+			Max: 250,
 		},
 		{ // low_flow
 			Data: []pkg.TSDPoint{{
-				X: tumic, 
-				Y: Demo_Val_Transition( t0, ti, time.Duration(time.Second * 30), 1.79999, 0.01, ),
+				X: tumic,
+				Y: Demo_Mode_Transition(t0, ti, time.Duration(time.Second*30), 1.79999, 0.01),
 			}},
-			Min:  0,
-			Max:  2,
+			Min: 0,
+			Max: 2,
 		},
 		{ // pressure
 			Data: []pkg.TSDPoint{{
-				X: tumic, 
-				Y: Demo_Val_Transition( t0, ti, time.Duration(time.Second * 600), 18.99999, 699.99999, ),
+				X: tumic,
+				Y: Demo_Mode_Transition(t0, ti, time.Duration(time.Second*600), 18.99999, 699.99999),
 			}},
-			Min:  0,
-			Max:  1500,
+			Min: 0,
+			Max: 1500,
 		},
 		{ // battery_current
 			// Data: []pkg.TSDPoint{{X: tumic, Y: YSinX(t0, ti, 0.249, 0.09)}},
-			Data: []pkg.TSDPoint{{X: tumic, Y: 0.049 + rand.Float32()* 0.023}},
+			Data: []pkg.TSDPoint{{X: tumic, Y: 0.049 + rand.Float32()*0.023}},
 			Min:  0,
 			Max:  1.5,
 		},
 		{ // battery_voltage
 			// Data: []pkg.TSDPoint{{X: tumic, Y: YCosX(t0, ti, 13.9, 0.8)}},
-			Data: []pkg.TSDPoint{{X: tumic, Y: 12.733 + rand.Float32()* 0.072}},
+			Data: []pkg.TSDPoint{{X: tumic, Y: 12.733 + rand.Float32()*0.072}},
 			Min:  0,
 			Max:  15,
 		},
 		{ // motor_voltage
 			// Data: []pkg.TSDPoint{{X: tumic, Y: YSinX(t0, ti, 12.9, 0.9)}},
-			Data: []pkg.TSDPoint{{X: tumic, Y: 11.9+ rand.Float32()* 0.033}},
+			Data: []pkg.TSDPoint{{X: tumic, Y: 11.9 + rand.Float32()*0.033}},
 			Min:  0,
 			Max:  15,
 		},
@@ -466,45 +477,36 @@ func Demo_EncodeMQTTSampleMessage(job string, i int, data []pkg.TimeSeriesData) 
 
 	return msg
 }
-
-
-type DemoValueTransSettings struct {
-	VMin float32 `json:"v_min"`
-	VMax float32 `json:"v_max"`
-	TSpanUp time.Duration `json:"t_span_up"`
-	TSpanDn time.Duration `json:"t_span_dn"`
-}
-
-func Demo_Val_Transition(t_start, ti time.Time, t_span time.Duration, v_start, v_end float32) (v float32) {
+func Demo_Mode_Transition(t_start, ti time.Time, t_span time.Duration, v_start, v_end float32) (v float32) {
 
 	// dt := ti.Sub(t_start).Seconds()
-	t_rel := float64(ti.Sub(t_start).Seconds()/t_span.Seconds())
+	t_rel := float64(ti.Sub(t_start).Seconds() / t_span.Seconds())
 
 	// fmt.Printf("dt: %f, t_span: %v, t_rel: %f\n", dt, t_span.Seconds(), t_rel)
 	v_span := float64(v_end - v_start)
 
 	a := v_span * math.Pow(t_rel, 2)
-	
+
 	var bx float64
-	if(t_rel > 0.5) {
+	if t_rel > 0.5 {
 		bx = 0.45
 	} else {
 		bx = 0.5
 	}
-	b := 1-math.Pow((bx-t_rel), 4)
+	b := 1 - math.Pow((bx-t_rel), 4)
 	// fmt.Printf("\nt_rel: %f, a: %f, b: %f\n", t_rel, a, b)
 
-	if (b < 0.8) {
+	if b < 0.8 {
 
 		v = v_end
 	} else {
 
-		v =  v_start + float32(a * b) 
+		v = v_start + float32(a*b)
 	}
-	
+
 	res := float32(v_span) * 0.005
 	min := v - res
-	v = min + rand.Float32() * res
+	v = min + rand.Float32()*res
 	// fmt.Printf("%f : %f\n", t_rel, v)
-	return 
+	return
 }
