@@ -112,6 +112,10 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 				DESJobDevID: reg.DESDevID,
 			},
 		},
+		Admins: []Admin{(&Job{}).RegisterJob_Default_JobAdmin()},
+		Headers: []Header{(&Job{}).RegisterJob_Default_JobHeader()},
+		Configs: []Config{(&Job{}).RegisterJob_Default_JobConfig()},
+		Events: []Event{(&Job{}).RegisterJob_Default_JobEvent()},
 	}
 	if err = job.RegisterJob(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -158,23 +162,42 @@ func (dev *Device) HandleStartNewJob( c *fiber.Ctx) (err error) {
 		})
 	}
 
-	reg := pkg.DESRegistration{}
-	if err = c.BodyParser(&reg); err != nil {
+	new_job := Job{}
+	if err = c.BodyParser(&new_job); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
 	}
+	pkg.Json("(dev *Device) HandleStartNewJob(): -> c.BodyParser(&job) -> job", new_job)
 
-	if errors := pkg.ValidateStruct(reg); errors != nil {
+	if errors := pkg.ValidateStruct(new_job); errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail",
 			"errors": errors,
 		})
 	}
 
+	if res := pkg.DES.DB.Order("des_dev_reg_time desc").First(&new_job.DESRegistration, "des_dev_serial =?", new_job.DESDev.DESDevSerial); res.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": fmt.Sprintf("GetDesDevBySerial(...) -> query failed:\n%s\n", res.Error.Error()),
+			"data":    fiber.Map{"device": new_job.DESRegistration},
+		})
+	}
+
+
+
+	time := time.Now().UTC().UnixMilli()
+	new_job.Admins[0].AdmTime = time
+	new_job.Admins[0].AdmAddr = c.IP()
+	new_job.Headers[0].HdrTime = time
+	new_job.Headers[0].HdrAddr = c.IP()
+	new_job.Configs[0].CfgTime = time
+	new_job.Configs[0].CfgAddr = c.IP()
+
 	/* 
-	SEND AN MQTT JOB HEADER TO THE DEVICE
+	SEND THE MQTT JOB ADMIN, HEADER, CONFIG, EVENT TO THE DEVICE
 	*/
 
 

@@ -108,7 +108,8 @@ func (des *DESDatabase) CreateDESDatabase(drop bool) (err error) {
 	/* DES DATABASE - CONNECT AND CREATE TABLES */
 	fmt.Printf("\n(des *DESDatabase) CreateDESDatabase: ConnStr: %s\n", des.ConnStr)
 	DES.Connect()
-
+	defer DES.Close()
+	
 	if (!exists) {
 		err = DES.DB.Migrator().CreateTable(
 			&User{},
@@ -142,5 +143,6 @@ func (des *DESDatabase) CreateDESDatabase(drop bool) (err error) {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
+	DES.Close()
 	return err
 }

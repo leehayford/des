@@ -60,32 +60,6 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 		duc.outChan = nil
 	}()
 
-	// duc.adminChan = make(chan string)
-	// defer func() {
-	// 	close(duc.adminChan)
-	// 	duc.adminChan = nil
-	// }()
-	// duc.configChan = make(chan string)
-	// defer func() {
-	// 	close(duc.configChan)
-	// 	duc.configChan = nil
-	// }()
-	// duc.eventChan = make(chan string)
-	// defer func() {
-	// 	close(duc.eventChan)
-	// 	duc.eventChan = nil
-	// }()
-	// duc.sampleChan = make(chan string)
-	// defer func() {
-	// 	close(duc.sampleChan)
-	// 	duc.sampleChan = nil
-	// }()
-	// duc.diagChan = make(chan string)
-	// defer func() {
-	// 	close(duc.diagChan)
-	// 	duc.diagChan = nil
-	// }()
-
 	duc.MQTTDeviceUserClient_Connect()
 
 	open := true
@@ -113,23 +87,6 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 			if err := c.WriteJSON(data); err != nil {
 				pkg.Trace(err)
 			}
-
-		// case admin := <-duc.adminChan:
-		// 	c.WriteJSON(admin)
-
-		// case config := <-duc.configChan:
-		// 	c.WriteJSON(config)
-
-		// case event := <-duc.eventChan:
-		// 	c.WriteJSON(event)
-
-		// case sample := <-duc.sampleChan:
-		// 	if err := c.WriteJSON(sample); err != nil {
-		// 		pkg.Trace(err)
-		// 	}
-
-		// case diag := <-duc.diagChan:
-		// 	c.WriteJSON(diag)
 
 		}
 	}

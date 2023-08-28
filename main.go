@@ -52,7 +52,9 @@ func DemoValTransTest() {
 func main() {
 
 	// DemoValTransTest()
-	pkg.DES.CreateDESDatabase(false)
+	if err := pkg.DES.CreateDESDatabase(false); err != nil {
+		pkg.Trace(err)
+	}
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
 
@@ -106,6 +108,7 @@ func main() {
 	/* C001V001 DEVICE ROUTES */
 	api.Route("/001/001/device", func(router fiber.Router) {
 		router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
+		router.Post("/start", pkg.DesAuth, (&c001v001.Device{}).HandleStartNewJob)
 		router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
 		router.Get("/ws", pkg.DesAuth, websocket.New(
 			(&c001v001.DeviceUserClient{}).WSDeviceUserClient_Connect,
@@ -134,5 +137,4 @@ func main() {
 	})
 
 	log.Fatal(app.Listen("127.0.0.1:8007"))
-
 }

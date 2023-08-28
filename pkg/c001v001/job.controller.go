@@ -50,7 +50,7 @@ func (job *Job) RegisterJob() (err error) {
 	existing := adb.CreateDatabase(strings.ToLower(job.DESJobName), false)
 	adb.Close()
 
-	if !existing {
+	if !existing { /* WE AVOID WRITING IF THE DATABASE WAS PRE-EXISTING */
 
 		/* CREATE NEW DATABASE */
 		db := job.JDB()
@@ -73,25 +73,25 @@ func (job *Job) RegisterJob() (err error) {
 			db.Create(&typ)
 		}
 
-		job.Admins = []Admin{job.RegisterJob_Default_JobAdmin()}
+		// job.Admins = []Admin{job.RegisterJob_Default_JobAdmin()}
 		if adm_res := db.Create(&job.Admins[0]); adm_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobAdmins[0]) -> Error:\n%s\n", adm_res.Error.Error())
 			return adm_res.Error
 		}
 
-		job.Headers = []Header{job.RegisterJob_Default_JobHeader()}
+		// job.Headers = []Header{job.RegisterJob_Default_JobHeader()}
 		if hdr_res := db.Create(&job.Headers[0]); hdr_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobHeaderss[0]) -> Error:\n%s\n", hdr_res.Error.Error())
 			return hdr_res.Error
 		}
 
-		job.Configs = []Config{job.RegisterJob_Default_JobConfig()}
+		// job.Configs = []Config{job.RegisterJob_Default_JobConfig()}
 		if cfg_res := db.Create(&job.Configs[0]); cfg_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Configs[0]) -> Error:\n%s\n", cfg_res.Error.Error())
 			return cfg_res.Error
 		}
 
-		job.Events = []Event{job.RegisterJob_Default_JobEvent()}
+		// job.Events = []Event{job.RegisterJob_Default_JobEvent()}
 		if evt_res := db.Create(&job.Events[0]); evt_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Events[0]) -> Error:\n%s\n", evt_res.Error.Error())
 			return evt_res.Error
@@ -164,14 +164,14 @@ func (job *Job) RegisterJob_Default_JobHeader() (hdr Header) {
 		HdrUserID: job.DESJobRegUserID,
 		HdrApp:    job.DESJobRegApp,
 
-		HdrWellCo: "UNKNOWN",
+		// HdrWellCo: "UNKNOWN",
 		HdrWellName: job.DESJobName,
-		HdrWellSFLoc: "UNKNOWN",
-		HdrWellBHLoc: "UNKNOWN",
-		HdrWellLic: "UNKNOWN",
+		// HdrWellSFLoc: "UNKNOWN",
+		// HdrWellBHLoc: "UNKNOWN",
+		// HdrWellLic: "UNKNOWN",
 
 		HdrJobName:  job.DESJobName,
-		HdrJobStart: job.DESJobStart,
+		HdrJobStart: -1,
 		HdrJobEnd:   0,
 
 		HdrGeoLng: job.DESJobLng,
@@ -194,6 +194,7 @@ func (job *Job) RegisterJob_Default_JobConfig() (cfg Config) {
 		CfgSSPRate:  1.95,  // kPa / hour
 		CfgSSPDur:   6.0,   // hour
 		CfgHiSCVF:   201.4, //  L/min
+		CfgFlowTog: 1.85, // L/min
 
 		/* VALVE */
 		CfgVlvTgt: 2, // vent
