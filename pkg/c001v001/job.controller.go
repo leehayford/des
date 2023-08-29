@@ -255,6 +255,8 @@ func (job *Job) GetLastEvent() (evt Event) {
 	if res.Error != nil {
 		pkg.Trace(res.Error)
 	}
-	db.Close() // pkg.Json("(job *Job) GetLastEvent( ): ", evt)
+	db.Close() 
+	pkg.Json("(job *Job) GetLastEvent( ): ", evt)
 	return
 }
+

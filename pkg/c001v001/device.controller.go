@@ -152,7 +152,7 @@ PERFORMS DES JOB REGISTRATION
 PERFORMS CLASS/VERSION SPECIFIC JOB REGISTRATION ACTIONS
 */
 func (device *Device) HandleStartNewJob(c *fiber.Ctx) (err error) {
-
+	fmt.Printf("\nHandleStartNewJob( )\n")
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
 	if role != "admin" {
@@ -178,10 +178,10 @@ func (device *Device) HandleStartNewJob(c *fiber.Ctx) (err error) {
 	}
 	// pkg.Json("(dev *Device) HandleStartNewJob(): -> c.BodyParser(&req) -> req", req)
 
-	device.DESRegistration = GetDeviceZeroJob(req.DESDevSerial)
+	device.DESRegistration = (&Device{ DESRegistration: req.DESRegistration }).GetZeroJob()
 	device.Job.DESRegistration = device.DESRegistration
-	device.Job.DESJobLng = 0
-	device.Job.DESJobLat = 0
+	device.Job.DESJobLng = -180
+	device.Job.DESJobLat = 90
 	// pkg.Json("(dev *Device) HandleStartNewJob(): -> GetDeviceZeroJob( ) -> device.", device)
 
 	/* CHECK DEVICE LAST KNOWN DEVICE STATE */
@@ -252,7 +252,7 @@ func (device *Device) HandleStartNewJob(c *fiber.Ctx) (err error) {
 
 	/* MQTT PUB CMD: ADM, HDR, CFG, EVT */
 	device.DESMQTTClient = pkg.MQTTDevClients[device.DESDevSerial]
-	fmt.Printf("\nPublishing to %s with MQTT client: %s\n", device.DESDevSerial, device.MQTTClientID)
+	fmt.Printf("\nHandleStartNewJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDAdmin(adm)
 	device.MQTTPublication_DeviceClient_CMDHeader(hdr)
 	device.MQTTPublication_DeviceClient_CMDConfig(cfg)
@@ -261,21 +261,106 @@ func (device *Device) HandleStartNewJob(c *fiber.Ctx) (err error) {
 	return
 }
 
-func GetDeviceZeroJob(serial string) (reg pkg.DESRegistration) {
+func (device *Device) StartJob(evt Event) {
 
-	zero_job := fmt.Sprintf("%s_0000000000000", serial)
+	zero := Job{DESRegistration: device.GetZeroJob()}
+	db := zero.JDB()
+	db.Connect()
+	defer db.Close()
 
+	adm := Admin{}
+	res := db.Where("adm_time = ?", evt.EvtTime).Last(&adm)
+	if res.Error != nil {
+		pkg.Trace(res.Error)
+	} 
+	if adm.AdmID == 0 {
+		adm = zero.RegisterJob_Default_JobAdmin()
+	}
+	
+	hdr := Header{}
+	res = db.Where("hdr_time = ?", evt.EvtTime).Last(&hdr)
+	if res.Error != nil {
+		pkg.Trace(res.Error)
+	} 
+	if hdr.Hdr_ID == 0 {
+		hdr = zero.RegisterJob_Default_JobHeader()
+	}
+	
+	cfg := Config{}
+	res = db.Where("cfg_time = ?", evt.EvtTime).Last(&cfg)
+	if res.Error != nil {
+		pkg.Trace(res.Error)
+	} 
+	if cfg.CfgID == 0 {
+		cfg = zero.RegisterJob_Default_JobConfig()
+	}
+	
+	db.Close()
+	
+	device.Job = Job{
+		DESRegistration: pkg.DESRegistration{
+			DESDev: device.DESDev,
+			DESJob: pkg.DESJob{
+				DESJobRegTime: hdr.HdrTime,
+				DESJobRegAddr: hdr.HdrAddr,
+				DESJobRegUserID: hdr.HdrUserID,
+				DESJobRegApp: hdr.HdrApp,
+
+				DESJobName: hdr.HdrJobName,
+				DESJobStart: hdr.HdrJobStart,
+				DESJobLng: hdr.HdrGeoLng,
+				DESJobLat: hdr.HdrGeoLat,
+			},
+		},
+	}
+	device.Job.Admins = []Admin{adm}
+	device.Job.Headers = []Header{hdr}
+	device.Job.Configs = []Config{cfg}
+	device.Job.Events = []Event{evt}
+	device.Job.RegisterJob()
+
+}
+
+func (device *Device)GetZeroJob() (reg pkg.DESRegistration) {
+
+	fmt.Printf("GetZeroJob() for: %s\n", device.DESDevSerial)
 	qry := pkg.DES.DB.
 		Table("des_devs AS d").
 		Select("d.*, j.*").
 		Joins("JOIN des_jobs AS j ON d.des_dev_id = j.des_job_dev_id").
-		Where("d.des_dev_serial = ? AND j.des_job_name LIKE ?", serial, zero_job).
+		Where("d.des_dev_serial = ? AND j.des_job_name LIKE ?", 
+			device.DESDevSerial, fmt.Sprintf("%s_0000000000000", device.DESDevSerial)).
 		Order("d.des_dev_id DESC")
 
 	res := qry.Scan(&reg)
 	if res.Error != nil {
 		pkg.Trace(res.Error)
-	} // pkg.Json("GetDeviceZeroJob( ): ", reg)
+	} 
+	pkg.Json("GetDeviceZeroJob( ): ", reg)
+
+	return
+}
+
+func (device *Device)GetCurrentJob() (reg pkg.DESRegistration) {
+	fmt.Printf("GetCurrentJob() for: %s\n", device.DESDevSerial)
+	jobSubQry := pkg.DES.DB.
+		Table("des_jobs").
+		Where("des_jobs.des_job_end = 0").
+		Select("des_job_id, MAX(des_job_reg_time) AS max_reg_time").
+		Group("des_job_id")
+
+	qry := pkg.DES.DB.
+		Table("des_devs AS d").
+		Select("d.*, j.*").
+		Joins("JOIN ( ? ) AS j ON d.des_dev_id = j.des_job_dev_id", jobSubQry).
+		Where("d.des_dev_serial = ? ", device.DESDevSerial).
+		Order("d.des_dev_id DESC")
+		
+	res := qry.Scan(&reg)
+	if res.Error != nil {
+		pkg.Trace(res.Error)
+	} 
+	pkg.Json("GetCurrentJob( ): ", reg)
 
 	return
 }

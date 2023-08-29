@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-
 	"net/url"
+	"os"
 	"time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
@@ -41,6 +41,19 @@ type DemoModeTransition struct {
 
 type DemoDeviceClient struct {
 	Device
+	
+	ADM Admin // RAM Value
+	ADMFile *os.File  // Flash
+	
+	HDR Header // RAM Value
+	HDRFile *os.File  // Flash
+	
+	CFG Config // RAM Value
+	CFGFile *os.File // Flash
+	
+	EVT Event // RAM Value
+	EVTFile *os.File  // Flash
+	
 	Sim
 	sizeChan   chan int
 	sentChan   chan int
@@ -51,7 +64,6 @@ type DemoDeviceClient struct {
 }
 
 func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
-	fmt.Println("WSDemoDeviceClient_Connect( ... ): So far, so good...")
 
 	simStr, _ := url.QueryUnescape(c.Query("sim"))
 	des_regStr, _ := url.QueryUnescape(c.Query("des_reg"))
@@ -101,10 +113,10 @@ func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
 	evt := demo.GetLastEvent()
 
 	if evt.EvtCode == 2 || evt.EvtCode == 0 {
-		fmt.Printf("%s: waiting for job start event...", demo.DESDevSerial)
+		fmt.Printf("\n%s: waiting for job start event...\n", demo.DESDevSerial)
 	} else {
 		go demo.Demo_Run_Sim()
-		fmt.Printf("%s: simulation running...", demo.DESDevSerial)
+		fmt.Printf("\n%s: simulation running...\n", demo.DESDevSerial)
 	}
 
 	open := true
@@ -159,9 +171,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	if err = demo.DESMQTTClient.DESMQTTClient_Connect(); err != nil {
 		return err
 	}
-	pkg.Json(`(demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect()(...) -> 
-	demo.DESMQTTClientDESMQTTClient_Connect() -> demo.DESMQTTClient.ClientOptions.ClientID:`,
-		demo.DESMQTTClient.ClientOptions.ClientID)
+	pkg.Json(`(demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect()(...) -> ClientID:`, demo.DESMQTTClient.ClientOptions.ClientID)
 
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
@@ -193,6 +203,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
 /*
 SUBSCRIPTIONS
 */
+
 /* SUBSCRIPTION -> ADMINISTRATION -> UPON RECEIPT, REPLY TO .../cmd/admin */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
@@ -201,16 +212,18 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 		Topic: demo.MQTTTopic_CMDAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			adm := &Admin{}
-			if err := json.Unmarshal(msg.Payload(), adm); err != nil {
+			// adm := &Admin{}
+			if err := json.Unmarshal(msg.Payload(), &demo.ADM); err != nil {
 				pkg.Trace(err)
 			}
-
-			/* SIMULATE HAVING DONE SOMETHING */
-			time.Sleep(time.Millisecond * 500)
-			adm.AdmTime = time.Now().UTC().UnixMilli()
-
-			demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
+			evt := demo.GetLastEvent()
+			if evt.EvtCode > 2 {
+				/* SIMULATE HAVING DONE SOMETHING */
+				time.Sleep(time.Millisecond * 200)
+				demo.ADM.AdmTime = time.Now().UTC().UnixMilli()
+				demo.ADM.AdmApp = demo.DESDevSerial
+				demo.MQTTPublication_DemoDeviceClient_SIGAdmin(&demo.ADM)
+			}
 		},
 	}
 }
@@ -223,16 +236,18 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 		Topic: demo.MQTTTopic_CMDHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			mqtt := &Header{}
-			if err := json.Unmarshal(msg.Payload(), mqtt); err != nil {
+			// hdr := &Header{}
+			if err := json.Unmarshal(msg.Payload(), &demo.HDR); err != nil {
 				pkg.Trace(err)
 			}
-
-			/* SIMULATE HAVING DONE SOMETHING */
-			time.Sleep(time.Millisecond * 500)
-			mqtt.HdrTime = time.Now().UTC().UnixMilli()
-
-			demo.MQTTPublication_DemoDeviceClient_SIGHeader(mqtt)
+			evt := demo.GetLastEvent()
+			if evt.EvtCode > 2 {
+				/* SIMULATE HAVING DONE SOMETHING */
+				time.Sleep(time.Millisecond * 200)
+				demo.HDR.HdrTime = time.Now().UTC().UnixMilli()
+				demo.HDR.HdrApp = demo.DESDevSerial
+				demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
+			}
 		},
 	}
 }
@@ -245,16 +260,18 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 		Topic: demo.MQTTTopic_CMDConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			mqtt := &Config{}
-			if err := json.Unmarshal(msg.Payload(), mqtt); err != nil {
+			// cfg := &Config{}
+			if err := json.Unmarshal(msg.Payload(), &demo.CFG); err != nil {
 				pkg.Trace(err)
 			}
-
-			/* SIMULATE HAVING DONE SOMETHING */
-			time.Sleep(time.Millisecond * 500)
-			mqtt.CfgTime = time.Now().UTC().UnixMilli()
-
-			demo.MQTTPublication_DemoDeviceClient_SIGConfig(mqtt)
+			evt := demo.GetLastEvent()
+			if evt.EvtCode > 2 {
+				/* SIMULATE HAVING DONE SOMETHING */
+				time.Sleep(time.Millisecond * 200)
+				demo.CFG.CfgTime = time.Now().UTC().UnixMilli()
+				demo.CFG.CfgApp = demo.DESDevSerial
+				demo.MQTTPublication_DemoDeviceClient_SIGConfig(&demo.CFG)
+			}
 		},
 	}
 }
@@ -267,16 +284,38 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 		Topic: demo.MQTTTopic_CMDEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			mqtt := &Event{}
-			if err := json.Unmarshal(msg.Payload(), mqtt); err != nil {
+			// evt := &Event{}
+			if err := json.Unmarshal(msg.Payload(), &demo.EVT); err != nil {
 				pkg.Trace(err)
 			}
 
-			/* SIMULATE HAVING DONE SOMETHING */
-			time.Sleep(time.Millisecond * 500)
-			mqtt.EvtTime = time.Now().UTC().UnixMilli()
+			/* LOG EVENT TO Job_0 & Job_X */
 
-			demo.MQTTPublication_DemoDeviceClient_SIGEvent(mqtt)
+			/* SIMULATE EVENT RESPONSE */
+			time.Sleep(time.Millisecond * 200)
+			demo.EVT.EvtTime = time.Now().UTC().UnixMilli()
+			demo.EVT.EvtApp = demo.DESDevSerial
+
+			fmt.Printf("\n(demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() -> %s\n", demo.MQTTTopic_CMDEvent())
+			switch demo.EVT.EvtCode {
+
+			case 1: // Start Job
+				demo.StartDemoJob()
+
+			case 2: // End Job
+				demo.EndDemoJob()
+
+			case 10: // Mode Vent
+			case 11: // Mode Build
+			case 12: // Mode Hi Flow
+			case 13: // Mode Lo Flow
+				// EDIT / SEND CONFIG -> MOVE VALVE
+				demo.MoveValve()
+
+			default:
+				demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
+
+			}
 		},
 	}
 }
@@ -350,6 +389,17 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts *
 }
 
 /*DEMO SIM -> PUBLISH TO MQTT */
+func (demo *DemoDeviceClient) Demo_Siulation(  ) {
+	// t0 := time.Now()
+
+	// for {
+
+
+
+	// }
+
+}
+
 func (demo *DemoDeviceClient) Demo_Run_Sim() {
 	fmt.Printf("\n (demo *DemoDeviceClient) Demo_Run_Sim( ): demo.Sim.Dur %d\n", demo.Sim.Dur)
 	fmt.Printf("\n (demo *DemoDeviceClient) Demo_Run_Sim( ): demo.Sim.Qty %d\n", demo.Sim.Qty)
@@ -522,4 +572,105 @@ func Demo_Mode_Transition(t_start, ti time.Time, t_span time.Duration, v_start, 
 	v = min + rand.Float32()*res
 	// fmt.Printf("%f : %f\n", t_rel, v)
 	return
+}
+
+
+func (demo *DemoDeviceClient) StartDemoJob() {
+	fmt.Printf("(demo *DemoDeviceClient) StartDemoJob( )...\n")
+	
+	zero := Job{DESRegistration: demo.GetZeroJob()}
+	db := zero.JDB()
+	db.Connect()
+	defer db.Close()
+
+	// Get last ADM from Job_0 -> if null { use default }
+	// adm := Admin{}
+	res := db.Where("adm_time = ?", demo.EVT.EvtTime).Last(&demo.ADM)
+	if res.Error != nil {
+		pkg.Trace(res.Error)
+	} 
+	if demo.ADM.AdmID == 0 {
+		demo.ADM = zero.RegisterJob_Default_JobAdmin()
+	}
+	demo.ADM.AdmTime = demo.EVT.EvtTime
+	demo.ADM.AdmAddr = demo.DESDevSerial
+	demo.ADM.AdmUserID = demo.EVT.EvtUserID
+	demo.ADM.AdmApp = demo.EVT.EvtApp
+	
+	// Get last HDR from Job_0 -> if null { use default }
+	// hdr := Header{}
+	res = db.Where("hdr_time = ?", demo.EVT.EvtTime).Last(&demo.HDR)
+	if res.Error != nil {
+		pkg.Trace(res.Error)
+	} 
+	if demo.HDR.Hdr_ID == 0 {
+		demo.HDR = zero.RegisterJob_Default_JobHeader()
+	}
+	demo.HDR.HdrTime = demo.EVT.EvtTime
+	demo.HDR.HdrAddr = demo.DESDevSerial
+	demo.HDR.HdrUserID = demo.EVT.EvtUserID
+	demo.HDR.HdrApp = demo.EVT.EvtApp
+	demo.HDR.HdrJobName = fmt.Sprintf("%s_%d", demo.DESDevSerial, demo.EVT.EvtTime)
+	demo.HDR.HdrJobStart = demo.EVT.EvtTime
+	demo.HDR.HdrGeoLng = -114.75 + rand.Float32() * ( -110.15 + 114.75 )
+	demo.HDR.HdrGeoLat = 51.85 + rand.Float32() * ( 54.35 - 51.85 )
+	
+	// Get last CFG from Job_0 -> if null { use default }
+	// cfg := Config{}
+	res = db.Where("cfg_time = ?", demo.EVT.EvtTime).Last(&demo.CFG)
+	if res.Error != nil {
+		pkg.Trace(res.Error)
+	} 
+	if demo.CFG.CfgID == 0 {
+		demo.CFG = zero.RegisterJob_Default_JobConfig()
+	}
+	demo.CFG.CfgTime = demo.EVT.EvtTime
+	demo.CFG.CfgAddr = demo.DESDevSerial
+	demo.CFG.CfgUserID = demo.EVT.EvtUserID
+	demo.CFG.CfgApp = demo.EVT.EvtApp
+	
+	db.Close()
+
+	// create /job/files
+	dir := fmt.Sprintf("demo/%s", demo.HDR.HdrJobName)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		pkg.Trace(err)
+	}
+	adm_txt, err := os.Create(fmt.Sprintf("%s/adm.txt", dir))
+	if err != nil {
+		pkg.Trace(err)
+	}
+	defer adm_txt.Close()
+	hdr_txt, _ := os.Create(fmt.Sprintf("%s/hdr.txt", dir))
+	defer hdr_txt.Close()
+	cfg_txt, _ := os.Create(fmt.Sprintf("%s/cfg.txt", dir))
+	defer cfg_txt.Close()
+	evt_txt, _ := os.Create(fmt.Sprintf("%s/evt.txt", dir))
+	defer evt_txt.Close()
+	smp_txt, _ := os.Create(fmt.Sprintf("%s/smp.txt", dir))
+	defer smp_txt.Close()
+
+	// each[ ADM, HDR, CFG, EVT ] { MQTT out ( avec time.Now() ) }
+	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(&demo.ADM)
+	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
+	demo.MQTTPublication_DemoDeviceClient_SIGConfig(&demo.CFG)
+	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
+}
+
+func (demo *DemoDeviceClient) EndDemoJob() {
+	fmt.Printf(" END JOB\n")
+
+	demo.Device.Job.DESRegistration = demo.GetCurrentJob()
+
+	// hdr := &Header{}
+	demo.HDR.HdrTime = demo.EVT.EvtTime
+	demo.HDR.HdrAddr = demo.DESDevSerial
+	demo.HDR.HdrUserID = demo.EVT.EvtUserID
+	demo.HDR.HdrApp = demo.EVT.EvtApp
+	demo.HDR.HdrJobEnd = demo.EVT.EvtTime
+	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
+	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
+}
+
+func (demo *DemoDeviceClient) MoveValve() {
 }

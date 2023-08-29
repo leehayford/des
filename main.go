@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"log"
 	// "math/rand"
+	// "path/filepath"
+
 	"time"
 
 	"github.com/gofiber/contrib/websocket"
@@ -57,16 +59,16 @@ func MakeDemoC001V001(serial, userID string) {
 					DESJobName: fmt.Sprintf("%s_0000000000000", serial),
 					DESJobStart: 0,
 					DESJobEnd:   0,
-					DESJobLng:   0, // -114.75 + rand.Float32() * ( -110.15 + 114.75 ),
+					DESJobLng:   -180, // -114.75 + rand.Float32() * ( -110.15 + 114.75 ),
 					DESJobLat:   90, // 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
 					DESJobDevID: des_dev.DESDevID,
 				},
 			},
-			Admins:  []c001v001.Admin{(&c001v001.Job{}).RegisterJob_Default_JobAdmin()},
-			Headers: []c001v001.Header{(&c001v001.Job{}).RegisterJob_Default_JobHeader()},
-			Configs: []c001v001.Config{(&c001v001.Job{}).RegisterJob_Default_JobConfig()},
-			Events:  []c001v001.Event{(&c001v001.Job{}).RegisterJob_Default_JobEvent()},
 		}
+		job.Admins = []c001v001.Admin{(&job).RegisterJob_Default_JobAdmin()}
+		job.Headers = []c001v001.Header{(&job).RegisterJob_Default_JobHeader()}
+		job.Configs = []c001v001.Config{(&job).RegisterJob_Default_JobConfig()}
+		job.Events = []c001v001.Event{(&job).RegisterJob_Default_JobEvent()}
 		job.RegisterJob()
 }
 
@@ -79,13 +81,13 @@ func main() {
 	defer pkg.DES.Close()
 
 	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
-	user := pkg.User{}
-	pkg.DES.DB.Last(&user)
-	MakeDemoC001V001("DEMO000000", user.ID.String())
-	MakeDemoC001V001("DEMO000001", user.ID.String())
-	MakeDemoC001V001("DEMO000002", user.ID.String())
-	MakeDemoC001V001("DEMO000003", user.ID.String())
-	MakeDemoC001V001("DEMO000004", user.ID.String())
+	// user := pkg.User{}
+	// pkg.DES.DB.Last(&user)
+	// MakeDemoC001V001("DEMO000000", user.ID.String())
+	// MakeDemoC001V001("DEMO000001", user.ID.String())
+	// MakeDemoC001V001("DEMO000002", user.ID.String())
+	// MakeDemoC001V001("DEMO000003", user.ID.String())
+	// MakeDemoC001V001("DEMO000004", user.ID.String())
 
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
 	fmt.Println("Connecting all C001V001 MQTT Device Clients...")
