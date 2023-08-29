@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"log"
+	// "math/rand"
 	"time"
 
 	"github.com/gofiber/contrib/websocket"
@@ -28,35 +29,63 @@ import (
 	"github.com/leehayford/des/pkg/c001v001"
 )
 
-func DemoValTransTest() {
 
-	fmt.Printf("DemoValTransTest()\n")
-	s := c001v001.DemoModeTransition{
-		VMin:    18,
-		VMax:    500,
-		TSpanUp: time.Duration(time.Second * 30),
-		TSpanDn: time.Duration(time.Second * 15),
-	}
-	t_start := time.Now()
-	v_start := s.VMin
-	// vi := v_start
-	for {
-		time.Sleep(time.Duration(time.Millisecond * 100))
-		ti := time.Now()
-		v := c001v001.Demo_Mode_Transition(t_start, ti, s.TSpanUp, v_start, s.VMax)
-		// vi = v
-		fmt.Printf("%f\n", v)
-	}
+func MakeDemoC001V001(serial, userID string) {
+	
+		t := time.Now().UTC().UnixMilli()
+		/* CREATE DEMO DEVICES */
+		des_dev := pkg.DESDev{
+			DESDevRegTime: t,
+			DESDevRegAddr: "DEMO",
+			DESDevRegUserID: userID,
+			DESDevRegApp: "DEMO",
+			DESDevSerial: serial,
+			DESDevVersion: "001",
+			DESDevClass: "001",
+		}
+		pkg.DES.DB.Create(&des_dev)
+
+		job := c001v001.Job{
+			DESRegistration: pkg.DESRegistration{
+				DESDev: des_dev,
+				DESJob: pkg.DESJob{
+					DESJobRegTime: t,
+					DESJobRegAddr: "DEMO",
+					DESJobRegUserID: userID,
+					DESJobRegApp: "DEMO",
+
+					DESJobName: fmt.Sprintf("%s_0000000000000", serial),
+					DESJobStart: 0,
+					DESJobEnd:   0,
+					DESJobLng:   0, // -114.75 + rand.Float32() * ( -110.15 + 114.75 ),
+					DESJobLat:   90, // 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
+					DESJobDevID: des_dev.DESDevID,
+				},
+			},
+			Admins:  []c001v001.Admin{(&c001v001.Job{}).RegisterJob_Default_JobAdmin()},
+			Headers: []c001v001.Header{(&c001v001.Job{}).RegisterJob_Default_JobHeader()},
+			Configs: []c001v001.Config{(&c001v001.Job{}).RegisterJob_Default_JobConfig()},
+			Events:  []c001v001.Event{(&c001v001.Job{}).RegisterJob_Default_JobEvent()},
+		}
+		job.RegisterJob()
 }
 
 func main() {
 
-	// DemoValTransTest()
 	if err := pkg.DES.CreateDESDatabase(false); err != nil {
 		pkg.Trace(err)
 	}
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
+
+	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
+	user := pkg.User{}
+	pkg.DES.DB.Last(&user)
+	MakeDemoC001V001("DEMO000000", user.ID.String())
+	MakeDemoC001V001("DEMO000001", user.ID.String())
+	MakeDemoC001V001("DEMO000002", user.ID.String())
+	MakeDemoC001V001("DEMO000003", user.ID.String())
+	MakeDemoC001V001("DEMO000004", user.ID.String())
 
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
 	fmt.Println("Connecting all C001V001 MQTT Device Clients...")

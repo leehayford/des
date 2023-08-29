@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -23,10 +22,11 @@ import (
 	// "time"
 
 	/* https://gorm.io/docs/ */
-	"gorm.io/driver/postgres" // go get gorm.io/driver/postgres
-	"gorm.io/gorm"            // go get gorm.io/gorm
-	"gorm.io/gorm/logger"
 	"golang.org/x/crypto/bcrypt" // go get golang.org/x/crypto/bcrypt
+	"gorm.io/driver/postgres"    // go get gorm.io/driver/postgres
+	"gorm.io/gorm"               // go get gorm.io/gorm
+	"gorm.io/gorm/logger"
+	
 )
 
 /* All databases in the DES system have the following structure */
@@ -131,7 +131,7 @@ func (des *DESDatabase) CreateDESDatabase(drop bool) (err error) {
 		}
 		if result := DES.DB.Create(&newUser); result.Error != nil {
 			fmt.Printf("\nCreate admin user failed...\n%s\n", result.Error.Error())
-		}
+		} // Json("(des *DESDatabase) CreateDESDatabase(): -> newUser", newUser)
 
 	} else {
 		err = DES.DB.AutoMigrate(

@@ -3,6 +3,7 @@ package c001v001
 import (
 	"encoding/json"
 	"fmt"
+
 	// "math/rand"
 	"strings"
 
@@ -12,7 +13,7 @@ import (
 )
 
 func (job *Job) Write(model interface{}) (err error) {
-
+	// pkg.Json("(job *Job) Write(): -> model", model)
 	db := job.JDB()
 	db.Connect()
 	defer db.Close()
@@ -114,7 +115,7 @@ func (job *Job) RegisterJob_Default_JobAdmin() (adm Admin) {
 		AdmDefHost: pkg.MQTT_HOST,
 		AdmDefPort: pkg.MQTT_PORT,
 		AdmOpHost:  pkg.MQTT_HOST,
-		AdmOpsPort: pkg.MQTT_PORT,
+		AdmOpPort:  pkg.MQTT_PORT,
 
 		/* DEVICE */
 		AdmClass:   DEVICE_CLASS,
@@ -171,14 +172,12 @@ func (job *Job) RegisterJob_Default_JobHeader() (hdr Header) {
 		// HdrWellLic: "UNKNOWN",
 
 		HdrJobName:  job.DESJobName,
-		HdrJobStart: -1,
+		HdrJobStart: 0,
 		HdrJobEnd:   0,
 
-		HdrGeoLng: job.DESJobLng,
-		HdrGeoLat: job.DESJobLat,
+		HdrGeoLng: job.DESJobLng, // HdrGeoLng: -114.75 + rand.Float32() * ( -110.15 - 114.75 ),
+		HdrGeoLat: job.DESJobLat, // HdrGeoLat: 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
 
-		// HdrGeoLng: -114.75 + rand.Float32() * ( -110.15 - 114.75 ),
-		// HdrGeoLat: 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
 	}
 }
 func (job *Job) RegisterJob_Default_JobConfig() (cfg Config) {
@@ -194,14 +193,14 @@ func (job *Job) RegisterJob_Default_JobConfig() (cfg Config) {
 		CfgSSPRate:  1.95,  // kPa / hour
 		CfgSSPDur:   6.0,   // hour
 		CfgHiSCVF:   201.4, //  L/min
-		CfgFlowTog: 1.85, // L/min
+		CfgFlowTog:  1.85,  // L/min
 
 		/* VALVE */
 		CfgVlvTgt: 2, // vent
 		CfgVlvPos: 2, // vent
 
 		/* OP PERIODS*/
-		CfgOpSample: 1000,  // millisecond
+		CfgOpSample: 1000, // millisecond
 		CfgOpLog:    1000, // millisecond
 		CfgOpTrans:  1000, // millisecond
 
@@ -235,7 +234,7 @@ func (job *Job) GetJobData(limit int) (err error) {
 	for _, smp := range job.Samples {
 		job.XYPoints.AppendXYSample(smp)
 	}
-	db.Close() 
+	db.Close()
 	// pkg.Json("GetJobData(): job", job)
 	return
 }
@@ -246,4 +245,16 @@ func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
 		"message": "You are a tolerable person!",
 		"data":    fiber.Map{"event_types": EVENT_TYPES},
 	})
+}
+
+func (job *Job) GetLastEvent() (evt Event) {
+	db := job.JDB()
+	db.Connect()
+	defer db.Close()
+	res := db.Last(&evt)
+	if res.Error != nil {
+		pkg.Trace(res.Error)
+	}
+	db.Close() // pkg.Json("(job *Job) GetLastEvent( ): ", evt)
+	return
 }

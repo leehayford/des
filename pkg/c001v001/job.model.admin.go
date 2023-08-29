@@ -15,7 +15,7 @@ type Admin struct {
 	AdmDefHost string `json:"adm_def_host"`
 	AdmDefPort int32  `json:"adm_def_port"`
 	AdmOpHost  string `json:"adm_op_host"`
-	AdmOpsPort int32  `json:"adm_op_port"`
+	AdmOpPort  int32  `json:"adm_op_port"`
 
 	/*DEVICE*/
 	AdmSerial  string `gorm:"not null; varchar(10)" json:"adm_serial"`
@@ -124,7 +124,7 @@ func (adm *Admin) FilterAdmRecord() MQTT_Admin {
 		AdmDefHost: adm.AdmDefHost,
 		AdmDefPort: adm.AdmDefPort,
 		AdmOpHost:  adm.AdmOpHost,
-		AdmOpsPort: adm.AdmOpsPort,
+		AdmOpsPort: adm.AdmOpPort,
 
 		AdmSerial:  adm.AdmSerial,
 		AdmVersion: adm.AdmVersion,
@@ -156,4 +156,3 @@ func (adm *Admin) FilterAdmRecord() MQTT_Admin {
 		AdmLFSDiffMax:  adm.AdmLFSDiffMax,
 	}
 }
-

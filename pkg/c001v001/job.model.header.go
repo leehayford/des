@@ -18,7 +18,7 @@ type Header struct {
 	HdrWellBHLoc string `json:"hdr_well_bh_loc"`
 	HdrWellLic string `json:"hdr_well_lic"`
 
-	HdrJobName  string  `gorm:"not null; unique; varchar(24)" json:"hdr_job_name"`
+	HdrJobName  string  `gorm:"not null; varchar(24)" json:"hdr_job_name"`
 	HdrJobStart int64   `json:"hdr_job_start"`
 	HdrJobEnd   int64   `json:"hdr_job_end"`
 

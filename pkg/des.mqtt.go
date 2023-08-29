@@ -16,6 +16,11 @@ type DESMQTTClient struct {
 	phao.Client
 }
 
+type MQTTClientsMap map[string]DESMQTTClient
+var MQTTDevClients  = make(MQTTClientsMap)
+var MQTTUserClients  = make(MQTTClientsMap)
+var MQTTDemoClients  = make(MQTTClientsMap)
+
 func (desm *DESMQTTClient) DESMQTTClient_Connect() (err error) {
 
 	/*Cerate MQTT Client Options*/

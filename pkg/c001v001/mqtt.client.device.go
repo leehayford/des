@@ -48,7 +48,11 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 
 	device.MQTTSubscription_DeviceClient_SIGSample().Sub(device.DESMQTTClient)
 
-	device.MQTTSubscription_DeviceClient_SIGDiagSample() //.Sub(device.DESMQTTClient)
+	// device.MQTTSubscription_DeviceClient_SIGDiagSample() //.Sub(device.DESMQTTClient)
+
+	pkg.MQTTDevClients[device.DESDevSerial] = device.DESMQTTClient
+	deviceClient := pkg.MQTTDevClients[device.DESDevSerial]
+	fmt.Printf("\n%s client ID: %s\n", device.DESDevSerial, deviceClient.MQTTClientID)
 
 	return err
 }
@@ -65,10 +69,12 @@ func (device *Device) MQTTDeviceClient_Dicconnect() {
 
 	device.MQTTSubscription_DeviceClient_SIGSample().UnSub(device.DESMQTTClient)
 
-	device.MQTTSubscription_DeviceClient_SIGDiagSample() //.UnSub(device.DESMQTTClient)
+	// device.MQTTSubscription_DeviceClient_SIGDiagSample() //.UnSub(device.DESMQTTClient)
 
 	/* DISCONNECT THE DESMQTTCLient */
 	device.DESMQTTClient_Disconnect()
+
+	delete(pkg.MQTTDevClients, device.DESDevSerial)
 
 	fmt.Printf(" (device *Device) MQTTDeviceClient_Dicconnect( ... ): Complete; OKCancel.\n")
 }
@@ -84,7 +90,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), Admin{})
+			device.Job.WriteMQTT(msg.Payload(), &Admin{})
 		},
 	}
 }
@@ -96,7 +102,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), Header{})
+			device.Job.WriteMQTT(msg.Payload(), &Header{})
 		},
 	}
 }
@@ -109,7 +115,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), Config{})
+			device.Job.WriteMQTT(msg.Payload(), &Config{})
 		},
 	}
 }
@@ -121,7 +127,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), Event{})
+			device.Job.WriteMQTT(msg.Payload(), &Event{})
 		},
 	}
 }
@@ -162,7 +168,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) bool {
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
-	}
+	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDAdmin(): -> cmd", cmd)
 
 	return cmd.Pub(device.DESMQTTClient)
 }
@@ -180,7 +186,6 @@ func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) bool {
 
 	return cmd.Pub(device.DESMQTTClient)
 }
-
 
 /* PUBLICATION -> CONFIGURATION */
 func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) bool {

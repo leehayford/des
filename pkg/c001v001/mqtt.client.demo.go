@@ -98,7 +98,14 @@ func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
 
 	demo.MQTTDemoDeviceClient_Connect()
 
-	go demo.Demo_Run_Sim()
+	evt := demo.GetLastEvent()
+
+	if evt.EvtCode == 2 || evt.EvtCode == 0 {
+		fmt.Printf("%s: waiting for job start event...", demo.DESDevSerial)
+	} else {
+		go demo.Demo_Run_Sim()
+		fmt.Printf("%s: simulation running...", demo.DESDevSerial)
+	}
 
 	open := true
 	go func() {
@@ -161,6 +168,10 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
 
+	pkg.MQTTDemoClients[demo.DESDevSerial] = demo.DESMQTTClient
+	demoClient := pkg.MQTTDemoClients[demo.DESDevSerial]
+	fmt.Printf("\n%s client ID: %s\n", demo.DESDevSerial, demoClient.MQTTClientID)
+
 	return err
 }
 func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
@@ -173,6 +184,8 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
 
 	/* DISCONNECT THE DESMQTTCLient */
 	demo.DESMQTTClient_Disconnect()
+
+	delete(pkg.MQTTDemoClients, demo.DESDevSerial)
 
 	fmt.Printf("(demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect( ... ): Complete.\n")
 }

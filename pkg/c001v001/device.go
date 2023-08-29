@@ -28,7 +28,7 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 		Group("des_dev_serial")
 	
 	/*
-		WHERE A MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 )
+		WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 )
 		WE WANT THE LATEST
 	*/
 	jobSubQry := pkg.DES.DB.
@@ -81,6 +81,7 @@ func MQTTDeviceClient_CreateAndConnectAll() (err error) {
 			return pkg.Trace(err)
 		}
 	}
+
 
 	return err
 }

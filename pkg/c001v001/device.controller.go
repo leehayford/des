@@ -10,7 +10,6 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
-
 func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 	fmt.Printf("\nHandleGetDeviceList( )\n")
@@ -30,11 +29,11 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	for _, reg := range regs {
 
 		go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
-			
+
 			defer wg.Done()
 			job := Job{DESRegistration: r}
 			job.GetJobData(-1) // pkg.Json("HandleGetDeviceList(): job", job)
-	
+
 			device := Device{Job: job, DESRegistration: r}
 			devices = append(devices, device)
 
@@ -107,15 +106,15 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 				DESJobName:  fmt.Sprintf("%s_0000000000000", reg.DESDevSerial),
 				DESJobStart: 0,
 				DESJobEnd:   0,
-				DESJobLng: reg.DESJobLng,
-				DESJobLat: reg.DESJobLat,
+				DESJobLng:   reg.DESJobLng,
+				DESJobLat:   reg.DESJobLat,
 				DESJobDevID: reg.DESDevID,
 			},
 		},
-		Admins: []Admin{(&Job{}).RegisterJob_Default_JobAdmin()},
+		Admins:  []Admin{(&Job{}).RegisterJob_Default_JobAdmin()},
 		Headers: []Header{(&Job{}).RegisterJob_Default_JobHeader()},
 		Configs: []Config{(&Job{}).RegisterJob_Default_JobConfig()},
-		Events: []Event{(&Job{}).RegisterJob_Default_JobEvent()},
+		Events:  []Event{(&Job{}).RegisterJob_Default_JobEvent()},
 	}
 	if err = job.RegisterJob(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -130,9 +129,9 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 	}
 
 	device := Device{
-		DESRegistration:     reg,
-		Job:           Job{DESRegistration: reg},
-		DESMQTTClient: pkg.DESMQTTClient{},
+		DESRegistration: reg,
+		Job:             Job{DESRegistration: reg},
+		DESMQTTClient:   pkg.DESMQTTClient{},
 	}
 	if err = device.MQTTDeviceClient_Connect(); err != nil {
 		return pkg.Trace(err)
@@ -152,8 +151,9 @@ UPON RESPONSE AT '.../CMD/HEADER
 PERFORMS DES JOB REGISTRATION
 PERFORMS CLASS/VERSION SPECIFIC JOB REGISTRATION ACTIONS
 */
-func (dev *Device) HandleStartNewJob( c *fiber.Ctx) (err error) {
+func (device *Device) HandleStartNewJob(c *fiber.Ctx) (err error) {
 
+	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
 	if role != "admin" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
@@ -162,44 +162,120 @@ func (dev *Device) HandleStartNewJob( c *fiber.Ctx) (err error) {
 		})
 	}
 
-	new_job := Job{}
-	if err = c.BodyParser(&new_job); err != nil {
+	/* PARSE AND VALIDATE REQUEST DATA */
+	req := Job{}
+	if err = c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
 	}
-	pkg.Json("(dev *Device) HandleStartNewJob(): -> c.BodyParser(&job) -> job", new_job)
-
-	if errors := pkg.ValidateStruct(new_job); errors != nil {
+	if errors := pkg.ValidateStruct(req); errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail",
 			"errors": errors,
 		})
 	}
+	// pkg.Json("(dev *Device) HandleStartNewJob(): -> c.BodyParser(&req) -> req", req)
 
-	if res := pkg.DES.DB.Order("des_dev_reg_time desc").First(&new_job.DESRegistration, "des_dev_serial =?", new_job.DESDev.DESDevSerial); res.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("GetDesDevBySerial(...) -> query failed:\n%s\n", res.Error.Error()),
-			"data":    fiber.Map{"device": new_job.DESRegistration},
-		})
+	device.DESRegistration = GetDeviceZeroJob(req.DESDevSerial)
+	device.Job.DESRegistration = device.DESRegistration
+	device.Job.DESJobLng = 0
+	device.Job.DESJobLat = 0
+	// pkg.Json("(dev *Device) HandleStartNewJob(): -> GetDeviceZeroJob( ) -> device.", device)
+
+	/* CHECK DEVICE LAST KNOWN DEVICE STATE */
+	job_0_evt := (&device.Job).GetLastEvent()
+	// pkg.Json("(dev *Device) HandleStartNewJob(): -> zero_job.GetLastEvent() -> job_0_evt", job_0_evt)
+	if job_0_evt.EvtCode > 1 {
+		/*
+			END CURRENT JOB (JOB_X)
+				MAKE EVENT(END JOB)
+				MQTT SEND EVENT
+				LOG EVENT IN JOB_0
+				LOG EVENT IN JOB_X
+		*/
 	}
 
-
-
-	time := time.Now().UTC().UnixMilli()
-	new_job.Admins[0].AdmTime = time
-	new_job.Admins[0].AdmAddr = c.IP()
-	new_job.Headers[0].HdrTime = time
-	new_job.Headers[0].HdrAddr = c.IP()
-	new_job.Configs[0].CfgTime = time
-	new_job.Configs[0].CfgAddr = c.IP()
-
-	/* 
-	SEND THE MQTT JOB ADMIN, HEADER, CONFIG, EVENT TO THE DEVICE
+	/*
+		START NEW JOB
+			MAKE ADM, HDR, CFG, EVT ( START JOB )
+			ENSURE ADM, HDR, CFG, & EVT HAVE THE SAME TIME STAMP / SIGNATURE
 	*/
+	time := time.Now().UTC().UnixMilli()
 
+	evt := Event{
+		EvtTime:   time,
+		EvtAddr:   c.IP(),
+		EvtUserID: device.Job.DESJobRegUserID,
+		EvtApp:    device.Job.DESJobRegApp,
+		EvtTitle:  "Start Job Request",
+		EvtMsg:    "Job start sequence initiated.",
+		EvtCode:   1,
+	}
+	// pkg.Json("(dev *Device) HandleStartNewJob(): -> evt", evt)
+
+	adm := req.Admins[0]
+	adm.AdmTime = time
+	adm.AdmAddr = c.IP()
+	adm.AdmUserID = device.Job.DESJobRegUserID
+	adm.AdmDefHost = pkg.MQTT_BROKER
+	adm.AdmDefPort = pkg.MQTT_PORT
+	adm.AdmOpHost = pkg.MQTT_BROKER
+	adm.AdmOpPort = pkg.MQTT_PORT
+	adm.AdmSerial = device.Job.DESDevSerial
+	// pkg.Json("(dev *Device) HandleStartNewJob(): -> adm", adm)
+
+	hdr := req.Headers[0]
+	hdr.HdrTime = time
+	hdr.HdrAddr = c.IP()
+	hdr.HdrUserID = device.Job.DESJobRegUserID
+	hdr.HdrJobStart = time // This is displays the time/date of the request while pending
+	hdr.HdrJobEnd = -1 // This means there is a pending request for the device to start a new job
+	hdr.HdrJobName = fmt.Sprintf("%s_0000000000000", device.Job.DESDevSerial)
+	hdr.HdrJobEnd = 0
+	hdr.HdrGeoLng = 0
+	hdr.HdrGeoLat = 0
+	// pkg.Json("(dev *Device) HandleStartNewJob(): -> hdr", hdr)
+
+	cfg := req.Configs[0]
+	cfg.CfgTime = time
+	cfg.CfgAddr = c.IP()
+	cfg.CfgUserID = device.Job.DESJobRegUserID
+	// pkg.Json("(dev *Device) HandleStartNewJob(): -> cfg", cfg)
+
+	/* LOG TO JOB_0: ADM, HDR, CFG, EVT */
+	device.Job.Write(&adm)
+	device.Job.Write(&hdr)
+	device.Job.Write(&cfg)
+	device.Job.Write(&evt)
+
+	/* MQTT PUB CMD: ADM, HDR, CFG, EVT */
+	device.DESMQTTClient = pkg.MQTTDevClients[device.DESDevSerial]
+	fmt.Printf("\nPublishing to %s with MQTT client: %s\n", device.DESDevSerial, device.MQTTClientID)
+	device.MQTTPublication_DeviceClient_CMDAdmin(adm)
+	device.MQTTPublication_DeviceClient_CMDHeader(hdr)
+	device.MQTTPublication_DeviceClient_CMDConfig(cfg)
+	device.MQTTPublication_DeviceClient_CMDEvent(evt)
+
+	return
+}
+
+func GetDeviceZeroJob(serial string) (reg pkg.DESRegistration) {
+
+	zero_job := fmt.Sprintf("%s_0000000000000", serial)
+
+	qry := pkg.DES.DB.
+		Table("des_devs AS d").
+		Select("d.*, j.*").
+		Joins("JOIN des_jobs AS j ON d.des_dev_id = j.des_job_dev_id").
+		Where("d.des_dev_serial = ? AND j.des_job_name LIKE ?", serial, zero_job).
+		Order("d.des_dev_id DESC")
+
+	res := qry.Scan(&reg)
+	if res.Error != nil {
+		pkg.Trace(res.Error)
+	} // pkg.Json("GetDeviceZeroJob( ): ", reg)
 
 	return
 }

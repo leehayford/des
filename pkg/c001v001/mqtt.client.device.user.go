@@ -107,12 +107,13 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 
 	duc.MQTTUser = user
 	duc.MQTTPW = pw
-	duc.MQTTClientID = fmt.Sprintf(
-		"DeviceUser-%s-%s-%s",
-		duc.DESDevClass,
-		duc.DESDevVersion,
-		duc.DESDevSerial,
-	)
+	// duc.MQTTClientID = fmt.Sprintf(
+	// 	"DeviceUser-%s-%s-%s",
+	// 	duc.DESDevClass,
+	// 	duc.DESDevVersion,
+	// 	duc.DESDevSerial,
+	// )
+	duc.MQTTClientID = duc.WSClientID
 	if err = duc.DESMQTTClient.DESMQTTClient_Connect(); err != nil {
 		return err
 	}
@@ -131,6 +132,10 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 	duc.MQTTSubscription_DeviceUserClient_SIGSample().Sub(duc.DESMQTTClient)
 
 	duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().Sub(duc.DESMQTTClient)
+
+	pkg.MQTTUserClients[duc.WSClientID] = duc.DESMQTTClient
+	userClient := pkg.MQTTUserClients[duc.WSClientID]
+	fmt.Printf("\n%s client ID: %s\n", duc.WSClientID, userClient.MQTTClientID)
 
 	return err
 }
@@ -151,6 +156,8 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	/* DISCONNECT THE DESMQTTCLient */
 	duc.DESMQTTClient_Disconnect()
+
+	delete(pkg.MQTTUserClients, duc.WSClientID)
 
 	fmt.Printf("(duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( ... ): Complete.\n")
 }
