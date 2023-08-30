@@ -1,5 +1,8 @@
 package c001v001
 
+import (
+	"github.com/leehayford/des/pkg"
+)
 /*
 HEADER AS WRITTEN TO JOB DATABASE
 */
@@ -11,16 +14,16 @@ type Header struct {
 	HdrUserID string `gorm:"not null; varchar(36)" json:"hdr_user_id"`
 	HdrApp    string `gorm:"not null; varchar(36)" json:"hdr_app"`
 
+	HdrJobName  string  `gorm:"not null; varchar(24)" json:"hdr_job_name"`
+	HdrJobStart int64   `json:"hdr_job_start"`
+	HdrJobEnd   int64   `json:"hdr_job_end"`
+
 	/*WELL INFORMATION*/
 	HdrWellCo string `json:"hdr_well_co"`
 	HdrWellName string `json:"hdr_well_name"`
 	HdrWellSFLoc string `json:"hdr_well_sf_loc"`
 	HdrWellBHLoc string `json:"hdr_well_bh_loc"`
 	HdrWellLic string `json:"hdr_well_lic"`
-
-	HdrJobName  string  `gorm:"not null; varchar(24)" json:"hdr_job_name"`
-	HdrJobStart int64   `json:"hdr_job_start"`
-	HdrJobEnd   int64   `json:"hdr_job_end"`
 
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
 	HdrGeoLng float32 `json:"hdr_geo_lng"`
@@ -37,16 +40,16 @@ type MQTT_JobHeader struct {
 	HdrUserID string `json:"hdr_user_id"`
 	HdrApp    string `json:"hdr_app"`
 
+	HdrJobName  string  `json:"hdr_job_name"`
+	HdrJobStart int64   `json:"hdr_job_start"`
+	HdrJobEnd   int64   `json:"hdr_job_end"`
+
 	/*WELL INFORMATION*/
 	HdrWellCo string `json:"hdr_well_co"`
 	HdrWellName string `json:"hdr_well_name"`
 	HdrWellSFLoc string `json:"hdr_well_sf_loc"`
 	HdrWellBHLoc string `json:"hdr_well_bh_loc"`
 	HdrWellLic string `json:"hdr_well_lic"`
-
-	HdrJobName  string  `json:"hdr_job_name"`
-	HdrJobStart int64   `json:"hdr_job_start"`
-	HdrJobEnd   int64   `json:"hdr_job_end"`
 
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
 	HdrGeoLng float32 `json:"hdr_geo_lng"`
@@ -60,19 +63,42 @@ func (hdr *Header) FilterHdrRecord() MQTT_JobHeader {
 		HdrUserID: hdr.HdrUserID,
 		HdrApp: hdr.HdrApp,
 
+		HdrJobName: hdr.HdrJobName,
+		HdrJobStart: hdr.HdrJobStart,
+		HdrJobEnd:  hdr.HdrJobEnd,
+
 		HdrWellCo: hdr.HdrWellCo,
 		HdrWellName: hdr.HdrWellName,
 		HdrWellSFLoc: hdr.HdrWellSFLoc,
 		HdrWellBHLoc: hdr.HdrWellBHLoc,
 		HdrWellLic: hdr.HdrWellLic,
 
-		HdrJobName: hdr.HdrJobName,
-		HdrJobStart: hdr.HdrJobStart,
-		HdrJobEnd:  hdr.HdrJobEnd,
-
 		HdrGeoLng: hdr.HdrGeoLng,
 		HdrGeoLat: hdr.HdrGeoLat,
 	}
+}
+
+func (hdr *Header) FilterHdrBytes() (out []byte) {
+
+	out = append(out, pkg.Int64ToBytes(hdr.HdrTime)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrAddr, 36)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrUserID, 36)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrApp, 36)...)
+
+	out = append(out, pkg.StringToNBytes(hdr.HdrJobName, 24)...)
+	out = append(out, pkg.Int64ToBytes(hdr.HdrJobStart)...)
+	out = append(out, pkg.Int64ToBytes(hdr.HdrJobEnd)...)
+
+	out = append(out, pkg.StringToNBytes(hdr.HdrWellCo, 32)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrWellName, 32)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrWellSFLoc, 32)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrWellBHLoc, 32)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrWellLic, 32)...)
+
+	out = append(out, pkg.Float32ToBytes(hdr.HdrGeoLng)...)
+	out = append(out, pkg.Float32ToBytes(hdr.HdrGeoLat)...)
+
+	return
 }
 
 /*

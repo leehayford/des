@@ -1,5 +1,9 @@
 package c001v001
 
+import (
+	"github.com/leehayford/des/pkg"
+)
+
 /*
 CONFIG - AS WRITTEN TO JOB DATABASE
 */
@@ -47,9 +51,6 @@ type MQTT_JobConfig struct {
 	CfgApp    string `json:"cfg_app"`
 
 	/*JOB*/
-	// CfgJobName  string  `json:"cfg_job_name"`
-	// CfgJobStart int64   `json:"cfg_job_start"`
-	// CfgJobEnd   int64   `json:"cfg_job_end"`
 	CfgSCVD     float32 `json:"cfg_scvd"`
 	CfgSCVDMult float32 `json:"cfg_scvd_mult"`
 	CfgSSPRate  float32 `json:"cfg_ssp_rate"`
@@ -79,9 +80,6 @@ func (cfg *Config) FilterCfgRecord() MQTT_JobConfig {
 		CfgUserID: cfg.CfgUserID,
 		CfgApp:    cfg.CfgApp,
 
-		// CfgJobName:  cfg.CfgJobName,
-		// CfgJobStart: cfg.CfgJobStart,
-		// CfgJobEnd:   cfg.CfgJobEnd,
 		CfgSCVD:     cfg.CfgSCVD,
 		CfgSCVDMult: cfg.CfgSCVDMult,
 		CfgSSPRate:  cfg.CfgSSPRate,
@@ -100,4 +98,32 @@ func (cfg *Config) FilterCfgRecord() MQTT_JobConfig {
 		CfgDiagLog:    cfg.CfgDiagLog,
 		CfgDiagTrans:  cfg.CfgDiagTrans,
 	}
+}
+
+func (cfg *Config) FilterCfgBytes() (out []byte) {
+
+	out = append(out, pkg.Int64ToBytes(cfg.CfgTime)...)
+	out = append(out, pkg.StringToNBytes(cfg.CfgAddr, 36)...)
+	out = append(out, pkg.StringToNBytes(cfg.CfgUserID, 36)...)
+	out = append(out, pkg.StringToNBytes(cfg.CfgApp, 36)...)
+
+	out = append(out, pkg.Float32ToBytes(cfg.CfgSCVD)...)
+	out = append(out, pkg.Float32ToBytes(cfg.CfgSCVDMult)...)
+	out = append(out, pkg.Float32ToBytes(cfg.CfgSSPRate)...)
+	out = append(out, pkg.Float32ToBytes(cfg.CfgSSPDur)...)
+	out = append(out, pkg.Float32ToBytes(cfg.CfgHiSCVF)...)
+	out = append(out, pkg.Float32ToBytes(cfg.CfgFlowTog)...)
+
+	out = append(out, pkg.Int32ToBytes(cfg.CfgVlvTgt)...)
+	out = append(out, pkg.Int32ToBytes(cfg.CfgVlvPos)...)
+
+	out = append(out, pkg.Int32ToBytes(cfg.CfgOpSample)...)
+	out = append(out, pkg.Int32ToBytes(cfg.CfgOpLog)...)
+	out = append(out, pkg.Int32ToBytes(cfg.CfgOpTrans)...)
+	
+	out = append(out, pkg.Int32ToBytes(cfg.CfgDiagSample)...)
+	out = append(out, pkg.Int32ToBytes(cfg.CfgDiagLog)...)
+	out = append(out, pkg.Int32ToBytes(cfg.CfgDiagTrans)...)
+
+	return
 }

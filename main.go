@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	// "math/rand"
+	"os"
 	// "path/filepath"
 
 	"time"
@@ -31,48 +32,116 @@ import (
 	"github.com/leehayford/des/pkg/c001v001"
 )
 
+func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 
-func MakeDemoC001V001(serial, userID string) {
-	
-		t := time.Now().UTC().UnixMilli()
-		/* CREATE DEMO DEVICES */
-		des_dev := pkg.DESDev{
-			DESDevRegTime: t,
-			DESDevRegAddr: "DEMO",
-			DESDevRegUserID: userID,
-			DESDevRegApp: "DEMO",
-			DESDevSerial: serial,
-			DESDevVersion: "001",
-			DESDevClass: "001",
-		}
-		pkg.DES.DB.Create(&des_dev)
+	t := time.Now().UTC().UnixMilli()
+	/* CREATE DEMO DEVICES */
+	des_dev := pkg.DESDev{
+		DESDevRegTime:   t,
+		DESDevRegAddr:   "DEMO",
+		DESDevRegUserID: userID,
+		DESDevRegApp:    "DEMO",
+		DESDevSerial:    serial,
+		DESDevVersion:   "001",
+		DESDevClass:     "001",
+	}
+	pkg.DES.DB.Create(&des_dev)
 
-		job := c001v001.Job{
-			DESRegistration: pkg.DESRegistration{
-				DESDev: des_dev,
-				DESJob: pkg.DESJob{
-					DESJobRegTime: t,
-					DESJobRegAddr: "DEMO",
-					DESJobRegUserID: userID,
-					DESJobRegApp: "DEMO",
+	job := &c001v001.Job{
+		DESRegistration: pkg.DESRegistration{
+			DESDev: des_dev,
+			DESJob: pkg.DESJob{
+				DESJobRegTime:   t,
+				DESJobRegAddr:   "DEMO",
+				DESJobRegUserID: userID,
+				DESJobRegApp:    "DEMO",
 
-					DESJobName: fmt.Sprintf("%s_0000000000000", serial),
-					DESJobStart: 0,
-					DESJobEnd:   0,
-					DESJobLng:   -180, // -114.75 + rand.Float32() * ( -110.15 + 114.75 ),
-					DESJobLat:   90, // 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
-					DESJobDevID: des_dev.DESDevID,
-				},
+				DESJobName:  fmt.Sprintf("%s_0000000000000", serial),
+				DESJobStart: 0,
+				DESJobEnd:   0,
+				DESJobLng:   -180, // -114.75 + rand.Float32() * ( -110.15 + 114.75 ),
+				DESJobLat:   90,   // 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
+				DESJobDevID: des_dev.DESDevID,
 			},
-		}
-		job.Admins = []c001v001.Admin{(&job).RegisterJob_Default_JobAdmin()}
-		job.Headers = []c001v001.Header{(&job).RegisterJob_Default_JobHeader()}
-		job.Configs = []c001v001.Config{(&job).RegisterJob_Default_JobConfig()}
-		job.Events = []c001v001.Event{(&job).RegisterJob_Default_JobEvent()}
-		job.RegisterJob()
+		},
+	}
+	job.Admins = []c001v001.Admin{(job).RegisterJob_Default_JobAdmin()}
+	job.Headers = []c001v001.Header{(job).RegisterJob_Default_JobHeader()}
+	job.Configs = []c001v001.Config{(job).RegisterJob_Default_JobConfig()}
+	job.Events = []c001v001.Event{(job).RegisterJob_Default_JobEvent()}
+	job.RegisterJob()
+
+	demo := c001v001.DemoDeviceClient{
+		Device: c001v001.Device{ 
+			DESRegistration: job.DESRegistration,
+			Job: c001v001.Job{ DESRegistration: job.DESRegistration, },
+		},
+	}
+
+	/* WRITE TO FLASH - JOB_0 */
+	demo.WriteAdmToFlash(*job, job.Admins[0])
+	demo.WriteHdrToFlash(*job, job.Headers[0])
+	demo.WriteCfgToFlash(*job, job.Configs[0])
+	demo.WriteEvtToFlash(*job, job.Events[0])
+
+	return job.DESRegistration
+}
+
+func DemoSimFlashTest() {
+	
+	cfg := c001v001.Config{
+		CfgTime:   time.Now().UTC().UnixMilli(),
+		CfgAddr:   "aaaabbbbccccddddeeeeffffgggghhhh",
+		CfgUserID: "ef0589a4-5ad4-45ea-9575-5aaee0568b0c",
+		CfgApp:    "aaaabbbbccccddddeeeeffffgggghhhh",
+
+		/* JOB */
+		CfgSCVD:     596.8, // m
+		CfgSCVDMult: 10.5,  // kPa / m
+		CfgSSPRate:  1.95,  // kPa / hour
+		CfgSSPDur:   6.0,   // hour
+		CfgHiSCVF:   201.4, //  L/min
+		CfgFlowTog:  1.85,  // L/min
+
+		/* VALVE */
+		CfgVlvTgt: 2, // vent
+		CfgVlvPos: 2, // vent
+
+		/* OP PERIODS*/
+		CfgOpSample: 1000, // millisecond
+		CfgOpLog:    1000, // millisecond
+		CfgOpTrans:  1000, // millisecond
+
+		/* DIAG PERIODS */
+		CfgDiagSample: 10000,  // millisecond
+		CfgDiagLog:    100000, // millisecond
+		CfgDiagTrans:  600000, // millisecond
+	}
+
+	cfgBytes := cfg.FilterCfgBytes()
+	fmt.Printf("\ncfgBytes ( %d ) : %v\n", len(cfgBytes), cfgBytes)
+
+	dir := fmt.Sprintf("demo/%s", "test")
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		pkg.Trace(err)
+	}
+
+	f, err := os.OpenFile(fmt.Sprintf("%s/cfg.bin", dir), os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		pkg.Trace(err)
+	}
+	defer f.Close()
+
+	_, err = f.Write(cfg.FilterCfgBytes())
+	if err != nil {
+		pkg.Trace(err)
+	}
+
+	f.Close()
 }
 
 func main() {
+
 
 	if err := pkg.DES.CreateDESDatabase(false); err != nil {
 		pkg.Trace(err)
@@ -81,17 +150,55 @@ func main() {
 	defer pkg.DES.Close()
 
 	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
-	// user := pkg.User{}
-	// pkg.DES.DB.Last(&user)
-	// MakeDemoC001V001("DEMO000000", user.ID.String())
-	// MakeDemoC001V001("DEMO000001", user.ID.String())
-	// MakeDemoC001V001("DEMO000002", user.ID.String())
-	// MakeDemoC001V001("DEMO000003", user.ID.String())
-	// MakeDemoC001V001("DEMO000004", user.ID.String())
 
-	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
-	fmt.Println("Connecting all C001V001 MQTT Device Clients...")
-	c001v001.MQTTDeviceClient_CreateAndConnectAll()
+	regs, err := c001v001.GetDemoDeviceList()
+	if err != nil {
+		pkg.Trace(err)
+	}
+
+	if len(regs) == 0 {
+		user := pkg.User{}
+		pkg.DES.DB.Last(&user)
+		regs = append(regs, MakeDemoC001V001("DEMO000000", user.ID.String()))
+		regs = append(regs, MakeDemoC001V001("DEMO000001", user.ID.String()))
+		regs = append(regs, MakeDemoC001V001("DEMO000002", user.ID.String()))
+		// regs = append(regs, MakeDemoC001V001("DEMO000003", user.ID.String()))
+		// regs = append(regs, MakeDemoC001V001("DEMO000004", user.ID.String()))
+	}
+
+	for _, reg := range regs {
+		demo := c001v001.DemoDeviceClient{
+			Device: c001v001.Device{ 
+				DESRegistration: reg,
+				Job: c001v001.Job{ DESRegistration: reg, },
+			},
+		}
+				
+		admBytes, err := demo.ReadAdmFromFlash(demo.Job, demo.DESDevRegTime)
+		if err == nil {
+			adm := demo.MakeAdmFromBytes(admBytes)
+			pkg.Json("Main() -> MakeAdmFromBytes() -> adm", adm)
+		}
+				
+		hdrBytes, err := demo.ReadHdrFromFlash(demo.Job, demo.DESDevRegTime)
+		if err == nil {
+			hdr := demo.MakeHdrFromBytes(hdrBytes)
+			pkg.Json("Main() -> MakeHdrFromBytes() -> hdr", hdr)
+		}
+
+		cfgBytes, err := demo.ReadCfgFromFlash(demo.Job, demo.DESDevRegTime)
+		if err == nil {
+			cfg := demo.MakeCfgFromBytes(cfgBytes)
+			pkg.Json("Main() -> MakeCfgFromBytes() -> cfg", cfg)
+		}
+
+		
+		demo.MQTTDemoDeviceClient_Connect()
+	}
+
+	// /* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
+	// fmt.Println("Connecting all C001V001 MQTT Device Clients...")
+	// c001v001.MQTTDeviceClient_CreateAndConnectAll()
 
 	/* MAIN SER$VER */
 	app := fiber.New()

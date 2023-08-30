@@ -1,5 +1,9 @@
 package c001v001
 
+import (
+	"github.com/leehayford/des/pkg"
+)
+
 /*
 EVENT - AS WRITTEN TO JOB DATABASE
 */
@@ -13,7 +17,7 @@ type Event struct {
 
 	EvtTitle string   `json:"evt_title"`
 	EvtMsg   string   `json:"evt_msg"`
-	EvtCode  int64    `json:"evt_code"`
+	EvtCode  int32    `json:"evt_code"`
 	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:evt_typ_code" json:"-"`
 }
 
@@ -28,7 +32,7 @@ type MQTT_Event struct {
 
 	EvtTitle string `json:"evt_title"`
 	EvtMsg   string `json:"evt_msg"`
-	EvtCode  int64  `json:"evt_code"`
+	EvtCode  int32  `json:"evt_code"`
 }
 
 func (evt *Event) FilterEvtRecord() MQTT_Event {
@@ -44,9 +48,23 @@ func (evt *Event) FilterEvtRecord() MQTT_Event {
 	}
 }
 
+func (evt *Event) FilterEvtBytes() (out []byte) {
+
+	out = append(out, pkg.Int64ToBytes(evt.EvtTime)...)
+	out = append(out, pkg.StringToNBytes(evt.EvtAddr, 36)...)
+	out = append(out, pkg.StringToNBytes(evt.EvtUserID, 36)...)
+	out = append(out, pkg.StringToNBytes(evt.EvtApp, 36)...)
+
+	out = append(out, pkg.StringToNBytes(evt.EvtTitle, len(evt.EvtTitle))...)
+	out = append(out, pkg.StringToNBytes(evt.EvtMsg, len(evt.EvtMsg))...)
+	out = append(out, pkg.Int32ToBytes(evt.EvtCode)...)
+
+	return
+}
+
 type EventTyp struct {
 	EvtTypID   int64  `gorm:"unique; primaryKey" json:"evt_typ_id"`
-	EvtTypCode int64  `gorm:"unique" json:"evt_typ_code"`
+	EvtTypCode int32  `gorm:"unique" json:"evt_typ_code"`
 	EvtTypName string `json:"evt_typ_name"`
 	EvtTypDesc string `json:"evt_typ_desc"`
 }

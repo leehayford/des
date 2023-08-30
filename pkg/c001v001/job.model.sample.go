@@ -24,6 +24,22 @@ type Sample struct {
 	SmpJobName string  `json:"smp_job_name"`
 }
 
+func (smp *Sample) FilterSmpBytes() (out []byte) {
+	
+	out = append(out, pkg.Int64ToBytes(smp.SmpTime)...)
+	out = append(out, pkg.Float32ToBytes(smp.SmpCH4)...)
+	out = append(out, pkg.Float32ToBytes(smp.SmpHiFlow)...)
+	out = append(out, pkg.Float32ToBytes(smp.SmpLoFlow)...)
+	out = append(out, pkg.Float32ToBytes(smp.SmpPress)...)
+	out = append(out, pkg.Float32ToBytes(smp.SmpBatAmp)...)
+	out = append(out, pkg.Float32ToBytes(smp.SmpBatVolt)...)
+	out = append(out, pkg.Float32ToBytes(smp.SmpMotVolt)...)
+	out = append(out, pkg.Int32ToBytes(int32(smp.SmpVlvTgt))...)
+	out = append(out, pkg.Int32ToBytes(int32(smp.SmpVlvPos))...)
+
+	return
+}
+
 /*
 SAMPLE - MQTT MESSAGE STRUCTURE
 */

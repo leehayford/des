@@ -318,7 +318,6 @@ func (device *Device) StartJob(evt Event) {
 	device.Job.Configs = []Config{cfg}
 	device.Job.Events = []Event{evt}
 	device.Job.RegisterJob()
-
 }
 
 func (device *Device)GetZeroJob() (reg pkg.DESRegistration) {

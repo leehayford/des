@@ -23,7 +23,6 @@ func GetBytes(v any) []byte {
 	return buffer.Bytes()
 }
 
-
 /*BYTES INPUT*/
 func BytesToUInt16(bytes []byte) uint16 {
 	x := make([]byte, 2)
@@ -68,9 +67,15 @@ func BytesToUInt32_L(bytes []byte) uint32 {
 	// fmt.Printf("Final bytes:\t%d\t%x\n", len(x), x)
 	return binary.LittleEndian.Uint32(x)
 }
+func BytesToInt32_L(bytes []byte) int32 {
+	return int32(BytesToUInt32_L(bytes))
+}
 
 func BytesToInt64(bytes []byte) int64 {
 	return int64(binary.BigEndian.Uint64(bytes))
+}
+func BytesToInt64_L(bytes []byte) int64 {
+	return int64(binary.LittleEndian.Uint64(bytes))
 }
 
 func BytesToFloat32(bytes []byte) float32 {
@@ -95,9 +100,56 @@ func Base64ToBytes(b64 string) []byte {
 	return bytes
 }
 
-// func Float32ToHex(f float32)
+func Int64ToBytes(in int64) []byte {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, uint64(in))
+	return b
+}
+
+func Int32ToBytes(in int32) []byte {
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint32(b, uint32(in))
+	return b
+}
+
+func Float32ToBytes(in float32) []byte {
+
+	var b bytes.Buffer
+	if err := binary.Write(&b, binary.LittleEndian, in); err != nil {
+		Trace(err)
+	}
+	return b.Bytes()
+}
+
+func FFStrBytesToString(b []byte) (out string) {
+	for i := range b {
+		if b[i] != 255 {
+			return string(b[i:])
+		}
+	}
+	return
+}
 
 /*STRING INPUT*/
+func StringToNBytes(str string, size int) []byte {
+
+	bin := []byte(str)
+	l := len(bin)
+
+	if l == size {
+		return bin
+	}
+	if l > size {
+		return bin[l-size:]
+	}
+	// out := make([]byte, size)
+	out := bytes.Repeat([]byte{0xFF}, size)
+	copy(out[size-l:], bin)
+	return out
+}
+
+// func Float32ToHex(f float32)
+
 func StringToInt64(str string) int64 {
 	out, err := strconv.ParseInt(strings.Trim(str, " "), 0, 64)
 	if err != nil {
@@ -213,7 +265,7 @@ func (v TSXY) MinMax(margin float32) (float32, float32) {
 }
 func (v TSXY) TSD(margin float32) TimeSeriesData {
 	min, max := v.MinMax(margin)
-	return TimeSeriesData{ TSDPoints(v), min, max }
+	return TimeSeriesData{TSDPoints(v), min, max}
 }
 
 type TSValues interface {

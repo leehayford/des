@@ -68,8 +68,7 @@ func MQTTDeviceClient_CreateAndConnectAll() (err error) {
 	drs, err := GetDeviceList() 
 	if err != nil {
 		return pkg.Trace(err)
-	}
-	pkg.Json("GetDeviceList():", drs)
+	} // pkg.Json("GetDeviceList():", drs)
 
 	for _, dr := range drs {
 		device := Device{
@@ -81,7 +80,6 @@ func MQTTDeviceClient_CreateAndConnectAll() (err error) {
 			return pkg.Trace(err)
 		}
 	}
-
 
 	return err
 }

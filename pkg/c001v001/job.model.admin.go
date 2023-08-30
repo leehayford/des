@@ -1,5 +1,9 @@
 package c001v001
 
+import (
+	"github.com/leehayford/des/pkg"
+)
+
 /*
 ADMIN - AS WRITTEN TO JOB DATABASE
 */
@@ -155,4 +159,48 @@ func (adm *Admin) FilterAdmRecord() MQTT_Admin {
 		AdmLFSDiffMin:  adm.AdmLFSDiffMin,
 		AdmLFSDiffMax:  adm.AdmLFSDiffMax,
 	}
+}
+
+func (adm *Admin) FilterAdmBytes() (out []byte) {
+	
+	out = append(out, pkg.Int64ToBytes(adm.AdmTime)...)
+	out = append(out, pkg.StringToNBytes(adm.AdmAddr, 36)...)
+	out = append(out, pkg.StringToNBytes(adm.AdmUserID, 36)...)
+	out = append(out, pkg.StringToNBytes(adm.AdmApp, 36)...)
+
+	out = append(out, pkg.StringToNBytes(adm.AdmDefHost, 32)...)
+	out = append(out, pkg.Int32ToBytes(adm.AdmDefPort)...)
+	out = append(out, pkg.StringToNBytes(adm.AdmOpHost, 32)...)
+	out = append(out, pkg.Int32ToBytes(adm.AdmOpPort)...)
+
+	out = append(out, pkg.StringToNBytes(adm.AdmSerial, 10)...)
+	out = append(out, pkg.StringToNBytes(adm.AdmVersion, 3)...)
+	out = append(out, pkg.StringToNBytes(adm.AdmClass, 3)...)
+
+	out = append(out, pkg.Float32ToBytes(adm.AdmBatHiAmp)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmBatLoVolt)...)
+
+	out = append(out, pkg.Float32ToBytes(adm.AdmMotHiAmp)...)
+
+	out = append(out, pkg.Float32ToBytes(adm.AdmHFSFlow)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmHFSFlowMin)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmHFSFlowMax)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmHFSPress)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmHFSPressMin)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmHFSPressMax)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmHFSDiff)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmHFSDiffMin)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmHFSDiffMax)...)
+
+	out = append(out, pkg.Float32ToBytes(adm.AdmLFSFlow)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmLFSFlowMin)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmLFSFlowMax)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmLFSPress)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmLFSPressMin)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmLFSPressMax)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmLFSDiff)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmLFSDiffMin)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmLFSDiffMax)...)
+	
+	return
 }
