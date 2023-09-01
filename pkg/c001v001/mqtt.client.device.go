@@ -90,7 +90,16 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), &device.ADM)
+
+			adm := Admin{}
+			zero := device.GetZeroJob()
+			zero.WriteMQTT(msg.Payload(), &adm)
+
+			device.ADM = adm
+			if device.EVT.EvtCode > 2 {
+				device.ADM.AdmID = 0
+				device.Job.WriteMQTT(msg.Payload(), &device.ADM)
+			}
 		},
 	}
 }
@@ -102,11 +111,19 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), &device.HDR)
+
+			hdr := Header{}
+			zero := device.GetZeroJob()
+			zero.WriteMQTT(msg.Payload(), &hdr)
+
+			device.HDR = hdr
+			if device.EVT.EvtCode > 2 {
+				device.HDR.HdrID = 0
+				device.Job.WriteMQTT(msg.Payload(), &device.HDR)
+			}
 		},
 	}
 }
-
 
 /* SUBSCRIPTION -> CONFIGURATION -> UPON RECEIPT, WRITE TO JOB DATABASE */
 func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscription {
@@ -115,7 +132,16 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), &device.CFG)
+
+			cfg := Config{}
+			zero := device.GetZeroJob()
+			zero.WriteMQTT(msg.Payload(), &cfg)
+
+			device.CFG = cfg
+			if device.EVT.EvtCode > 2 {
+				device.CFG.CfgID = 0
+				device.Job.WriteMQTT(msg.Payload(), &device.CFG)
+			}
 		},
 	}
 }
@@ -127,7 +153,35 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), &device.EVT)
+
+			evt := Event{}
+			zero := device.GetZeroJob()
+			zero.WriteMQTT(msg.Payload(), &evt)
+			
+			switch evt.EvtCode {
+
+			case 1: // End Job
+				// END CURRENT JOB
+
+			case 2: // Start Job
+				if device.EVT.EvtCode > 1 {
+					// END CURRENT JOB
+				}
+				device.EVT = evt
+				device.EVT.EvtID = 0
+				device.StartJob( )
+
+			case 10: // Mode Vent
+			case 11: // Mode Build
+			case 12: // Mode Hi Flow
+			case 13: // Mode Lo Flow
+			default :
+				// WRITE TO CURRETN JOB
+				device.EVT = evt
+				device.EVT.EvtID = 0
+				device.Job.WriteMQTT(msg.Payload(), &device.EVT)
+
+			}
 		},
 	}
 }
@@ -139,6 +193,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
+			device.SMP.SmpID = 0
 			device.Job.WriteMQTTSample(msg.Payload(), &device.SMP)
 		},
 	}

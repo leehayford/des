@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"log"
+
 	// "math/rand"
 	"os"
 	// "path/filepath"
@@ -72,9 +73,9 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 	job.RegisterJob()
 
 	demo := c001v001.DemoDeviceClient{
-		Device: c001v001.Device{ 
+		Device: c001v001.Device{
 			DESRegistration: job.DESRegistration,
-			Job: c001v001.Job{ DESRegistration: job.DESRegistration, },
+			Job:             c001v001.Job{DESRegistration: job.DESRegistration},
 		},
 	}
 
@@ -84,21 +85,21 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 	demo.WriteCfgToFlash(*job, job.Configs[0])
 	demo.WriteEvtToFlash(*job, job.Events[0])
 	demo.WriteEvtToFlash(*job, c001v001.Event{
-		EvtTime: time.Now().UTC().UnixMilli(),
-		EvtAddr: "DEMO",
+		EvtTime:   time.Now().UTC().UnixMilli(),
+		EvtAddr:   "DEMO",
 		EvtUserID: userID,
-		EvtApp: "DEMO",
-		
-		EvtCode: 1,
+		EvtApp:    "DEMO",
+
+		EvtCode:  1,
 		EvtTitle: "Intitial State",
-		EvtMsg: "End Job event to ensure this newly registered demo device is ready to start a new demo job.",
+		EvtMsg:   "End Job event to ensure this newly registered demo device is ready to start a new demo job.",
 	})
 
 	return job.DESRegistration
 }
 
 func DemoSimFlashTest() {
-	
+
 	cfg := c001v001.Config{
 		CfgTime:   time.Now().UTC().UnixMilli(),
 		CfgAddr:   "aaaabbbbccccddddeeeeffffgggghhhh",
@@ -152,7 +153,6 @@ func DemoSimFlashTest() {
 
 func main() {
 
-
 	if err := pkg.DES.CreateDESDatabase(false); err != nil {
 		pkg.Trace(err)
 	}
@@ -178,32 +178,31 @@ func main() {
 
 	for _, reg := range regs {
 		demo := c001v001.DemoDeviceClient{
-			Device: c001v001.Device{ 
+			Device: c001v001.Device{
 				DESRegistration: reg,
-				Job: c001v001.Job{ DESRegistration: reg, },
+				Job:             c001v001.Job{DESRegistration: reg},
 			},
 		}
-		demo.GetAdmFromFlash(demo.Job, &demo.ADM)		
+		demo.GetAdmFromFlash(demo.Job, &demo.ADM)
 		demo.GetHdrFromFlash(demo.Job, &demo.HDR)
 		demo.GetCfgFromFlash(demo.Job, &demo.CFG)
 		evts := demo.ReadEvtDir(demo.Job)
-		lastEVT := evts[len(evts) -1]
-		if lastEVT.EvtCode != 1 {	
+		lastEVT := evts[len(evts)-1]
+		if lastEVT.EvtCode != 1 {
 			user := pkg.User{}
 			pkg.DES.DB.Last(&user)
 			demo.WriteEvtToFlash(demo.Job, c001v001.Event{
-				EvtTime: time.Now().UTC().UnixMilli(),
-				EvtAddr: "DEMO",
+				EvtTime:   time.Now().UTC().UnixMilli(),
+				EvtAddr:   "DEMO",
 				EvtUserID: user.ID.String(),
-				EvtApp: "DEMO",
-				
-				EvtCode: 1,
+				EvtApp:    "DEMO",
+
+				EvtCode:  1,
 				EvtTitle: "Server Restart - Ending Current Job",
-				EvtMsg: "End Job to ensure this demo device is ready to start a new demo job.",
+				EvtMsg:   "End Job to ensure this demo device is ready to start a new demo job.",
 			})
 		}
 		demo.EVT = lastEVT
-
 
 		demo.MQTTDemoDeviceClient_Connect()
 		defer demo.MQTTDemoDeviceClient_Disconnect()
@@ -259,7 +258,7 @@ func main() {
 	/* C001V001 DEVICE ROUTES */
 	api.Route("/001/001/device", func(router fiber.Router) {
 		router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
-		router.Post("/start", pkg.DesAuth, (&c001v001.Device{}).HandleStartNewJob)
+		router.Post("/start", pkg.DesAuth, (&c001v001.Device{}).HandleStartJob)
 		router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
 		router.Get("/ws", pkg.DesAuth, websocket.New(
 			(&c001v001.DeviceUserClient{}).WSDeviceUserClient_Connect,

@@ -3,32 +3,32 @@ package c001v001
 import (
 	"github.com/leehayford/des/pkg"
 )
+
 /*
 HEADER AS WRITTEN TO JOB DATABASE
 */
 type Header struct {
-	Hdr_ID int64 `gorm:"unique; primaryKey" json:"hdr_id"`
+	HdrID int64 `gorm:"unique; primaryKey" json:"hdr_id"`
 
 	HdrTime   int64  `gorm:"not null" json:"hdr_time"`
 	HdrAddr   string `json:"hdr_addr"`
 	HdrUserID string `gorm:"not null; varchar(36)" json:"hdr_user_id"`
 	HdrApp    string `gorm:"not null; varchar(36)" json:"hdr_app"`
 
-	HdrJobName  string  `gorm:"not null; varchar(24)" json:"hdr_job_name"`
-	HdrJobStart int64   `json:"hdr_job_start"`
-	HdrJobEnd   int64   `json:"hdr_job_end"`
+	HdrJobName  string `gorm:"not null; varchar(24)" json:"hdr_job_name"`
+	HdrJobStart int64  `json:"hdr_job_start"`
+	HdrJobEnd   int64  `json:"hdr_job_end"`
 
 	/*WELL INFORMATION*/
-	HdrWellCo string `json:"hdr_well_co"`
-	HdrWellName string `json:"hdr_well_name"`
+	HdrWellCo    string `json:"hdr_well_co"`
+	HdrWellName  string `json:"hdr_well_name"`
 	HdrWellSFLoc string `json:"hdr_well_sf_loc"`
 	HdrWellBHLoc string `json:"hdr_well_bh_loc"`
-	HdrWellLic string `json:"hdr_well_lic"`
+	HdrWellLic   string `json:"hdr_well_lic"`
 
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
 	HdrGeoLng float32 `json:"hdr_geo_lng"`
 	HdrGeoLat float32 `json:"hdr_geo_lat"`
-
 }
 
 /*
@@ -40,16 +40,16 @@ type MQTT_JobHeader struct {
 	HdrUserID string `json:"hdr_user_id"`
 	HdrApp    string `json:"hdr_app"`
 
-	HdrJobName  string  `json:"hdr_job_name"`
-	HdrJobStart int64   `json:"hdr_job_start"`
-	HdrJobEnd   int64   `json:"hdr_job_end"`
+	HdrJobName  string `json:"hdr_job_name"`
+	HdrJobStart int64  `json:"hdr_job_start"`
+	HdrJobEnd   int64  `json:"hdr_job_end"`
 
 	/*WELL INFORMATION*/
-	HdrWellCo string `json:"hdr_well_co"`
-	HdrWellName string `json:"hdr_well_name"`
+	HdrWellCo    string `json:"hdr_well_co"`
+	HdrWellName  string `json:"hdr_well_name"`
 	HdrWellSFLoc string `json:"hdr_well_sf_loc"`
 	HdrWellBHLoc string `json:"hdr_well_bh_loc"`
-	HdrWellLic string `json:"hdr_well_lic"`
+	HdrWellLic   string `json:"hdr_well_lic"`
 
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
 	HdrGeoLng float32 `json:"hdr_geo_lng"`
@@ -57,21 +57,21 @@ type MQTT_JobHeader struct {
 }
 
 func (hdr *Header) FilterHdrRecord() MQTT_JobHeader {
-	return MQTT_JobHeader {
-		HdrTime: hdr.HdrTime,
-		HdrAddr: hdr.HdrAddr,
+	return MQTT_JobHeader{
+		HdrTime:   hdr.HdrTime,
+		HdrAddr:   hdr.HdrAddr,
 		HdrUserID: hdr.HdrUserID,
-		HdrApp: hdr.HdrApp,
+		HdrApp:    hdr.HdrApp,
 
-		HdrJobName: hdr.HdrJobName,
+		HdrJobName:  hdr.HdrJobName,
 		HdrJobStart: hdr.HdrJobStart,
-		HdrJobEnd:  hdr.HdrJobEnd,
+		HdrJobEnd:   hdr.HdrJobEnd,
 
-		HdrWellCo: hdr.HdrWellCo,
-		HdrWellName: hdr.HdrWellName,
+		HdrWellCo:    hdr.HdrWellCo,
+		HdrWellName:  hdr.HdrWellName,
 		HdrWellSFLoc: hdr.HdrWellSFLoc,
 		HdrWellBHLoc: hdr.HdrWellBHLoc,
-		HdrWellLic: hdr.HdrWellLic,
+		HdrWellLic:   hdr.HdrWellLic,
 
 		HdrGeoLng: hdr.HdrGeoLng,
 		HdrGeoLat: hdr.HdrGeoLat,
@@ -112,15 +112,15 @@ func (hdr *Header) MakeHdrFromBytes(b []byte) {
 		HdrUserID: pkg.FFStrBytesToString(b[44:80]),
 		HdrApp:    pkg.FFStrBytesToString(b[80:116]),
 
-		HdrJobName: pkg.FFStrBytesToString(b[116:140]),
+		HdrJobName:  pkg.FFStrBytesToString(b[116:140]),
 		HdrJobStart: pkg.BytesToInt64_L(b[140:148]),
-		HdrJobEnd: pkg.BytesToInt64_L(b[148:156]),
+		HdrJobEnd:   pkg.BytesToInt64_L(b[148:156]),
 
-		HdrWellCo: pkg.FFStrBytesToString(b[156:188]),
-		HdrWellName: pkg.FFStrBytesToString(b[188:220]),
+		HdrWellCo:    pkg.FFStrBytesToString(b[156:188]),
+		HdrWellName:  pkg.FFStrBytesToString(b[188:220]),
 		HdrWellSFLoc: pkg.FFStrBytesToString(b[220:252]),
 		HdrWellBHLoc: pkg.FFStrBytesToString(b[252:284]),
-		HdrWellLic: pkg.FFStrBytesToString(b[284:316]),
+		HdrWellLic:   pkg.FFStrBytesToString(b[284:316]),
 
 		HdrGeoLng: pkg.BytesToFloat32_L(b[316:320]),
 		HdrGeoLat: pkg.BytesToFloat32_L(b[320:324]),
@@ -139,17 +139,17 @@ Latitude: 55.000000
 */
 /* GeoJSON OBJECTS */
 type GeoJSONFeatureCollection struct {
-	GeoFtColType string `json:"type"`
+	GeoFtColType     string           `json:"type"`
 	GeoFtColFeatures []GeoJSONFeature `json:"features"`
 }
 
 type GeoJSONFeature struct {
-	GeoFtType string `json:"type"`
-	GeoFtGeometry GeoJSONGeometry `json:"geometry"`
-	GeoFtProperties []interface{} `json:"properties"`
+	GeoFtType       string          `json:"type"`
+	GeoFtGeometry   GeoJSONGeometry `json:"geometry"`
+	GeoFtProperties []interface{}   `json:"properties"`
 }
 
 type GeoJSONGeometry struct {
-	GeomType string `json:"type"`
+	GeomType   string    `json:"type"`
 	GeomCoords []float32 `json:"coordinates"`
 }

@@ -73,6 +73,67 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 		return 
 }
 
+func (device *Device) StartJob( ) {
+	zero := device.GetZeroJob()
+	db := zero.JDB()
+	db.Connect()
+	defer db.Close()
+	
+	db.Last(&device.ADM)
+	db.Last(&device.HDR)
+	db.Last(&device.CFG)
+	db.Last(&device.EVT)
+	db.Last(&device.SMP)
+
+	db.Close()
+
+	device.Job = Job{
+		DESRegistration: pkg.DESRegistration{
+			DESDev: device.DESDev,
+			DESJob: pkg.DESJob{
+				DESJobRegTime: device.HDR.HdrTime,
+				DESJobRegAddr: device.HDR.HdrAddr,
+				DESJobRegUserID: device.HDR.HdrUserID,
+				DESJobRegApp: device.HDR.HdrApp,
+
+				DESJobName: device.HDR.HdrJobName,
+				DESJobStart: device.HDR.HdrJobStart,
+				DESJobEnd: 0,
+				DESJobLng: device.HDR.HdrGeoLng,
+				DESJobLat: device.HDR.HdrGeoLat,
+				DESJobDevID: device.DESDevID,
+			},
+		},
+		Admins: []Admin{device.ADM},
+		Headers: []Header{device.HDR},
+		Configs: []Config{device.CFG},
+		Events: []Event{device.EVT},
+	}
+	if err := device.Job.RegisterJob(); err != nil {
+		pkg.Trace(err)
+	}
+}
+func (device *Device) EndJob( ) {
+
+	// zero := device.GetZeroJob()
+	// db := zero.JDB()
+	// db.Connect()
+	// defer db.Close()
+	
+	// db.Last(&device.ADM)
+	// db.Last(&device.HDR)
+	// db.Last(&device.CFG)
+	// db.Last(&device.EVT)
+	// db.Last(&device.SMP)
+
+	// db.Close()
+	// device.Job = device.GetZeroJob()
+	// device.DESRegistration = device.Job.DESRegistration
+	// device.GetDeviceStatus()
+}
+
+
+
 /* Create a device client for all registered devices */
 func MQTTDeviceClient_CreateAndConnectAll() (err error) {
 

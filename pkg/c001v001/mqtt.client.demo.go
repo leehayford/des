@@ -339,7 +339,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 			if err := json.Unmarshal(msg.Payload(), &demo.EVT); err != nil {
 				pkg.Trace(err)
 			}
-			evtTime := demo.EVT.EvtTime
 
 			/* SIMULATE EVENT RESPONSE */
 			fmt.Printf("\n(demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() -> %s\n", demo.MQTTTopic_CMDEvent())
@@ -357,10 +356,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 			case 13: // Mode Lo Flow
 				// EDIT / SEND CONFIG -> MOVE VALVE
 				demo.MoveValve()
-			}
-			if demo.EVT.EvtTime > evtTime {
-				/* AN ACTION WAS TAKEN BASED ON THIS EVENT; TELL EVERYONE */
-				demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
 			}
 		},
 	}
@@ -915,7 +910,7 @@ func (demo *DemoDeviceClient) WriteSmpToFlash(job Job, smp Sample) (err error) {
 func (demo *DemoDeviceClient) StartDemoJob() {
 	fmt.Printf("(demo *DemoDeviceClient) StartDemoJob( )...\n")
 
-	zero := Job{DESRegistration: demo.GetZeroJob()}
+	zero := demo.GetZeroJob()	
 	evts := demo.ReadEvtDir(zero)
 	lastZeroEVT := evts[len(evts) -1]
 	/* MAKE SURE THE PREVIOUS JOB IS ENDED */
@@ -1026,8 +1021,6 @@ func (demo *DemoDeviceClient) EndDemoJob() {
 
 	/* CAPTURE TIME VALUE FOR JOB TERMINATION: HDR, EVT */
 	demo.EVT.EvtTime =  time.Now().UTC().UnixMilli()
-
-	demo.Device.Job.DESRegistration = demo.GetCurrentJob()
 
 	demo.HDR.HdrTime = demo.EVT.EvtTime
 	demo.HDR.HdrAddr = demo.DESDevSerial
