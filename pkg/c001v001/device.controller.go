@@ -28,13 +28,16 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	devices := []Device{}
 	for _, reg := range regs {
 
+		pkg.Json("HandleGetDeviceList( ) -> reg", reg)
 		go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
 
 			defer wg.Done()
 			job := Job{DESRegistration: r}
-			job.GetJobData(-1) // pkg.Json("HandleGetDeviceList(): job", job)
+			// job.GetJobData(-1) // pkg.Json("HandleGetDeviceList(): job", job)
 
 			device := Device{Job: job, DESRegistration: r}
+			// device := Device{ DESRegistration: r }
+			device.GetDeviceStatus()
 			devices = append(devices, device)
 
 		}(reg, &wg)
@@ -163,14 +166,14 @@ func (device *Device) HandleStartNewJob(c *fiber.Ctx) (err error) {
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
-	req := Job{}
-	if err = c.BodyParser(&req); err != nil {
+	dev := Device{}
+	if err = c.BodyParser(&dev); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
 	}
-	if errors := pkg.ValidateStruct(req); errors != nil {
+	if errors := pkg.ValidateStruct(dev); errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "fail",
 			"errors": errors,
@@ -178,24 +181,25 @@ func (device *Device) HandleStartNewJob(c *fiber.Ctx) (err error) {
 	}
 	// pkg.Json("(dev *Device) HandleStartNewJob(): -> c.BodyParser(&req) -> req", req)
 
-	device.DESRegistration = (&Device{ DESRegistration: req.DESRegistration }).GetZeroJob()
-	device.Job.DESRegistration = device.DESRegistration
+	device.DESRegistration = (&Device{ DESRegistration: dev.DESRegistration }).GetZeroJob()
+	device.Job.DESRegistration = dev.DESRegistration
 	device.Job.DESJobLng = -180
 	device.Job.DESJobLat = 90
+	device.DESMQTTClient = pkg.MQTTDevClients[device.DESDevSerial]
 	// pkg.Json("(dev *Device) HandleStartNewJob(): -> GetDeviceZeroJob( ) -> device.", device)
 
-	/* CHECK DEVICE LAST KNOWN DEVICE STATE */
-	job_0_evt := (&device.Job).GetLastEvent()
-	// pkg.Json("(dev *Device) HandleStartNewJob(): -> zero_job.GetLastEvent() -> job_0_evt", job_0_evt)
-	if job_0_evt.EvtCode > 1 {
-		/*
-			END CURRENT JOB (JOB_X)
-				MAKE EVENT(END JOB)
-				MQTT SEND EVENT
-				LOG EVENT IN JOB_0
-				LOG EVENT IN JOB_X
-		*/
-	}
+	// /* CHECK DEVICE LAST KNOWN DEVICE STATE */
+	// job_0_evt := (&device.Job).GetLastEvent()
+	// // pkg.Json("(dev *Device) HandleStartNewJob(): -> zero_job.GetLastEvent() -> job_0_evt", job_0_evt)
+	// if job_0_evt.EvtCode > 1 {
+	// 	/*
+	// 		END CURRENT JOB (JOB_X)
+	// 			MAKE EVENT(END JOB)
+	// 			MQTT SEND EVENT
+	// 			LOG EVENT IN JOB_0
+	// 			LOG EVENT IN JOB_X
+	// 	*/
+	// }
 
 	/*
 		START NEW JOB
@@ -204,121 +208,123 @@ func (device *Device) HandleStartNewJob(c *fiber.Ctx) (err error) {
 	*/
 	time := time.Now().UTC().UnixMilli()
 
-	evt := Event{
+	device.EVT = Event{
 		EvtTime:   time,
 		EvtAddr:   c.IP(),
 		EvtUserID: device.Job.DESJobRegUserID,
 		EvtApp:    device.Job.DESJobRegApp,
 		EvtTitle:  "Start Job Request",
 		EvtMsg:    "Job start sequence initiated.",
-		EvtCode:   1,
+		EvtCode:   2,
 	}
-	// pkg.Json("(dev *Device) HandleStartNewJob(): -> evt", evt)
+	// pkg.Json("(dev *Device) HandleStartNewJob(): -> device.EVT", device.EVT)
 
-	adm := req.Admins[0]
-	adm.AdmTime = time
-	adm.AdmAddr = c.IP()
-	adm.AdmUserID = device.Job.DESJobRegUserID
-	adm.AdmDefHost = pkg.MQTT_BROKER
-	adm.AdmDefPort = pkg.MQTT_PORT
-	adm.AdmOpHost = pkg.MQTT_BROKER
-	adm.AdmOpPort = pkg.MQTT_PORT
-	adm.AdmSerial = device.Job.DESDevSerial
-	// pkg.Json("(dev *Device) HandleStartNewJob(): -> adm", adm)
+	device.ADM = dev.ADM
+	device.ADM.AdmTime = time
+	device.ADM.AdmAddr = c.IP()
+	device.ADM.AdmUserID = device.Job.DESJobRegUserID
+	device.ADM.AdmDefHost = pkg.MQTT_BROKER
+	device.ADM.AdmDefPort = pkg.MQTT_PORT
+	device.ADM.AdmOpHost = pkg.MQTT_BROKER
+	device.ADM.AdmOpPort = pkg.MQTT_PORT
+	device.ADM.AdmSerial = device.Job.DESDevSerial
+	// pkg.Json("(dev *Device) HandleStartNewJob(): -> device.ADM", device.ADM)
 
-	hdr := req.Headers[0]
-	hdr.HdrTime = time
-	hdr.HdrAddr = c.IP()
-	hdr.HdrUserID = device.Job.DESJobRegUserID
-	hdr.HdrJobStart = time // This is displays the time/date of the request while pending
-	hdr.HdrJobEnd = -1 // This means there is a pending request for the device to start a new job
-	hdr.HdrJobName = fmt.Sprintf("%s_0000000000000", device.Job.DESDevSerial)
-	hdr.HdrJobEnd = 0
-	hdr.HdrGeoLng = 0
-	hdr.HdrGeoLat = 0
+	device.HDR = dev.HDR
+	device.HDR.HdrTime = time
+	device.HDR.HdrAddr = c.IP()
+	device.HDR.HdrUserID = device.Job.DESJobRegUserID
+	device.HDR.HdrJobStart = time // This is displays the time/date of the request while pending
+	device.HDR.HdrJobEnd = -1 // This means there is a pending request for the device to start a new job
+	device.HDR.HdrJobName = fmt.Sprintf("%s_0000000000000", device.Job.DESDevSerial)
+	device.HDR.HdrGeoLng = -180
+	device.HDR.HdrGeoLat = 90
 	// pkg.Json("(dev *Device) HandleStartNewJob(): -> hdr", hdr)
 
-	cfg := req.Configs[0]
+	cfg := dev.Configs[0]
 	cfg.CfgTime = time
 	cfg.CfgAddr = c.IP()
 	cfg.CfgUserID = device.Job.DESJobRegUserID
 	// pkg.Json("(dev *Device) HandleStartNewJob(): -> cfg", cfg)
 
 	/* LOG TO JOB_0: ADM, HDR, CFG, EVT */
-	device.Job.Write(&adm)
-	device.Job.Write(&hdr)
-	device.Job.Write(&cfg)
-	device.Job.Write(&evt)
+	device.Job.Write(&device.ADM)
+	device.Job.Write(&device.HDR)
+	device.Job.Write(&device.CFG)
+	device.Job.Write(&device.EVT)
 
 	/* MQTT PUB CMD: ADM, HDR, CFG, EVT */
-	device.DESMQTTClient = pkg.MQTTDevClients[device.DESDevSerial]
 	fmt.Printf("\nHandleStartNewJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDAdmin(adm)
-	device.MQTTPublication_DeviceClient_CMDHeader(hdr)
-	device.MQTTPublication_DeviceClient_CMDConfig(cfg)
-	device.MQTTPublication_DeviceClient_CMDEvent(evt)
+	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
+	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
+	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
+	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
 
-	return
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":  "success",
+		// "data":    fiber.Map{"device": &device},
+		"message": "C001V001 Job Start Reqest sent to device.",
+	})
 }
 
-func (device *Device) StartJob(evt Event) {
+// func (device *Device) StartJob(evt Event) {
 
-	zero := Job{DESRegistration: device.GetZeroJob()}
-	db := zero.JDB()
-	db.Connect()
-	defer db.Close()
+// 	zero := Job{DESRegistration: device.GetZeroJob()}
+// 	db := zero.JDB()
+// 	db.Connect()
+// 	defer db.Close()
 
-	adm := Admin{}
-	res := db.Where("adm_time = ?", evt.EvtTime).Last(&adm)
-	if res.Error != nil {
-		pkg.Trace(res.Error)
-	} 
-	if adm.AdmID == 0 {
-		adm = zero.RegisterJob_Default_JobAdmin()
-	}
+// 	adm := Admin{}
+// 	res := db.Where("adm_time = ?", evt.EvtTime).Last(&adm)
+// 	if res.Error != nil {
+// 		pkg.Trace(res.Error)
+// 	} 
+// 	if adm.AdmID == 0 {
+// 		adm = zero.RegisterJob_Default_JobAdmin()
+// 	}
 	
-	hdr := Header{}
-	res = db.Where("hdr_time = ?", evt.EvtTime).Last(&hdr)
-	if res.Error != nil {
-		pkg.Trace(res.Error)
-	} 
-	if hdr.Hdr_ID == 0 {
-		hdr = zero.RegisterJob_Default_JobHeader()
-	}
+// 	hdr := Header{}
+// 	res = db.Where("hdr_time = ?", evt.EvtTime).Last(&hdr)
+// 	if res.Error != nil {
+// 		pkg.Trace(res.Error)
+// 	} 
+// 	if hdr.Hdr_ID == 0 {
+// 		hdr = zero.RegisterJob_Default_JobHeader()
+// 	}
 	
-	cfg := Config{}
-	res = db.Where("cfg_time = ?", evt.EvtTime).Last(&cfg)
-	if res.Error != nil {
-		pkg.Trace(res.Error)
-	} 
-	if cfg.CfgID == 0 {
-		cfg = zero.RegisterJob_Default_JobConfig()
-	}
+// 	cfg := Config{}
+// 	res = db.Where("cfg_time = ?", evt.EvtTime).Last(&cfg)
+// 	if res.Error != nil {
+// 		pkg.Trace(res.Error)
+// 	} 
+// 	if cfg.CfgID == 0 {
+// 		cfg = zero.RegisterJob_Default_JobConfig()
+// 	}
 	
-	db.Close()
+// 	db.Close()
 	
-	device.Job = Job{
-		DESRegistration: pkg.DESRegistration{
-			DESDev: device.DESDev,
-			DESJob: pkg.DESJob{
-				DESJobRegTime: hdr.HdrTime,
-				DESJobRegAddr: hdr.HdrAddr,
-				DESJobRegUserID: hdr.HdrUserID,
-				DESJobRegApp: hdr.HdrApp,
+// 	device.Job = Job{
+// 		DESRegistration: pkg.DESRegistration{
+// 			DESDev: device.DESDev,
+// 			DESJob: pkg.DESJob{
+// 				DESJobRegTime: hdr.HdrTime,
+// 				DESJobRegAddr: hdr.HdrAddr,
+// 				DESJobRegUserID: hdr.HdrUserID,
+// 				DESJobRegApp: hdr.HdrApp,
 
-				DESJobName: hdr.HdrJobName,
-				DESJobStart: hdr.HdrJobStart,
-				DESJobLng: hdr.HdrGeoLng,
-				DESJobLat: hdr.HdrGeoLat,
-			},
-		},
-	}
-	device.Job.Admins = []Admin{adm}
-	device.Job.Headers = []Header{hdr}
-	device.Job.Configs = []Config{cfg}
-	device.Job.Events = []Event{evt}
-	device.Job.RegisterJob()
-}
+// 				DESJobName: hdr.HdrJobName,
+// 				DESJobStart: hdr.HdrJobStart,
+// 				DESJobLng: hdr.HdrGeoLng,
+// 				DESJobLat: hdr.HdrGeoLat,
+// 			},
+// 		},
+// 	}
+// 	device.Job.Admins = []Admin{adm}
+// 	device.Job.Headers = []Header{hdr}
+// 	device.Job.Configs = []Config{cfg}
+// 	device.Job.Events = []Event{evt}
+// 	device.Job.RegisterJob()
+// }
 
 func (device *Device)GetZeroJob() (reg pkg.DESRegistration) {
 
@@ -361,5 +367,21 @@ func (device *Device)GetCurrentJob() (reg pkg.DESRegistration) {
 	} 
 	pkg.Json("GetCurrentJob( ): ", reg)
 
+	return
+}
+
+func (device *Device) GetDeviceStatus() (err error) {
+	// job := device.GetCurrentJob()
+	db := (&Job{DESRegistration: device.DESRegistration}).JDB()
+	db.Connect()
+	defer db.Close()
+
+	db.Last(&device.ADM)
+	db.Last(&device.HDR)
+	db.Last(&device.CFG)
+	db.Last(&device.EVT)
+	db.Last(&device.SMP)
+
+	db.Close()
 	return
 }

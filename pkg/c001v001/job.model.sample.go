@@ -24,6 +24,9 @@ type Sample struct {
 	SmpJobName string  `json:"smp_job_name"`
 }
 
+/*
+SAMPLE - AS STORED IN DEVICE FLASH
+*/
 func (smp *Sample) FilterSmpBytes() (out []byte) {
 	
 	out = append(out, pkg.Int64ToBytes(smp.SmpTime)...)
@@ -49,7 +52,7 @@ type MQTT_Sample struct {
 }
 
 
-func (job *Job) WriteMQTTSample(msg []byte) (err error) {
+func (job *Job) WriteMQTTSample(msg []byte, smp *Sample) (err error) {
 
 	// Decode the payload into an MQTTSampleMessage
 	mqtts := &MQTT_Sample{}
@@ -60,13 +63,13 @@ func (job *Job) WriteMQTTSample(msg []byte) (err error) {
 	for _, b64 := range mqtts.Data {
 
 		// Decode base64 string
-		sample := &Sample{SmpJobName: mqtts.DesJobName}
-		if err = job.DecodeMQTTSample(b64, sample); err != nil {
+		smp = &Sample{SmpJobName: mqtts.DesJobName}
+		if err = job.DecodeMQTTSample(b64, smp); err != nil {
 			return err
 		}
 
 		// Write the Sample to the job database
-		if err = job.Write(sample); err != nil {
+		if err = job.Write(smp); err != nil {
 			return err
 		}
 	}

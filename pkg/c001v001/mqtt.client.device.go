@@ -90,7 +90,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), &Admin{})
+			device.Job.WriteMQTT(msg.Payload(), &device.ADM)
 		},
 	}
 }
@@ -102,7 +102,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), &Header{})
+			device.Job.WriteMQTT(msg.Payload(), &device.HDR)
 		},
 	}
 }
@@ -115,7 +115,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), &Config{})
+			device.Job.WriteMQTT(msg.Payload(), &device.CFG)
 		},
 	}
 }
@@ -127,7 +127,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTT(msg.Payload(), &Event{})
+			device.Job.WriteMQTT(msg.Payload(), &device.EVT)
 		},
 	}
 }
@@ -139,7 +139,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTTSample(msg.Payload())
+			device.Job.WriteMQTTSample(msg.Payload(), &device.SMP)
 		},
 	}
 }

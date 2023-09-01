@@ -83,6 +83,16 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 	demo.WriteHdrToFlash(*job, job.Headers[0])
 	demo.WriteCfgToFlash(*job, job.Configs[0])
 	demo.WriteEvtToFlash(*job, job.Events[0])
+	demo.WriteEvtToFlash(*job, c001v001.Event{
+		EvtTime: time.Now().UTC().UnixMilli(),
+		EvtAddr: "DEMO",
+		EvtUserID: userID,
+		EvtApp: "DEMO",
+		
+		EvtCode: 1,
+		EvtTitle: "Intitial State",
+		EvtMsg: "End Job event to ensure this newly registered demo device is ready to start a new demo job.",
+	})
 
 	return job.DESRegistration
 }
@@ -173,32 +183,35 @@ func main() {
 				Job: c001v001.Job{ DESRegistration: reg, },
 			},
 		}
+		demo.GetAdmFromFlash(demo.Job, &demo.ADM)		
+		demo.GetHdrFromFlash(demo.Job, &demo.HDR)
+		demo.GetCfgFromFlash(demo.Job, &demo.CFG)
+		evts := demo.ReadEvtDir(demo.Job)
+		lastEVT := evts[len(evts) -1]
+		if lastEVT.EvtCode != 1 {	
+			user := pkg.User{}
+			pkg.DES.DB.Last(&user)
+			demo.WriteEvtToFlash(demo.Job, c001v001.Event{
+				EvtTime: time.Now().UTC().UnixMilli(),
+				EvtAddr: "DEMO",
+				EvtUserID: user.ID.String(),
+				EvtApp: "DEMO",
 				
-		admBytes, err := demo.ReadAdmFromFlash(demo.Job, demo.DESDevRegTime)
-		if err == nil {
-			adm := demo.MakeAdmFromBytes(admBytes)
-			pkg.Json("Main() -> MakeAdmFromBytes() -> adm", adm)
+				EvtCode: 1,
+				EvtTitle: "Server Restart - Ending Current Job",
+				EvtMsg: "End Job to ensure this demo device is ready to start a new demo job.",
+			})
 		}
-				
-		hdrBytes, err := demo.ReadHdrFromFlash(demo.Job, demo.DESDevRegTime)
-		if err == nil {
-			hdr := demo.MakeHdrFromBytes(hdrBytes)
-			pkg.Json("Main() -> MakeHdrFromBytes() -> hdr", hdr)
-		}
+		demo.EVT = lastEVT
 
-		cfgBytes, err := demo.ReadCfgFromFlash(demo.Job, demo.DESDevRegTime)
-		if err == nil {
-			cfg := demo.MakeCfgFromBytes(cfgBytes)
-			pkg.Json("Main() -> MakeCfgFromBytes() -> cfg", cfg)
-		}
 
-		
 		demo.MQTTDemoDeviceClient_Connect()
+		defer demo.MQTTDemoDeviceClient_Disconnect()
 	}
 
-	// /* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
-	// fmt.Println("Connecting all C001V001 MQTT Device Clients...")
-	// c001v001.MQTTDeviceClient_CreateAndConnectAll()
+	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
+	fmt.Println("Connecting all C001V001 MQTT Device Clients...")
+	c001v001.MQTTDeviceClient_CreateAndConnectAll()
 
 	/* MAIN SER$VER */
 	app := fiber.New()

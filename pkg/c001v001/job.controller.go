@@ -239,6 +239,7 @@ func (job *Job) GetJobData(limit int) (err error) {
 	return
 }
 
+
 func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",

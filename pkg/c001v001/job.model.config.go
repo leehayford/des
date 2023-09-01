@@ -100,6 +100,9 @@ func (cfg *Config) FilterCfgRecord() MQTT_JobConfig {
 	}
 }
 
+/*
+CONFIG - AS STORED IN DEVICE FLASH
+*/
 func (cfg *Config) FilterCfgBytes() (out []byte) {
 
 	out = append(out, pkg.Int64ToBytes(cfg.CfgTime)...)
@@ -125,5 +128,35 @@ func (cfg *Config) FilterCfgBytes() (out []byte) {
 	out = append(out, pkg.Int32ToBytes(cfg.CfgDiagLog)...)
 	out = append(out, pkg.Int32ToBytes(cfg.CfgDiagTrans)...)
 
+	return
+}
+func (cfg *Config) MakeCfgFromBytes(b []byte) {
+
+	cfg = &Config{
+
+		CfgTime:   pkg.BytesToInt64_L(b[0:8]),
+		CfgAddr:   pkg.FFStrBytesToString(b[8:44]),
+		CfgUserID: pkg.FFStrBytesToString(b[44:80]),
+		CfgApp:    pkg.FFStrBytesToString(b[80:116]),
+
+		CfgSCVD:     pkg.BytesToFloat32_L(b[116:120]),
+		CfgSCVDMult: pkg.BytesToFloat32_L(b[120:124]),
+		CfgSSPRate:  pkg.BytesToFloat32_L(b[124:128]),
+		CfgSSPDur:   pkg.BytesToFloat32_L(b[128:132]),
+		CfgHiSCVF:   pkg.BytesToFloat32_L(b[132:136]),
+		CfgFlowTog:  pkg.BytesToFloat32_L(b[136:140]),
+
+		CfgVlvTgt: pkg.BytesToInt32_L(b[140:144]),
+		CfgVlvPos: pkg.BytesToInt32_L(b[144:148]),
+
+		CfgOpSample: pkg.BytesToInt32_L(b[148:152]),
+		CfgOpLog:    pkg.BytesToInt32_L(b[152:156]),
+		CfgOpTrans:  pkg.BytesToInt32_L(b[156:160]),
+
+		CfgDiagSample: pkg.BytesToInt32_L(b[160:164]),
+		CfgDiagLog:    pkg.BytesToInt32_L(b[164:168]),
+		CfgDiagTrans:  pkg.BytesToInt32_L(b[168:172]),
+	}
+	//  pkg.Json("(demo *DemoDeviceClient)MakeCfgFromBytes() -> cfg", cfg)
 	return
 }

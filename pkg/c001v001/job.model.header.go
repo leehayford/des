@@ -78,6 +78,9 @@ func (hdr *Header) FilterHdrRecord() MQTT_JobHeader {
 	}
 }
 
+/*
+HEADER - AS STORED IN DEVICE FLASH
+*/
 func (hdr *Header) FilterHdrBytes() (out []byte) {
 
 	out = append(out, pkg.Int64ToBytes(hdr.HdrTime)...)
@@ -98,6 +101,31 @@ func (hdr *Header) FilterHdrBytes() (out []byte) {
 	out = append(out, pkg.Float32ToBytes(hdr.HdrGeoLng)...)
 	out = append(out, pkg.Float32ToBytes(hdr.HdrGeoLat)...)
 
+	return
+}
+func (hdr *Header) MakeHdrFromBytes(b []byte) {
+
+	hdr = &Header{
+
+		HdrTime:   pkg.BytesToInt64_L(b[0:8]),
+		HdrAddr:   pkg.FFStrBytesToString(b[8:44]),
+		HdrUserID: pkg.FFStrBytesToString(b[44:80]),
+		HdrApp:    pkg.FFStrBytesToString(b[80:116]),
+
+		HdrJobName: pkg.FFStrBytesToString(b[116:140]),
+		HdrJobStart: pkg.BytesToInt64_L(b[140:148]),
+		HdrJobEnd: pkg.BytesToInt64_L(b[148:156]),
+
+		HdrWellCo: pkg.FFStrBytesToString(b[156:188]),
+		HdrWellName: pkg.FFStrBytesToString(b[188:220]),
+		HdrWellSFLoc: pkg.FFStrBytesToString(b[220:252]),
+		HdrWellBHLoc: pkg.FFStrBytesToString(b[252:284]),
+		HdrWellLic: pkg.FFStrBytesToString(b[284:316]),
+
+		HdrGeoLng: pkg.BytesToFloat32_L(b[316:320]),
+		HdrGeoLat: pkg.BytesToFloat32_L(b[320:324]),
+	}
+	//  pkg.Json("(demo *DemoDeviceClient)MakeHdrFromBytes() -> hdr", hdr)
 	return
 }
 

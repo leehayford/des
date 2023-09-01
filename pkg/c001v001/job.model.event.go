@@ -15,9 +15,9 @@ type Event struct {
 	EvtUserID string `gorm:"not null; varchar(36)" json:"evt_user_id"`
 	EvtApp    string `gorm:"not null; varchar(36)" json:"evt_app"`
 
-	EvtTitle string   `json:"evt_title"`
-	EvtMsg   string   `json:"evt_msg"`
 	EvtCode  int32    `json:"evt_code"`
+	EvtTitle string   `gorm:"varchar(36)" json:"evt_title"`
+	EvtMsg   string   `json:"evt_msg"`
 	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:evt_typ_code" json:"-"`
 }
 
@@ -30,9 +30,9 @@ type MQTT_Event struct {
 	EvtUserID string `json:"evt_user_id"`
 	EvtApp    string `json:"evt_app"`
 
+	EvtCode  int32  `json:"evt_code"`
 	EvtTitle string `json:"evt_title"`
 	EvtMsg   string `json:"evt_msg"`
-	EvtCode  int32  `json:"evt_code"`
 }
 
 func (evt *Event) FilterEvtRecord() MQTT_Event {
@@ -42,12 +42,15 @@ func (evt *Event) FilterEvtRecord() MQTT_Event {
 		EvtUserID: evt.EvtUserID,
 		EvtApp:    evt.EvtApp,
 
+		EvtCode:  evt.EvtCode,
 		EvtTitle: evt.EvtTitle,
 		EvtMsg:   evt.EvtMsg,
-		EvtCode:  evt.EvtCode,
 	}
 }
 
+/*
+ADMIN - AS STORED IN DEVICE FLASH
+*/
 func (evt *Event) FilterEvtBytes() (out []byte) {
 
 	out = append(out, pkg.Int64ToBytes(evt.EvtTime)...)
@@ -55,12 +58,31 @@ func (evt *Event) FilterEvtBytes() (out []byte) {
 	out = append(out, pkg.StringToNBytes(evt.EvtUserID, 36)...)
 	out = append(out, pkg.StringToNBytes(evt.EvtApp, 36)...)
 
-	out = append(out, pkg.StringToNBytes(evt.EvtTitle, len(evt.EvtTitle))...)
-	out = append(out, pkg.StringToNBytes(evt.EvtMsg, len(evt.EvtMsg))...)
 	out = append(out, pkg.Int32ToBytes(evt.EvtCode)...)
+	out = append(out, pkg.StringToNBytes(evt.EvtTitle, 36)...)
+	out = append(out, pkg.StringToNBytes(evt.EvtMsg, len(evt.EvtMsg))...)
 
 	return
 }
+func (evt *Event) MakeEvtFromBytes(b []byte) {
+
+	evt = &Event {
+
+		EvtTime:   pkg.BytesToInt64_L(b[0:8]),
+		EvtAddr:   pkg.FFStrBytesToString(b[8:44]),
+		EvtUserID: pkg.FFStrBytesToString(b[44:80]),
+		EvtApp:    pkg.FFStrBytesToString(b[80:116]),
+
+		EvtCode: pkg.BytesToInt32_L(b[116:120]),
+		EvtTitle: pkg.FFStrBytesToString(b[120:156]),
+		EvtMsg: pkg.FFStrBytesToString(b[156:]),
+	}
+	//  pkg.Json("(demo *DemoDeviceClient)MakeEvtFromBytes() -> evt", evt)
+	return
+}
+
+
+
 
 type EventTyp struct {
 	EvtTypID   int64  `gorm:"unique; primaryKey" json:"evt_typ_id"`
@@ -75,9 +97,9 @@ var EVENT_TYPES = []EventTyp{
 	{EvtTypCode: 0, EvtTypName: "DEVICE REGISTRATION"},
 
 	/*OPERATIONAL EVENT TYPES*/
-	{EvtTypCode: 1, EvtTypName: "JOB STARTED"},
+	{EvtTypCode: 1, EvtTypName: "JOB END"},
 
-	{EvtTypCode: 2, EvtTypName: "JOB ENDED"},
+	{EvtTypCode: 2, EvtTypName: "JOB START"},
 
 	{EvtTypCode: 3, EvtTypName: "CONFIGURATION CHANGED"},
 

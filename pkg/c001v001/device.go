@@ -9,7 +9,18 @@ import (
 const DEVICE_CLASS = "001"
 const DEVICE_VERSION = "001"
 
+const MODE_BUILD int32 = 0
+const MODE_VENT int32 = 2
+const MODE_HI_FLOW int32 = 4
+const MODE_LO_FLOW int32 = 6
+
+
 type Device struct {
+	ADM     Admin `json:"adm"`   // Last known Admin value
+	HDR     Header `json:"hdr"`  // Last known Header value
+	CFG     Config `json:"cfg"`  // Last known Config value
+	EVT     Event `json:"evt"`   // Last known Event value
+	SMP     Sample `json:"smp"`   // Last known Sample value
 	Job `json:"job"` // The active job for this device ( last job if it has ended )
 	pkg.DESRegistration `json:"reg"`
 	pkg.DESMQTTClient `json:"-"`
