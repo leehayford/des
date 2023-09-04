@@ -70,6 +70,7 @@ type DemoDeviceClient struct {
 }
 
 type DemoDeviceClientsMap map[string]DemoDeviceClient
+
 var DemoDeviceClients = make(DemoDeviceClientsMap)
 
 func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
@@ -79,14 +80,14 @@ func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
 
 	des_reg := pkg.DESRegistration{}
 	if err := json.Unmarshal([]byte(des_regStr), &des_reg); err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 	des_reg.DESDevRegAddr = c.RemoteAddr().String()
 	des_reg.DESJobRegAddr = c.RemoteAddr().String()
 
 	sim := Sim{}
 	if err := json.Unmarshal([]byte(simStr), &sim); err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 
 	wscid := fmt.Sprintf("%s-DEMO-%s-%s",
@@ -120,8 +121,9 @@ func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
 	// if no demo client ...
 	// demo.MQTTDemoDeviceClient_Connect()
 
-	evt := demo.GetLastEvent()
-
+	zero := demo.GetZeroJob()
+	evts := demo.ReadEvtDir(zero)
+	evt := evts[len(evts)-1]
 
 	if evt.EvtCode < 2 {
 		fmt.Printf("\n%s: waiting for job start event...\n", demo.DESDevSerial)
@@ -182,7 +184,6 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	if err = demo.DESMQTTClient.DESMQTTClient_Connect(); err != nil {
 		return err
 	}
-	fmt.Printf("\n(demo) MQTTDemoDeviceClient_Connect( ) -> ClientID: %s\n", demo.ClientID)
 
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
@@ -192,6 +193,11 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	// pkg.MQTTDemoClients[demo.DESDevSerial] = demo.DESMQTTClient
 	// demoClient := pkg.MQTTDemoClients[demo.DESDevSerial]
 	// fmt.Printf("\n%s client ID: %s\n", demo.DESDevSerial, demoClient.MQTTClientID)
+
+	DemoDeviceClients[demo.DESDevSerial] = *demo
+	// d := c001v001.DemoDeviceClients[demo.DESDevSerial]
+	// fmt.Printf("\nCached DemoDeviceClient %s, current event code: %d\n", d.DESDevSerial, d.EVT.EvtCode)
+	fmt.Printf("\n(demo) MQTTDemoDeviceClient_Connect( ) -> ClientID: %s\n", demo.ClientID)
 
 	return err
 }
@@ -214,18 +220,18 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
 func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 
 	subQryLatestJob := pkg.DES.DB.
-	Table("des_jobs").
-	Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
-	Where("des_job_end = 0").
-	Group("des_job_dev_id")
+		Table("des_jobs").
+		Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
+		Where("des_job_end = 0").
+		Group("des_job_dev_id")
 
 	qry := pkg.DES.DB.
-	Table("des_jobs").
-	Select("des_devs.*, des_jobs.*").
-	Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
-	Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
-	Where("des_devs.des_dev_serial LIKE 'DEMO%' ").
-	Order("des_devs.des_dev_serial DESC")
+		Table("des_jobs").
+		Select("des_devs.*, des_jobs.*").
+		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
+		Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
+		Where("des_devs.des_dev_serial LIKE 'DEMO%' ").
+		Order("des_devs.des_dev_serial DESC")
 
 	res := qry.Scan(&demos)
 	err = res.Error
@@ -246,12 +252,10 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 
 			/* LOAD VALUE INTO SIM 'RAM' */
 			if err := json.Unmarshal(msg.Payload(), &demo.ADM); err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
-			
+
 			if demo.EVT.EvtCode > 2 {
-				/* SIMULATE HAVING DONE SOMETHING */
-				time.Sleep(time.Millisecond * 200)
 				/* UPDATE TIME / SOURCE */
 				demo.ADM.AdmTime = time.Now().UTC().UnixMilli()
 				demo.ADM.AdmApp = demo.DESDevSerial
@@ -274,14 +278,16 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 
 			// hdr := &Header{}
 			if err := json.Unmarshal(msg.Payload(), &demo.HDR); err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
-			
+
 			if demo.EVT.EvtCode > 2 {
-				/* SIMULATE HAVING DONE SOMETHING */
-				time.Sleep(time.Millisecond * 200)
+				/* UPDATE TIME / SOURCE */
 				demo.HDR.HdrTime = time.Now().UTC().UnixMilli()
 				demo.HDR.HdrApp = demo.DESDevSerial
+				/* WRITE TO SIM 'FLASH' */
+				demo.HDRFile.Write(msg.Payload())
+				/* SEND CONFIRMATION */
 				demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
 			}
 		},
@@ -298,14 +304,16 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 
 			// cfg := &Config{}
 			if err := json.Unmarshal(msg.Payload(), &demo.CFG); err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
-			
+
 			if demo.EVT.EvtCode > 2 {
-				/* SIMULATE HAVING DONE SOMETHING */
-				time.Sleep(time.Millisecond * 200)
+				/* UPDATE TIME / SOURCE */
 				demo.CFG.CfgTime = time.Now().UTC().UnixMilli()
 				demo.CFG.CfgApp = demo.DESDevSerial
+				/* WRITE TO SIM 'FLASH' */
+				demo.CFGFile.Write(msg.Payload())
+				/* SEND CONFIRMATION */
 				demo.MQTTPublication_DemoDeviceClient_SIGConfig(&demo.CFG)
 			}
 		},
@@ -322,7 +330,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 
 			evt := Event{}
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
 
 			/* SIMULATE EVENT RESPONSE */
@@ -402,7 +410,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts *
 
 	b64, err := json.Marshal(mqtts)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	} // pkg.Json("MQTT_Sample:", b64)
 	return (pkg.MQTTPublication{
 
@@ -447,7 +455,7 @@ func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 	demo.SMP.SmpVlvPos = uint32(demo.CFG.CfgVlvPos)
 
 	/* TODO:  CHECK ALARMS BASED ON NEW SAMPLE VALUES...
-			SEND RESULTING EVENTS / CONFIG CHANGES
+	SEND RESULTING EVENTS / CONFIG CHANGES
 	*/
 }
 
@@ -467,6 +475,7 @@ func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
 
 	return float32(a * (math.Cos(dt*freq+(freq/shift)) + 1))
 }
+
 // func Demo_Take_Sim_Sample(t0, ti time.Time, job string) MQTT_Sample {
 
 // 	tumic := ti.UnixMilli()
@@ -534,26 +543,26 @@ func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
 // 		},
 // 	}
 
-// 	/* 
+// 	/*
 // 	TODO: CHECK ALARMS BASED ON NEW SAMPLE VALUES...
 // 	*/
 
-// 	// return Demo_EncodeMQTTSampleMessage(job, 0, data)
-// 	return
-// }
+//		// return Demo_EncodeMQTTSampleMessage(job, 0, data)
+//		return
+//	}
 func Demo_EncodeMQTTSampleMessage(job string, i int, smp Sample) MQTT_Sample {
 	// fmt.Println("\nDemo_EncodeMQTTSampleMessage()...")
 
 	data := []pkg.TimeSeriesData{
-		{ Data: []pkg.TSDPoint{ {X: smp.SmpTime, Y: smp.SmpCH4 } }, Min: 0, Max: 100 },
-		{ Data: []pkg.TSDPoint{ {X: smp.SmpTime, Y: smp.SmpHiFlow } }, Min: 0, Max: 250 },	
-		{ Data: []pkg.TSDPoint{ {X: smp.SmpTime, Y: smp.SmpLoFlow } }, Min: 0, Max: 2 },	
-		{ Data: []pkg.TSDPoint{ {X: smp.SmpTime, Y: smp.SmpPress } }, Min: 0, Max: 1500 },	
-		{ Data: []pkg.TSDPoint{ {X: smp.SmpTime, Y: smp.SmpBatAmp } }, Min: 0, Max: 1.5 },	
-		{ Data: []pkg.TSDPoint{ {X: smp.SmpTime, Y: smp.SmpBatVolt } }, Min: 0, Max: 15 },	
-		{ Data: []pkg.TSDPoint{ {X: smp.SmpTime, Y: smp.SmpMotVolt } }, Min: 0, Max: 15 },
-		{ Data: []pkg.TSDPoint{ {X: smp.SmpTime, Y: float32(smp.SmpVlvTgt) } }, Min: 0, Max: 10 },
-		{ Data: []pkg.TSDPoint{ {X: smp.SmpTime, Y: float32(smp.SmpVlvPos) } }, Min: 0, Max: 10 },	
+		{Data: []pkg.TSDPoint{{X: smp.SmpTime, Y: smp.SmpCH4}}, Min: 0, Max: 100},
+		{Data: []pkg.TSDPoint{{X: smp.SmpTime, Y: smp.SmpHiFlow}}, Min: 0, Max: 250},
+		{Data: []pkg.TSDPoint{{X: smp.SmpTime, Y: smp.SmpLoFlow}}, Min: 0, Max: 2},
+		{Data: []pkg.TSDPoint{{X: smp.SmpTime, Y: smp.SmpPress}}, Min: 0, Max: 1500},
+		{Data: []pkg.TSDPoint{{X: smp.SmpTime, Y: smp.SmpBatAmp}}, Min: 0, Max: 1.5},
+		{Data: []pkg.TSDPoint{{X: smp.SmpTime, Y: smp.SmpBatVolt}}, Min: 0, Max: 15},
+		{Data: []pkg.TSDPoint{{X: smp.SmpTime, Y: smp.SmpMotVolt}}, Min: 0, Max: 15},
+		{Data: []pkg.TSDPoint{{X: smp.SmpTime, Y: float32(smp.SmpVlvTgt)}}, Min: 0, Max: 10},
+		{Data: []pkg.TSDPoint{{X: smp.SmpTime, Y: float32(smp.SmpVlvPos)}}, Min: 0, Max: 10},
 	}
 
 	x := data[0].Data[i].X                  // fmt.Printf("Time:\t%d\n", x)
@@ -632,18 +641,18 @@ func (demo *DemoDeviceClient) WriteAdmToFlash(job Job, adm Admin) (err error) {
 
 	dir := fmt.Sprintf("demo/%s", job.DESJobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 
 	f, err := os.OpenFile(fmt.Sprintf("%s/adm.bin", dir), os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 	defer f.Close()
 
 	_, err = f.Write(admBytes)
 	if err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 
 	f.Close()
@@ -654,12 +663,12 @@ func (demo *DemoDeviceClient) ReadAdmFromFlash(job Job) (adm []byte, err error) 
 	dir := fmt.Sprintf("demo/%s", job.DESJobName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/adm.bin", dir), os.O_RDONLY, 0600)
 	if err != nil {
-		return nil, pkg.Trace(err)
+		return nil, pkg.TraceErr(err)
 	}
 
 	admFile, err := ioutil.ReadAll(f)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 		return
 	}
 	eof := len(admFile)
@@ -672,7 +681,7 @@ func (demo *DemoDeviceClient) ReadAdmFromFlash(job Job) (adm []byte, err error) 
 func (demo *DemoDeviceClient) GetAdmFromFlash(job Job, adm *Admin) {
 	b, err := demo.ReadAdmFromFlash(job)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 	adm.MakeAdmFromBytes(b)
 }
@@ -685,18 +694,18 @@ func (demo *DemoDeviceClient) WriteHdrToFlash(job Job, hdr Header) (err error) {
 
 	dir := fmt.Sprintf("demo/%s", job.DESJobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 
 	f, err := os.OpenFile(fmt.Sprintf("%s/hdr.bin", dir), os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 	defer f.Close()
 
 	_, err = f.Write(hdrBytes)
 	if err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 
 	f.Close()
@@ -707,12 +716,12 @@ func (demo *DemoDeviceClient) ReadHdrFromFlash(job Job) (hdr []byte, err error) 
 	dir := fmt.Sprintf("demo/%s", job.DESJobName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/hdr.bin", dir), os.O_RDONLY, 0600)
 	if err != nil {
-		return nil, pkg.Trace(err)
+		return nil, pkg.TraceErr(err)
 	}
 
 	hdrFile, err := ioutil.ReadAll(f)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 		return
 	}
 	eof := len(hdrFile)
@@ -725,7 +734,7 @@ func (demo *DemoDeviceClient) ReadHdrFromFlash(job Job) (hdr []byte, err error) 
 func (demo *DemoDeviceClient) GetHdrFromFlash(job Job, hdr *Header) {
 	b, err := demo.ReadHdrFromFlash(job)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 	hdr.MakeHdrFromBytes(b)
 }
@@ -738,18 +747,18 @@ func (demo *DemoDeviceClient) WriteCfgToFlash(job Job, cfg Config) (err error) {
 
 	dir := fmt.Sprintf("demo/%s", job.DESJobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 
 	f, err := os.OpenFile(fmt.Sprintf("%s/cfg.bin", dir), os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 	defer f.Close()
 
 	_, err = f.Write(cfgBytes)
 	if err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 
 	f.Close()
@@ -760,12 +769,12 @@ func (demo *DemoDeviceClient) ReadCfgFromFlash(job Job) (cfg []byte, err error) 
 	dir := fmt.Sprintf("demo/%s", job.DESJobName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/cfg.bin", dir), os.O_RDONLY, 0600)
 	if err != nil {
-		return nil, pkg.Trace(err)
+		return nil, pkg.TraceErr(err)
 	}
 
 	cfgFile, err := ioutil.ReadAll(f)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 		return
 	}
 	eof := len(cfgFile)
@@ -778,7 +787,7 @@ func (demo *DemoDeviceClient) ReadCfgFromFlash(job Job) (cfg []byte, err error) 
 func (demo *DemoDeviceClient) GetCfgFromFlash(job Job, cfg *Config) {
 	b, err := demo.ReadCfgFromFlash(job)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 	cfg.MakeCfgFromBytes(b)
 }
@@ -791,18 +800,18 @@ func (demo *DemoDeviceClient) WriteEvtToFlash(job Job, evt Event) (err error) {
 
 	dir := fmt.Sprintf("demo/%s/events", job.DESJobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 
 	f, err := os.OpenFile(fmt.Sprintf("%s/%d.bin", dir, evt.EvtTime), os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 	defer f.Close()
 
 	_, err = f.Write(evtBytes)
 	if err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 
 	f.Close()
@@ -813,13 +822,13 @@ func (demo *DemoDeviceClient) ReadEvtFromFlash(job Job, time int64) (evt []byte,
 	dir := fmt.Sprintf("demo/%s/events", job.DESJobName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/%d.bin", dir, time), os.O_RDONLY, 0600)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 		return
 	}
 
 	evt, err = ioutil.ReadAll(f)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 		return
 	}
 	// fmt.Printf("\nevtBytes ( %d ) : %v\n", len(evt), evt)
@@ -830,29 +839,28 @@ func (demo *DemoDeviceClient) ReadEvtFromFlash(job Job, time int64) (evt []byte,
 func (demo *DemoDeviceClient) GetEvtFromFlash(job Job, time int64, evt *Event) {
 	b, err := demo.ReadEvtFromFlash(job, time)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 	evt.MakeEvtFromBytes(b)
 }
 func (demo *DemoDeviceClient) ReadEvtDir(job Job) (evts []Event) {
 	fs, err := ioutil.ReadDir(fmt.Sprintf("demo/%s/events", job.DESJobName))
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 		return
 	}
 	for _, f := range fs {
 		i, err := strconv.ParseInt(strings.Split(f.Name(), ".")[0], 10, 64)
 		if err != nil {
-			pkg.Trace(err)
+			pkg.TraceErr(err)
 		} else {
-			evt := &Event{} 
+			evt := &Event{}
 			demo.GetEvtFromFlash(demo.Job, i, evt) // pkg.Json("(demo *DemoDeviceClient) ReadEvtDir( )", evt)
 			evts = append(evts, *evt)
 		}
 	}
 	return
 }
-
 
 func (demo *DemoDeviceClient) WriteSmpToFlash(job Job, smp Sample) (err error) {
 
@@ -861,18 +869,18 @@ func (demo *DemoDeviceClient) WriteSmpToFlash(job Job, smp Sample) (err error) {
 
 	dir := fmt.Sprintf("demo/%s", job.DESJobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 
 	f, err := os.OpenFile(fmt.Sprintf("%s/smp.bin", dir), os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 	defer f.Close()
 
 	_, err = f.Write(smpBytes)
 	if err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 
 	f.Close()
@@ -889,20 +897,20 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 
 	demo.EVT = evt
 
-	zero := demo.GetZeroJob()	
+	zero := demo.GetZeroJob()
 	evts := demo.ReadEvtDir(zero)
-	lastZeroEVT := evts[len(evts) -1]
+	lastZeroEVT := evts[len(evts)-1]
 	/* MAKE SURE THE PREVIOUS JOB IS ENDED */
 	if lastZeroEVT.EvtCode > 1 {
 		demo.WriteEvtToFlash(zero, Event{
-			EvtTime: demo.EVT.EvtTime - 1,
-			EvtAddr: demo.EVT.EvtAddr,
+			EvtTime:   demo.EVT.EvtTime - 1,
+			EvtAddr:   demo.EVT.EvtAddr,
 			EvtUserID: demo.EVT.EvtUserID,
-			EvtApp: demo.EVT.EvtApp,
-			
-			EvtCode: 1, // JOB END
+			EvtApp:    demo.EVT.EvtApp,
+
+			EvtCode:  1, // JOB END
 			EvtTitle: "Unexpected Job Start Request",
-			EvtMsg: "Ending current job to start a new job.",
+			EvtMsg:   "Ending current job to start a new job.",
 		})
 	}
 
@@ -947,7 +955,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.EVT.EvtTitle = "JOB STARTED"
 	demo.EVT.EvtMsg = demo.HDR.HdrJobName
 
-	demo.Demo_Simulation_Take_Sample(t0, time.Now().UTC())	
+	demo.Demo_Simulation_Take_Sample(t0, time.Now().UTC())
 	pkg.Json("(demo *DemoDeviceClient) StartDemoJob( ) -> First Sample ", demo.SMP)
 
 	/* WRITE TO FLASH - JOB_0 */
@@ -988,10 +996,10 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.MQTTPublication_DemoDeviceClient_SIGConfig(&demo.CFG)
 	smp := Demo_EncodeMQTTSampleMessage(demo.HDR.HdrJobName, 0, demo.SMP)
 	demo.MQTTPublication_DemoDeviceClient_SIGSample(&smp)
-	
+	pkg.Json("demo *DemoDeviceClient) StartDemoJob( ) -> Initial Sample", demo.SMP)
+
 	time.Sleep(time.Millisecond * time.Duration(demo.CFG.CfgOpSample))
 	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
-	
 
 	/* RUN JOB... */
 	go demo.Demo_Simulation(t0)
@@ -1005,16 +1013,18 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	t0 := time.Now().UTC()
 	endTime := t0.UnixMilli()
 
+	demo.EVT = evt
 	evt.EvtTime = endTime
 	evt.EvtTitle = "JOB ENDED"
 	evt.EvtMsg = demo.HDR.HdrJobName
 
+	zero := demo.GetZeroJob()
+	demo.GetHdrFromFlash(zero, &demo.HDR)
 	demo.HDR.HdrTime = evt.EvtTime
 	demo.HDR.HdrUserID = evt.EvtUserID
 	demo.HDR.HdrApp = evt.EvtApp
 	demo.HDR.HdrJobEnd = evt.EvtTime
 
-	zero := demo.GetZeroJob()	
 	demo.WriteEvtToFlash(zero, evt)
 	demo.WriteHdrToFlash(zero, demo.HDR)
 
@@ -1024,7 +1034,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
 	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&evt)
 
-	demo.EVT = evt
+	pkg.Json("demo *DemoDeviceClient) EndDemoJob( )", demo.EVT)
 }
 
 func (demo *DemoDeviceClient) MoveValve() {

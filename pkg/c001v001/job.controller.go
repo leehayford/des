@@ -26,7 +26,7 @@ func (job *Job) Write(model interface{}) (err error) {
 func (job *Job) WriteMQTT(msg []byte, model interface{}) (err error) {
 
 	if err = json.Unmarshal(msg, model); err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 	return job.Write(model)
 }
@@ -39,7 +39,7 @@ USED WHEN NEW C001V001 JOBS ARE GREATED
 */
 func (job *Job) RegisterJob() (err error) {
 
-	/* Create a job record in the DES database */
+	/* CREATE A JOB RECORD IN THE DES DATABASE */
 	if job_res := pkg.DES.DB.Create(&job.DESJob); job_res.Error != nil {
 		return job_res.Error
 	}
@@ -53,7 +53,7 @@ func (job *Job) RegisterJob() (err error) {
 
 	if !existing { /* WE AVOID WRITING IF THE DATABASE WAS PRE-EXISTING */
 
-		/* CREATE NEW DATABASE */
+		/* CREATE NEW JOB DATABASE */
 		db := job.JDB()
 		db.Connect()
 		defer db.Close()
@@ -238,7 +238,6 @@ func (job *Job) GetJobData(limit int) (err error) {
 	return
 }
 
-
 func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
@@ -253,10 +252,9 @@ func (job *Job) GetLastEvent() (evt Event) {
 	defer db.Close()
 	res := db.Last(&evt)
 	if res.Error != nil {
-		pkg.Trace(res.Error)
+		pkg.TraceErr(res.Error)
 	}
-	db.Close() 
+	db.Close()
 	pkg.Json("(job *Job) GetLastEvent( ): ", evt)
 	return
 }
-

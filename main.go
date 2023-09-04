@@ -70,7 +70,7 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 	job.Headers = []c001v001.Header{(job).RegisterJob_Default_JobHeader()}
 	job.Configs = []c001v001.Config{(job).RegisterJob_Default_JobConfig()}
 	job.Events = []c001v001.Event{(job).RegisterJob_Default_JobEvent()}
-	job.Samples = []c001v001.Sample{ { SmpTime: t, SmpJobName: job.DESJobName } }
+	job.Samples = []c001v001.Sample{{SmpTime: t, SmpJobName: job.DESJobName}}
 	job.RegisterJob()
 
 	demo := c001v001.DemoDeviceClient{
@@ -135,18 +135,18 @@ func DemoSimFlashTest() {
 
 	dir := fmt.Sprintf("demo/%s", "test")
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 
 	f, err := os.OpenFile(fmt.Sprintf("%s/cfg.bin", dir), os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 	defer f.Close()
 
 	_, err = f.Write(cfg.FilterCfgBytes())
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 
 	f.Close()
@@ -155,7 +155,7 @@ func DemoSimFlashTest() {
 func main() {
 
 	if err := pkg.DES.CreateDESDatabase(false); err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
@@ -164,15 +164,15 @@ func main() {
 
 	regs, err := c001v001.GetDemoDeviceList()
 	if err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 
 	if len(regs) == 0 {
 		user := pkg.User{}
 		pkg.DES.DB.Last(&user)
 		regs = append(regs, MakeDemoC001V001("DEMO000000", user.ID.String()))
-		regs = append(regs, MakeDemoC001V001("DEMO000001", user.ID.String()))
-		regs = append(regs, MakeDemoC001V001("DEMO000002", user.ID.String()))
+		// regs = append(regs, MakeDemoC001V001("DEMO000001", user.ID.String()))
+		// regs = append(regs, MakeDemoC001V001("DEMO000002", user.ID.String()))
 		// regs = append(regs, MakeDemoC001V001("DEMO000003", user.ID.String()))
 		// regs = append(regs, MakeDemoC001V001("DEMO000004", user.ID.String()))
 	}
@@ -189,12 +189,9 @@ func main() {
 		demo.MQTTDemoDeviceClient_Connect()
 		defer demo.MQTTDemoDeviceClient_Disconnect()
 
+		// pkg.TraceFunc("Call -> device.GetDeviceStatus( )")
 		demo.GetDeviceStatus()
 		go demo.Demo_Simulation(time.Now().UTC())
-
-		c001v001.DemoDeviceClients[demo.DESDevSerial] = demo
-		// d := c001v001.DemoDeviceClients[demo.DESDevSerial]
-		// fmt.Printf("\nCached DemoDeviceClient %s, current event code: %d\n", d.DESDevSerial, d.EVT.EvtCode)
 	}
 
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
@@ -261,12 +258,12 @@ func main() {
 		router.Get("/event/list", c001v001.HandleGetEventTypeLists)
 	})
 
-	/* C001V001 DEMO ROUTES */
-	api.Route("/001/001/demo", func(router fiber.Router) {
-		router.Get("/sim", pkg.DesAuth, websocket.New(
-			(&c001v001.DemoDeviceClient{}).WSDemoDeviceClient_Connect,
-		))
-	})
+	// /* C001V001 DEMO ROUTES */
+	// api.Route("/001/001/demo", func(router fiber.Router) {
+	// 	router.Get("/sim", pkg.DesAuth, websocket.New(
+	// 		(&c001v001.DemoDeviceClient{}).WSDemoDeviceClient_Connect,
+	// 	))
+	// })
 
 	api.All("*", func(c *fiber.Ctx) error {
 		path := c.Path()

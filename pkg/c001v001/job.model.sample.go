@@ -28,7 +28,7 @@ type Sample struct {
 SAMPLE - AS STORED IN DEVICE FLASH
 */
 func (smp *Sample) FilterSmpBytes() (out []byte) {
-	
+
 	out = append(out, pkg.Int64ToBytes(smp.SmpTime)...)
 	out = append(out, pkg.Float32ToBytes(smp.SmpCH4)...)
 	out = append(out, pkg.Float32ToBytes(smp.SmpHiFlow)...)
@@ -51,13 +51,12 @@ type MQTT_Sample struct {
 	Data       []string `json:"data"`
 }
 
-
 func (job *Job) WriteMQTTSample(msg []byte, smp *Sample) (err error) {
 
 	// Decode the payload into an MQTTSampleMessage
 	mqtts := &MQTT_Sample{}
 	if err = json.Unmarshal(msg, &mqtts); err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	} // pkg.Json("DecodeMQTTSampleMessage(...) ->  msg :", msg)
 
 	for _, b64 := range mqtts.Data {

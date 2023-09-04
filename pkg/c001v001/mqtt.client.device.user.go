@@ -35,7 +35,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 
 	des_reg := pkg.DESRegistration{}
 	if err := json.Unmarshal([]byte(des_regStr), &des_reg); err != nil {
-		pkg.Trace(err)
+		pkg.TraceErr(err)
 	}
 	des_reg.DESDevRegAddr = c.RemoteAddr().String()
 	des_reg.DESJobRegAddr = c.RemoteAddr().String()
@@ -85,7 +85,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 
 		case data := <-duc.outChan:
 			if err := c.WriteJSON(data); err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
 
 		}
@@ -158,7 +158,7 @@ SUBSCRIPTIONS
 */
 
 type WSMessage struct {
-	Type string `json:"type"`
+	Type string      `json:"type"`
 	Data interface{} `json:"data"`
 }
 
@@ -173,19 +173,19 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 			/* WRANGLE WS DATA */
 			adm := Admin{}
 			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
 			time.Sleep(time.Millisecond * 300) // wait for DB write to complete
 
 			db := duc.JDB()
 			db.Connect()
 			defer db.Close()
-			db.Where("adm_time = ?", adm.AdmTime).First(&adm)
+			db.Last(&adm)
 			db.Close()
 			js, err := json.Marshal(&WSMessage{Type: "admin", Data: adm})
 			// js, err := json.Marshal(adm)
 			if err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
 			pkg.Json("MQTTSubscription_DeviceUserClient_SIGAdmin(...) -> adm :", adm)
 
@@ -207,19 +207,19 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader() pkg.M
 			/* WRANGLE WS DATA */
 			hdr := Header{}
 			if err := json.Unmarshal(msg.Payload(), &hdr); err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
 			time.Sleep(time.Millisecond * 300) // wait for DB write to complete
 
 			db := duc.JDB()
 			db.Connect()
 			defer db.Close()
-			db.Where("hdr_time = ?", hdr.HdrTime).First(&hdr)
+			db.Last(&hdr)
 			db.Close()
 			js, err := json.Marshal(&WSMessage{Type: "header", Data: hdr})
 			// js, err := json.Marshal(hdr)
 			if err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
 			pkg.Json("MQTTSubscription_DeviceUserClient_SIGHeader(...) -> hdr :", hdr)
 
@@ -241,19 +241,19 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.M
 			/* WRANGLE WS DATA */
 			cfg := Config{}
 			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
 			time.Sleep(time.Millisecond * 300) // wait for DB write to complete
 
 			db := duc.JDB()
 			db.Connect()
 			defer db.Close()
-			db.Where("cfg_time = ?", cfg.CfgTime).First(&cfg)
+			db.Last(&cfg)
 			db.Close()
 			js, err := json.Marshal(&WSMessage{Type: "config", Data: cfg})
 			// js, err := json.Marshal(cfg)
 			if err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
 			pkg.Json("MQTTSubscription_DeviceUserClient_SIGConfig(...) -> cfg :", cfg)
 
@@ -275,19 +275,19 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQ
 			/* WRANGLE WS DATA */
 			evt := Event{}
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
 			time.Sleep(time.Millisecond * 300) // wait for DB write to complete
 
 			db := duc.JDB()
 			db.Connect()
 			defer db.Close()
-			db.Where("evt_time = ?", evt.EvtTime).First(&evt)
+			db.Last(&evt)
 			db.Close()
 			js, err := json.Marshal(&WSMessage{Type: "event", Data: evt})
 			// js, err := json.Marshal(evt)
 			if err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			}
 			pkg.Json("MQTTSubscription_DeviceUserClient_SIGEvent(...) -> evt :", evt)
 
@@ -310,7 +310,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 			// Decode the payload into an MQTT_Sample
 			mqtts := MQTT_Sample{}
 			if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
-				pkg.Trace(err)
+				pkg.TraceErr(err)
 			} // pkg.Json("DecodeMQTTSampleMessage(...) ->  msg :", msg)
 
 			for _, b64 := range mqtts.Data {
@@ -318,13 +318,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 				// Decode base64 string
 				sample := &Sample{SmpJobName: mqtts.DesJobName}
 				if err := duc.Job.DecodeMQTTSample(b64, sample); err != nil {
-					pkg.Trace(err)
+					pkg.TraceErr(err)
 				}
 
 				// Create a JSON version thereof
 				js, err := json.Marshal(&WSMessage{Type: "sample", Data: *sample})
 				if err != nil {
-					pkg.Trace(err)
+					pkg.TraceErr(err)
 				} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)
 				// Ship it
 				duc.outChan <- string(js)

@@ -122,7 +122,7 @@ func Float32ToBytes(in float32) []byte {
 
 	var b bytes.Buffer
 	if err := binary.Write(&b, binary.LittleEndian, in); err != nil {
-		Trace(err)
+		TraceErr(err)
 	}
 	return b.Bytes()
 }

@@ -17,9 +17,10 @@ type DESMQTTClient struct {
 }
 
 type MQTTClientsMap map[string]DESMQTTClient
-var MQTTDevClients  = make(MQTTClientsMap)
-var MQTTUserClients  = make(MQTTClientsMap)
-var MQTTDemoClients  = make(MQTTClientsMap)
+
+var MQTTDevClients = make(MQTTClientsMap)
+var MQTTUserClients = make(MQTTClientsMap)
+var MQTTDemoClients = make(MQTTClientsMap)
 
 func (desm *DESMQTTClient) DESMQTTClient_Connect() (err error) {
 
@@ -77,7 +78,8 @@ type MQTTSubscription struct {
 func (sub MQTTSubscription) Sub(client DESMQTTClient) {
 	token := client.Subscribe(sub.Topic, sub.Qos, sub.Handler)
 	// token.WaitTimeout(time.Millisecond * 100)
-	token.Wait() // fmt.Printf("\nSubscribed: %s to:\t%s\n\n", client.MQTTClientID, sub.Topic)
+	token.Wait() 
+	fmt.Printf("\nSubscribed: %s to:\t%s\n\n", client.MQTTClientID, sub.Topic)
 }
 func (sub MQTTSubscription) UnSub(client DESMQTTClient) {
 	token := client.Unsubscribe(sub.Topic)
@@ -117,9 +119,7 @@ func MakeMQTTMessage(mqtt interface{}) (msg string) {
 
 	js, err := json.Marshal(mqtt)
 	if err != nil {
-		Trace(err)
+		TraceErr(err)
 	}
 	return string(js)
 }
-
-

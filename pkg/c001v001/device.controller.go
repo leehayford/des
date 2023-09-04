@@ -32,14 +32,15 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 		go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
 
 			defer wg.Done()
-			job := Job{DESRegistration: r}
-			// job.GetJobData(-1) // pkg.Json("HandleGetDeviceList(): job", job)
 
-			device := Device{Job: job, DESRegistration: r}
-			// device := Device{ DESRegistration: r }
+			device := Device{
+				DESRegistration: r,
+				Job: Job{DESRegistration: r}, 
+			}
+			
+			// pkg.TraceFunc("Call -> device.GetDeviceStatus( )")
 			device.GetDeviceStatus()
 			devices = append(devices, device)
-
 		}(reg, &wg)
 	}
 	wg.Wait() // pkg.Json("HandleGetDeviceList( ) -> []Device{}:\n", devices)
@@ -137,7 +138,7 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 		DESMQTTClient:   pkg.DESMQTTClient{},
 	}
 	if err = device.MQTTDeviceClient_Connect(); err != nil {
-		return pkg.Trace(err)
+		return pkg.TraceErr(err)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
@@ -150,7 +151,8 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 /*
 USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO START A NEW JOB ON THIS DEVICE
 SEND AN MQTT JOB ADMIN, HEADER, CONFIG, & EVENT TO THE DEVICE
-UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS 
+UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
+
 	DES JOB REGISTRATION
 	CLASS/VERSION SPECIFIC JOB START ACTIONS
 */
@@ -164,7 +166,6 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 			"message": "You must be an administrator to start a job",
 		})
 	}
-
 	/* PARSE AND VALIDATE REQUEST DATA */
 	if err = c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -189,7 +190,8 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 
 	device.DESRegistration.DESJobRegTime = time
 	device.Job.DESRegistration = device.DESRegistration
-	device.DESMQTTClient = pkg.MQTTDevClients[device.DESDevSerial]
+	// device.DESMQTTClient = pkg.MQTTDevClients[device.DESDevSerial]
+	// device.DESMQTTClient = d.DESMQTTClient
 
 	device.ADM.AdmID = 0
 	device.ADM.AdmTime = time
@@ -246,6 +248,11 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleStartJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
 	// pkg.Json("(device *Device) HandleStartJob(): -> device", device)
 
+
+	d := Devices[device.DESDevSerial]
+	device.DESMQTTClient = d.DESMQTTClient
+	fmt.Printf("\nHandleStartJob( ) -> Check %s MQTT device: %v\n\n", device.DESDevSerial, device.MQTTClientID)
+	
 	// /* MQTT PUB CMD: ADM, HDR, CFG, EVT */
 	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
@@ -254,17 +261,17 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status": "success",
+		"status":  "success",
 		"data":    fiber.Map{"device": &device},
 		"message": "C001V001 Job Start Reqest sent to device.",
 	})
 }
 
-
 /*
 USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO END A JOB ON THIS DEVICE
 SEND AN MQTT END JOB EVENT TO THE DEVICE
-UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS 
+UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
+
 	DES JOB REGISTRATION ( UPDATE JOB 0 START DATE )
 	CLASS/VERSION SPECIFIC JOB END ACTIONS
 */
@@ -306,7 +313,7 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	}
 
 	d := Devices[device.DESDevSerial]
-	// pkg.Json("(device *Device) HandleEndJob(): -> Devices[device.DESDevSerial]", d)
+	pkg.Json("(device *Device) HandleEndJob(): -> Devices[device.DESDevSerial]", d)
 
 	/* LOG TO JOB_0: EVT */
 	zero := d.GetZeroJob()
@@ -317,13 +324,13 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	d.EVT = evt
 	d.Job.Write(&d.EVT)
 	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", d.DESJobName)
-	
+
 	/* MQTT PUB CMD: EVT */
 	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", d.DESDevSerial, d.MQTTClientID)
 	d.MQTTPublication_DeviceClient_CMDEvent(evt)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status": "success",
+		"status":  "success",
 		"data":    fiber.Map{"device": &device},
 		"message": "C001V001 Job End Reqest sent to device.",
 	})
@@ -340,7 +347,7 @@ func (device *Device) GetZeroJob() (zero Job) {
 
 	res := qry.Scan(&zero.DESRegistration)
 	if res.Error != nil {
-		pkg.Trace(res.Error)
+		pkg.TraceErr(res.Error)
 	}
 	// pkg.Json("(device *Device) GetZeroJob( )", zero)
 	return
@@ -348,23 +355,23 @@ func (device *Device) GetZeroJob() (zero Job) {
 
 func (device *Device) GetCurrentJob() {
 	// fmt.Printf("\n(device) GetCurrentJob() for: %s\n", device.DESDevSerial)
-	
+
 	subQryLatestJob := pkg.DES.DB.
-	Table("des_jobs").
-	Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
-	Where("des_job_end = 0").
-	Group("des_job_dev_id")
+		Table("des_jobs").
+		Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
+		Where("des_job_end = 0").
+		Group("des_job_dev_id")
 
 	qry := pkg.DES.DB.
-	Table("des_jobs").
-	Select("des_devs.*, des_jobs.*").
-	Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
-	Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
-	Where("des_devs.des_dev_serial = ? ", device.DESDevSerial)
+		Table("des_jobs").
+		Select("des_devs.*, des_jobs.*").
+		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
+		Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
+		Where("des_devs.des_dev_serial = ? ", device.DESDevSerial)
 
 	res := qry.Scan(&device.Job.DESRegistration)
 	if res.Error != nil {
-		pkg.Trace(res.Error)
+		pkg.TraceErr(res.Error)
 	}
 	// pkg.Json("(device *Device) GetCurrentJob( )", device.Job)
 	return
@@ -383,5 +390,7 @@ func (device *Device) GetDeviceStatus() (err error) {
 	db.Last(&device.SMP)
 
 	db.Close()
+	// pkg.Json("(device *Device) GetDeviceStatus( ) -> device.EVT", device.EVT)
+	fmt.Printf("\n(device *Device) GetDeviceStatus( ) -> %s: device.EVT.EvtCode: %s\n", device.DESDevSerial, device.EVT.EvtTitle)
 	return
 }
