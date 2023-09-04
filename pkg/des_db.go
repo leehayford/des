@@ -65,13 +65,13 @@ func (dbi *DBI) CreateDatabase(db_name string, drop bool) (exists bool) {
 
 	exists = false
 	dbi.CheckDatabaseExists(db_name, &exists)
-	fmt.Printf("\n(dbi *DBI) CreateDatabase: %s exists: %v\n", db_name, exists)
+	// fmt.Printf("\n(dbi *DBI) CreateDatabase( ): %s exists: %v\n", db_name, exists)
 
 	if exists && drop {
-		fmt.Printf("\n(dbi *DBI) CreateDatabase: Dropping %s...", db_name)
+		fmt.Printf("\n(dbi *DBI) CreateDatabase( ): Dropping %s...\n", db_name)
 		dbi.DropDatabase(db_name)
 		dbi.CheckDatabaseExists(db_name, &exists)
-		fmt.Printf("\n(dbi *DBI) CreateDatabase: %s exists: %v", db_name, exists)
+		// fmt.Printf("\n(dbi *DBI) CreateDatabase( ) %s exists: %v\n", db_name, exists)
 	}
 
 	if !exists {
@@ -79,7 +79,7 @@ func (dbi *DBI) CreateDatabase(db_name string, drop bool) (exists bool) {
 			ENCODING = 'UTF8' LC_COLLATE = 'C.UTF-8' LC_CTYPE = 'C.UTF-8' TABLESPACE = pg_default CONNECTION LIMIT = -1 IS_TEMPLATE = False;`,
 			db_name,
 		)
-		fmt.Printf("\nCreating %s...", db_name)
+		fmt.Printf("\n(dbi *DBI) CreateDatabase( ): Creating %s...\n", db_name)
 		dbi.DB.Exec(createDBCommand)
 		// dbi.CheckDatabaseExists(db_name, &exists)
 		// fmt.Printf("\n(dbi *DBI) CreateDatabase: %s exists: %v\n", db_name, exists)
@@ -106,7 +106,7 @@ func (des *DESDatabase) CreateDESDatabase(drop bool) (err error) {
 	adb.Close()
 
 	/* DES DATABASE - CONNECT AND CREATE TABLES */
-	fmt.Printf("\n(des *DESDatabase) CreateDESDatabase: ConnStr: %s\n", des.ConnStr)
+	// fmt.Printf("\n(des *DESDatabase) CreateDESDatabase: ConnStr: %s\n", des.ConnStr)
 	DES.Connect()
 	defer DES.Close()
 	

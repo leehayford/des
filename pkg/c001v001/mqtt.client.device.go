@@ -39,36 +39,27 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 	// device.DESMQTTClient.ClientOptions.ClientID)
 
 	device.MQTTSubscription_DeviceClient_SIGAdmin().Sub(device.DESMQTTClient)
-
 	device.MQTTSubscription_DeviceClient_SIGHeader().Sub(device.DESMQTTClient)
-
 	device.MQTTSubscription_DeviceClient_SIGConfig().Sub(device.DESMQTTClient)
-
 	device.MQTTSubscription_DeviceClient_SIGEvent().Sub(device.DESMQTTClient)
-
 	device.MQTTSubscription_DeviceClient_SIGSample().Sub(device.DESMQTTClient)
-
 	// device.MQTTSubscription_DeviceClient_SIGDiagSample() //.Sub(device.DESMQTTClient)
 
 	pkg.MQTTDevClients[device.DESDevSerial] = device.DESMQTTClient
-	deviceClient := pkg.MQTTDevClients[device.DESDevSerial]
-	fmt.Printf("\n%s client ID: %s\n", device.DESDevSerial, deviceClient.MQTTClientID)
+	// deviceClient := pkg.MQTTDevClients[device.DESDevSerial]
+	// fmt.Printf("\n%s client ID: %s\n", device.DESDevSerial, deviceClient.MQTTClientID)
 
+	fmt.Printf("\n(device) MQTTDeviceClient_Connect( ) -> ClientID: %s\n", device.ClientID)
 	return err
 }
 func (device *Device) MQTTDeviceClient_Dicconnect() {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	device.MQTTSubscription_DeviceClient_SIGAdmin().UnSub(device.DESMQTTClient)
-
 	device.MQTTSubscription_DeviceClient_SIGHeader().UnSub(device.DESMQTTClient)
-
 	device.MQTTSubscription_DeviceClient_SIGConfig().UnSub(device.DESMQTTClient)
-
 	device.MQTTSubscription_DeviceClient_SIGEvent().UnSub(device.DESMQTTClient)
-
 	device.MQTTSubscription_DeviceClient_SIGSample().UnSub(device.DESMQTTClient)
-
 	// device.MQTTSubscription_DeviceClient_SIGDiagSample() //.UnSub(device.DESMQTTClient)
 
 	/* DISCONNECT THE DESMQTTCLient */
@@ -76,7 +67,7 @@ func (device *Device) MQTTDeviceClient_Dicconnect() {
 
 	delete(pkg.MQTTDevClients, device.DESDevSerial)
 
-	fmt.Printf(" (device *Device) MQTTDeviceClient_Dicconnect( ... ): Complete; OKCancel.\n")
+	fmt.Printf("\n(device) MQTTDeviceClient_Dicconnect( ): Complete -> ClientID: %s\n", device.ClientID)
 }
 
 
@@ -96,7 +87,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			zero.WriteMQTT(msg.Payload(), &adm)
 
 			device.ADM = adm
-			if device.EVT.EvtCode > 2 {
+			if device.EVT.EvtCode > 1 {
 				device.ADM.AdmID = 0
 				device.Job.WriteMQTT(msg.Payload(), &device.ADM)
 			}
@@ -117,7 +108,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			zero.WriteMQTT(msg.Payload(), &hdr)
 
 			device.HDR = hdr
-			if device.EVT.EvtCode > 2 {
+			if device.EVT.EvtCode > 1 {
 				device.HDR.HdrID = 0
 				device.Job.WriteMQTT(msg.Payload(), &device.HDR)
 			}
@@ -138,7 +129,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			zero.WriteMQTT(msg.Payload(), &cfg)
 
 			device.CFG = cfg
-			if device.EVT.EvtCode > 2 {
+			if device.EVT.EvtCode > 1 {
 				device.CFG.CfgID = 0
 				device.Job.WriteMQTT(msg.Payload(), &device.CFG)
 			}
@@ -157,18 +148,21 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			evt := Event{}
 			zero := device.GetZeroJob()
 			zero.WriteMQTT(msg.Payload(), &evt)
+			code := evt.EvtCode
 			
-			switch evt.EvtCode {
+			device.EVT = evt
+			device.EVT.EvtID = 0
+
+			switch code {
 
 			case 1: // End Job
 				// END CURRENT JOB
+				device.EndJob( )
 
 			case 2: // Start Job
 				if device.EVT.EvtCode > 1 {
 					// END CURRENT JOB
 				}
-				device.EVT = evt
-				device.EVT.EvtID = 0
 				device.StartJob( )
 
 			case 10: // Mode Vent
@@ -177,8 +171,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			case 13: // Mode Lo Flow
 			default :
 				// WRITE TO CURRETN JOB
-				device.EVT = evt
-				device.EVT.EvtID = 0
 				device.Job.WriteMQTT(msg.Payload(), &device.EVT)
 
 			}

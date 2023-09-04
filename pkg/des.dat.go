@@ -112,6 +112,12 @@ func Int32ToBytes(in int32) []byte {
 	return b
 }
 
+func Int16ToBytes(in int16) []byte {
+	b := make([]byte, 2)
+	binary.LittleEndian.PutUint16(b, uint16(in))
+	return b
+}
+
 func Float32ToBytes(in float32) []byte {
 
 	var b bytes.Buffer

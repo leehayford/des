@@ -26,66 +26,52 @@ type Device struct {
 	pkg.DESMQTTClient `json:"-"`
 }
 
+type DevicesMap map[string]Device
+var Devices = make(DevicesMap)
+
 func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 
-	/*
-		WHERE A DEVICE HAS MORE THAN ONE REGISTRATION RECORD
-		WE WANT THE LATEST
-	*/
-	devSubQry := pkg.DES.DB.
-		Table("des_devs").
-		Where("des_dev_class = '001' AND des_dev_version = '001' ").
-		Select("des_dev_serial, MAX(des_dev_reg_time) AS max_time").
-		Group("des_dev_serial")
-	
 	/*
 		WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 )
 		WE WANT THE LATEST
 	*/
-	jobSubQry := pkg.DES.DB.
-		Table("des_jobs").
-		Where("des_jobs.des_job_end = 0").
-		Select("des_job_id, MAX(des_job_reg_time) AS max_reg_time").
-		Group("des_job_id")
+	subQryLatestJob := pkg.DES.DB.
+	Table("des_jobs").
+	Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
+	Where("des_job_end = 0").
+	Group("des_job_dev_id")
 
-	jobQry := pkg.DES.DB.
-		Table("des_jobs").
-		Select("*").
-		Joins(`JOIN ( ? ) jobs
-			ON des_jobs.des_job_id = jobs.des_job_id
-			AND des_jobs.des_job_reg_time = jobs.max_reg_time`,
-			jobSubQry)
-		
 	qry := pkg.DES.DB.
-		Table("des_devs").
-		Select(" des_devs.*, j.* ").
-		Joins(`JOIN ( ? ) d 
-			ON des_devs.des_dev_serial = d.des_dev_serial 
-			AND des_devs.des_dev_reg_time = d.max_time`,
-			devSubQry).
-		Joins(`JOIN ( ? ) j
-			ON des_devs.des_dev_id = j.des_job_dev_id`,
-			jobQry).
-		Order("des_devs.des_dev_serial DESC")
+	Table("des_jobs").
+	Select("des_devs.*, des_jobs.*").
+	Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
+	Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
+	Order("des_devs.des_dev_serial DESC")
 
-		res := qry.Scan(&devices)
-		err = res.Error
-		return 
+	res := qry.Scan(&devices)
+	err = res.Error
+	return 
 }
 
 func (device *Device) StartJob( ) {
-	zero := device.GetZeroJob()
-	db := zero.JDB()
-	db.Connect()
-	defer db.Close()
+	// zero := device.GetZeroJob()
+	// db := zero.JDB()
+	// db.Connect()
+	// defer db.Close()
 	
-	db.Last(&device.ADM)
-	db.Last(&device.HDR)
-	db.Last(&device.CFG)
-	db.Last(&device.EVT)
-	db.Last(&device.SMP)
+	// db.Last(&device.ADM)
+	device.ADM.AdmID = 0
+	// db.Last(&device.HDR)
+	device.HDR.HdrID = 0
+	// db.Last(&device.CFG)
+	device.CFG.CfgID = 0
+	// db.Last(&device.EVT)
+	device.EVT.EvtID = 0
+	// db.Last(&device.SMP)
+	device.SMP.SmpID = 0
+	pkg.Json("(device *Device) StartJob( ) -> First Sample ", device.SMP)
 
-	db.Close()
+	// db.Close()
 
 	device.Job = Job{
 		DESRegistration: pkg.DESRegistration{
@@ -108,28 +94,41 @@ func (device *Device) StartJob( ) {
 		Headers: []Header{device.HDR},
 		Configs: []Config{device.CFG},
 		Events: []Event{device.EVT},
+		Samples: []Sample{device.SMP},
 	}
 	if err := device.Job.RegisterJob(); err != nil {
 		pkg.Trace(err)
 	}
+
+
+
 }
 func (device *Device) EndJob( ) {
 
-	// zero := device.GetZeroJob()
-	// db := zero.JDB()
-	// db.Connect()
-	// defer db.Close()
+	zero := device.GetZeroJob()
+	db := zero.JDB()
+	db.Connect()
+	defer db.Close()
 	
-	// db.Last(&device.ADM)
-	// db.Last(&device.HDR)
-	// db.Last(&device.CFG)
-	// db.Last(&device.EVT)
-	// db.Last(&device.SMP)
+	db.Last(&device.EVT)
 
-	// db.Close()
+	db.Close()
+
 	// device.Job = device.GetZeroJob()
-	// device.DESRegistration = device.Job.DESRegistration
-	// device.GetDeviceStatus()
+	device.DESJobRegTime = device.EVT.EvtTime
+	device.DESJobRegAddr = device.EVT.EvtAddr
+	device.DESDevRegUserID = device.EVT.EvtUserID
+	device.DESDevRegApp = device.EVT.EvtApp
+	pkg.DES.DB.Save(device.DESJob)
+
+	device.HDR = device.Job.RegisterJob_Default_JobHeader()
+	device.HDR.HdrID = 0
+	device.Job.Write(&device.HDR)
+	
+	device.EVT.EvtID = 0
+	device.Job.Write(&device.EVT)
+
+	device.GetDeviceStatus()
 }
 
 
@@ -151,6 +150,10 @@ func MQTTDeviceClient_CreateAndConnectAll() (err error) {
 		if err = device.MQTTDeviceClient_Connect(); err != nil {
 			return pkg.Trace(err)
 		}
+		device.GetDeviceStatus()
+		Devices[device.DESDevSerial] = device
+		// d := Devices[device.DESDevSerial]
+		// fmt.Printf("\nCached Device %s, current event code: %d\n", d.DESDevSerial, d.EVT.EvtCode)
 	}
 
 	return err

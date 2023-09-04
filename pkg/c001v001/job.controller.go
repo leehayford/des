@@ -74,31 +74,30 @@ func (job *Job) RegisterJob() (err error) {
 			db.Create(&typ)
 		}
 
-		// job.Admins = []Admin{job.RegisterJob_Default_JobAdmin()}
 		if adm_res := db.Create(&job.Admins[0]); adm_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobAdmins[0]) -> Error:\n%s\n", adm_res.Error.Error())
 			return adm_res.Error
 		}
 
-		// job.Headers = []Header{job.RegisterJob_Default_JobHeader()}
 		if hdr_res := db.Create(&job.Headers[0]); hdr_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobHeaderss[0]) -> Error:\n%s\n", hdr_res.Error.Error())
 			return hdr_res.Error
 		}
 
-		// job.Configs = []Config{job.RegisterJob_Default_JobConfig()}
 		if cfg_res := db.Create(&job.Configs[0]); cfg_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Configs[0]) -> Error:\n%s\n", cfg_res.Error.Error())
 			return cfg_res.Error
 		}
 
-		// job.Events = []Event{job.RegisterJob_Default_JobEvent()}
 		if evt_res := db.Create(&job.Events[0]); evt_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Events[0]) -> Error:\n%s\n", evt_res.Error.Error())
 			return evt_res.Error
 		}
 
-		job.Samples = []Sample{}
+		if smp_res := db.Create(&job.Samples[0]); smp_res.Error != nil {
+			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Samples[0]) -> Error:\n%s\n", smp_res.Error.Error())
+			return smp_res.Error
+		}
 
 		db.Close()
 	}
@@ -218,7 +217,7 @@ func (job *Job) RegisterJob_Default_JobEvent() (evt Event) {
 		EvtApp:    job.DESJobRegApp,
 		EvtCode:   EVENT_TYPES[0].EvtTypCode,
 		EvtTitle:  "A Device is Born",
-		EvtMsg:    `Congratulations, it's a class 001, version 001 device! This test is here to take up space; normal people would use the function that shits out latin but I don't. Partly because I don't remember what it is and the other reason is I don't feel like lookingit up.`,
+		EvtMsg:    `Congratulations, it's a class 001, version 001 device! This text is here to take up space. Normal people would use the function that shits out latin but I don't; partly because I don't remember what it is and partly because I don't feel like looking it up.`,
 	}
 }
 

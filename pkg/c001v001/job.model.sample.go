@@ -37,8 +37,8 @@ func (smp *Sample) FilterSmpBytes() (out []byte) {
 	out = append(out, pkg.Float32ToBytes(smp.SmpBatAmp)...)
 	out = append(out, pkg.Float32ToBytes(smp.SmpBatVolt)...)
 	out = append(out, pkg.Float32ToBytes(smp.SmpMotVolt)...)
-	out = append(out, pkg.Int32ToBytes(int32(smp.SmpVlvTgt))...)
-	out = append(out, pkg.Int32ToBytes(int32(smp.SmpVlvPos))...)
+	out = append(out, pkg.Int16ToBytes(int16(smp.SmpVlvTgt))...)
+	out = append(out, pkg.Int16ToBytes(int16(smp.SmpVlvPos))...)
 
 	return
 }

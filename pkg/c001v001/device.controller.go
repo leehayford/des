@@ -149,10 +149,10 @@ func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 
 /*
 USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO START A NEW JOB ON THIS DEVICE
-SEND AN MQTT JOB HEADER TO THE DEVICE
-UPON RESPONSE AT '.../CMD/HEADER
-PERFORMS DES JOB REGISTRATION
-PERFORMS CLASS/VERSION SPECIFIC JOB REGISTRATION ACTIONS
+SEND AN MQTT JOB ADMIN, HEADER, CONFIG, & EVENT TO THE DEVICE
+UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS 
+	DES JOB REGISTRATION
+	CLASS/VERSION SPECIFIC JOB START ACTIONS
 */
 func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleStartJob( )\n")
@@ -161,7 +161,7 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	if role != "admin" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to register devices",
+			"message": "You must be an administrator to start a job",
 		})
 	}
 
@@ -234,7 +234,7 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	}
 	// pkg.Json("(device *Device) HandleStartJob(): -> device.EVT", device.EVT)
 
-	pkg.Json("(device *Device) HandleStartJob(): -> device", device)
+	// pkg.Json("(device *Device) HandleStartJob(): -> device", device)
 
 	/* LOG TO JOB_0: ADM, HDR, CFG, EVT */
 	zero := device.GetZeroJob()
@@ -243,10 +243,11 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	zero.Write(&device.CFG)
 	zero.Write(&device.EVT)
 	zero.Write(&device.SMP)
-	fmt.Printf("\nHandleStartNewJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
+	fmt.Printf("\nHandleStartJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
+	// pkg.Json("(device *Device) HandleStartJob(): -> device", device)
 
 	// /* MQTT PUB CMD: ADM, HDR, CFG, EVT */
-	fmt.Printf("\nHandleStartNewJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
 	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
 	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
@@ -259,9 +260,77 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	})
 }
 
-func (device *Device) GetZeroJob() (zero Job) {
 
-	fmt.Printf("\n(device *Device) GetZeroJob() for: %s\n", device.DESDevSerial)
+/*
+USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO END A JOB ON THIS DEVICE
+SEND AN MQTT END JOB EVENT TO THE DEVICE
+UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS 
+	DES JOB REGISTRATION ( UPDATE JOB 0 START DATE )
+	CLASS/VERSION SPECIFIC JOB END ACTIONS
+*/
+func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleEndtJob( )\n")
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to end a job",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	if errors := pkg.ValidateStruct(device); errors != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail",
+			"errors": errors,
+		})
+	}
+	// pkg.Json("(dev *Device) HandleEndJob(): -> c.BodyParser(&device) -> dev", device)
+
+	time := time.Now().UTC().UnixMilli()
+	evt := Event{
+		EvtTime:   time,
+		EvtAddr:   c.IP(),
+		EvtUserID: device.DESJobRegUserID,
+		EvtApp:    device.DESJobRegApp,
+		EvtTitle:  "Job End Request",
+		EvtMsg:    "Job end sequence initiated.",
+		EvtCode:   1,
+	}
+
+	d := Devices[device.DESDevSerial]
+	// pkg.Json("(device *Device) HandleEndJob(): -> Devices[device.DESDevSerial]", d)
+
+	/* LOG TO JOB_0: EVT */
+	zero := d.GetZeroJob()
+	zero.Write(&evt)
+	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
+
+	evt.EvtID = 0
+	d.EVT = evt
+	d.Job.Write(&d.EVT)
+	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", d.DESJobName)
+	
+	/* MQTT PUB CMD: EVT */
+	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", d.DESDevSerial, d.MQTTClientID)
+	d.MQTTPublication_DeviceClient_CMDEvent(evt)
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status": "success",
+		"data":    fiber.Map{"device": &device},
+		"message": "C001V001 Job End Reqest sent to device.",
+	})
+}
+
+func (device *Device) GetZeroJob() (zero Job) {
+	// fmt.Printf("\n(device) GetZeroJob() for: %s\n", device.DESDevSerial)
 	qry := pkg.DES.DB.
 		Table("des_devs AS d").
 		Select("d.*, j.*").
@@ -278,18 +347,20 @@ func (device *Device) GetZeroJob() (zero Job) {
 }
 
 func (device *Device) GetCurrentJob() {
-	fmt.Printf("\n(device *Device) GetCurrentJob() for: %s\n", device.DESDevSerial)
-	jobSubQry := pkg.DES.DB.
-		Table("des_jobs").
-		Where("des_jobs.des_job_end = 0").
-		Select("des_job_id, des_job_dev_id, MAX(des_job_reg_time) AS max_reg_time").
-		Group("des_job_id, des_job_dev_id")
+	// fmt.Printf("\n(device) GetCurrentJob() for: %s\n", device.DESDevSerial)
+	
+	subQryLatestJob := pkg.DES.DB.
+	Table("des_jobs").
+	Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
+	Where("des_job_end = 0").
+	Group("des_job_dev_id")
 
 	qry := pkg.DES.DB.
-		Table("des_devs AS d").
-		Select("d.*, j.*").
-		Joins("JOIN ( ? ) AS j ON d.des_dev_id = j.des_job_dev_id", jobSubQry).
-		Where("d.des_dev_serial = ? ", device.DESDevSerial)
+	Table("des_jobs").
+	Select("des_devs.*, des_jobs.*").
+	Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
+	Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
+	Where("des_devs.des_dev_serial = ? ", device.DESDevSerial)
 
 	res := qry.Scan(&device.Job.DESRegistration)
 	if res.Error != nil {
@@ -302,7 +373,6 @@ func (device *Device) GetCurrentJob() {
 func (device *Device) GetDeviceStatus() (err error) {
 	device.GetCurrentJob()
 	db := device.Job.JDB()
-	// db := (&Job{DESRegistration: device.DESRegistration}).JDB()
 	db.Connect()
 	defer db.Close()
 

@@ -69,6 +69,9 @@ type DemoDeviceClient struct {
 	pkg.DESMQTTClient
 }
 
+type DemoDeviceClientsMap map[string]DemoDeviceClient
+var DemoDeviceClients = make(DemoDeviceClientsMap)
+
 func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
 
 	simStr, _ := url.QueryUnescape(c.Query("sim"))
@@ -119,11 +122,12 @@ func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
 
 	evt := demo.GetLastEvent()
 
-	if evt.EvtCode == 2 || evt.EvtCode == 0 {
+
+	if evt.EvtCode < 2 {
 		fmt.Printf("\n%s: waiting for job start event...\n", demo.DESDevSerial)
 	} else {
-		// go demo.Demo_Run_Sim()
 		fmt.Printf("\n%s: simulation running...\n", demo.DESDevSerial)
+		// go demo.Demo_Simulation(time.Now().UTC())
 	}
 
 	open := true
@@ -178,16 +182,16 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	if err = demo.DESMQTTClient.DESMQTTClient_Connect(); err != nil {
 		return err
 	}
-	pkg.Json(`(demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect()(...) -> ClientID:`, demo.DESMQTTClient.ClientOptions.ClientID)
+	fmt.Printf("\n(demo) MQTTDemoDeviceClient_Connect( ) -> ClientID: %s\n", demo.ClientID)
 
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
 
-	pkg.MQTTDemoClients[demo.DESDevSerial] = demo.DESMQTTClient
-	demoClient := pkg.MQTTDemoClients[demo.DESDevSerial]
-	fmt.Printf("\n%s client ID: %s\n", demo.DESDevSerial, demoClient.MQTTClientID)
+	// pkg.MQTTDemoClients[demo.DESDevSerial] = demo.DESMQTTClient
+	// demoClient := pkg.MQTTDemoClients[demo.DESDevSerial]
+	// fmt.Printf("\n%s client ID: %s\n", demo.DESDevSerial, demoClient.MQTTClientID)
 
 	return err
 }
@@ -202,49 +206,30 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
 	/* DISCONNECT THE DESMQTTCLient */
 	demo.DESMQTTClient_Disconnect()
 
-	delete(pkg.MQTTDemoClients, demo.DESDevSerial)
+	// delete(pkg.MQTTDemoClients, demo.DESDevSerial)
 
-	fmt.Printf("(demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect( ... ): Complete.\n")
+	fmt.Printf("\n(device) MQTTDemoDeviceClient_Dicconnect( ): Complete -> ClientID: %s\n", demo.ClientID)
 }
 
 func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 
-	demoSubQry := pkg.DES.DB.
-		Table("des_devs").
-		Where("des_dev_class = '001' AND des_dev_version = '001' AND des_dev_serial LIKE 'DEMO%' ").
-		Select("des_dev_serial, MAX(des_dev_reg_time) AS max_time").
-		Group("des_dev_serial")
-
-	jobSubQry := pkg.DES.DB.
-		Table("des_jobs").
-		Where("des_jobs.des_job_end = 0").
-		Select("des_job_id, MAX(des_job_reg_time) AS max_reg_time").
-		Group("des_job_id")
-
-	jobQry := pkg.DES.DB.
-		Table("des_jobs").
-		Select("*").
-		Joins(`JOIN ( ? ) jobs
-			ON des_jobs.des_job_id = jobs.des_job_id
-			AND des_jobs.des_job_reg_time = jobs.max_reg_time`,
-			jobSubQry)
+	subQryLatestJob := pkg.DES.DB.
+	Table("des_jobs").
+	Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
+	Where("des_job_end = 0").
+	Group("des_job_dev_id")
 
 	qry := pkg.DES.DB.
-		Table("des_devs").
-		Select(" des_devs.*, j.* ").
-		Joins(`JOIN ( ? ) d 
-			ON des_devs.des_dev_serial = d.des_dev_serial 
-			AND des_devs.des_dev_reg_time = d.max_time`,
-			demoSubQry).
-		Joins(`JOIN ( ? ) j
-			ON des_devs.des_dev_id = j.des_job_dev_id`,
-			jobQry).
-		Order("des_devs.des_dev_serial DESC")
+	Table("des_jobs").
+	Select("des_devs.*, des_jobs.*").
+	Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
+	Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
+	Where("des_devs.des_dev_serial LIKE 'DEMO%' ").
+	Order("des_devs.des_dev_serial DESC")
 
 	res := qry.Scan(&demos)
 	err = res.Error
 	return
-
 }
 
 /*
@@ -335,20 +320,20 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 		Topic: demo.MQTTTopic_CMDEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			// evt := &Event{}
-			if err := json.Unmarshal(msg.Payload(), &demo.EVT); err != nil {
+			evt := Event{}
+			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
 				pkg.Trace(err)
 			}
 
 			/* SIMULATE EVENT RESPONSE */
 			fmt.Printf("\n(demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() -> %s\n", demo.MQTTTopic_CMDEvent())
-			switch demo.EVT.EvtCode {
+			switch evt.EvtCode {
 
 			case 1: // End Job
-				demo.EndDemoJob()
+				demo.EndDemoJob(evt)
 
 			case 2: // Start Job
-				demo.StartDemoJob()
+				demo.StartDemoJob(evt)
 
 			case 10: // Mode Vent
 			case 11: // Mode Build
@@ -433,9 +418,18 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts *
 func (demo *DemoDeviceClient) Demo_Simulation(t0 time.Time) {
 
 	for demo.EVT.EvtCode > 1 {
-		demo.Demo_Simulation_Take_Sample(t0, time.Now())
+		t := time.Now().UTC()
+		demo.Demo_Simulation_Take_Sample(t0, t)
+		demo.WriteSmpToFlash(demo.Job, demo.SMP)
+		smp := Demo_EncodeMQTTSampleMessage(demo.DESJobName, 0, demo.SMP)
+		demo.MQTTPublication_DemoDeviceClient_SIGSample(&smp)
+
 		time.Sleep(time.Millisecond * time.Duration(demo.CFG.CfgOpSample))
+
+		// fmt.Printf("(demo *DemoDeviceClient) Demo_Simulation( ): %s -> %d\n", demo.DESDevSerial, t.UnixMilli())
 	}
+	// pkg.Json("(demo *DemoDeviceClient) Demo_Simulation( )", demo.EVT)
+	fmt.Printf("\n(demo) Demo_Simulation( ) %s waiting for job start...\n", demo.DESDevSerial)
 }
 func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 
@@ -456,28 +450,7 @@ func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 			SEND RESULTING EVENTS / CONFIG CHANGES
 	*/
 }
- 
 
-
-
-// func (demo *DemoDeviceClient) Demo_Run_Sim() {
-// 	fmt.Printf("\n (demo *DemoDeviceClient) Demo_Run_Sim( ): demo.Sim.Dur %d\n", demo.Sim.Dur)
-// 	fmt.Printf("\n (demo *DemoDeviceClient) Demo_Run_Sim( ): demo.Sim.Qty %d\n", demo.Sim.Qty)
-// 	t0 := time.Now()
-// 	i := 1
-// 	for i < demo.Sim.Qty {
-
-// 		mqtts := Demo_Take_Sim_Sample(t0, time.Now(), demo.DESJob.DESJobName)
-
-// 		demo.MQTTPublication_DemoDeviceClient_SIGSample(&mqtts)
-
-// 		time.Sleep(time.Millisecond * time.Duration(demo.CFG.CfgOpSample))
-// 		i++
-
-// 	}
-
-// 	demo.MQTTDemoDeviceClient_Disconnect()
-// }
 func YSinX(t0, ti time.Time, max, shift float64) (y float32) {
 
 	freq := 0.5
@@ -884,7 +857,7 @@ func (demo *DemoDeviceClient) ReadEvtDir(job Job) (evts []Event) {
 func (demo *DemoDeviceClient) WriteSmpToFlash(job Job, smp Sample) (err error) {
 
 	smpBytes := smp.FilterSmpBytes()
-	fmt.Printf("\nsmpBytes ( %d ) : %v\n", len(smpBytes), smpBytes)
+	// fmt.Printf("\nsmpBytes ( %d ) : %v\n", len(smpBytes), smpBytes)
 
 	dir := fmt.Sprintf("demo/%s", job.DESJobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
@@ -907,8 +880,14 @@ func (demo *DemoDeviceClient) WriteSmpToFlash(job Job, smp Sample) (err error) {
 	return
 }
 
-func (demo *DemoDeviceClient) StartDemoJob() {
+func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	fmt.Printf("(demo *DemoDeviceClient) StartDemoJob( )...\n")
+
+	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
+	t0 := time.Now().UTC()
+	startTime := t0.UnixMilli()
+
+	demo.EVT = evt
 
 	zero := demo.GetZeroJob()	
 	evts := demo.ReadEvtDir(zero)
@@ -926,10 +905,6 @@ func (demo *DemoDeviceClient) StartDemoJob() {
 			EvtMsg: "Ending current job to start a new job.",
 		})
 	}
-
-	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
-	t0 := time.Now().UTC()
-	startTime := t0.UnixMilli()
 
 	// Get last ADM from Job_0 -> if time doesn't match JOB START event time, use default Admin settings
 	demo.GetAdmFromFlash(zero, &demo.ADM)
@@ -973,6 +948,7 @@ func (demo *DemoDeviceClient) StartDemoJob() {
 	demo.EVT.EvtMsg = demo.HDR.HdrJobName
 
 	demo.Demo_Simulation_Take_Sample(t0, time.Now().UTC())	
+	pkg.Json("(demo *DemoDeviceClient) StartDemoJob( ) -> First Sample ", demo.SMP)
 
 	/* WRITE TO FLASH - JOB_0 */
 	demo.WriteAdmToFlash(zero, demo.ADM)
@@ -1010,25 +986,45 @@ func (demo *DemoDeviceClient) StartDemoJob() {
 	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(&demo.ADM)
 	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
 	demo.MQTTPublication_DemoDeviceClient_SIGConfig(&demo.CFG)
+	smp := Demo_EncodeMQTTSampleMessage(demo.HDR.HdrJobName, 0, demo.SMP)
+	demo.MQTTPublication_DemoDeviceClient_SIGSample(&smp)
+	
+	time.Sleep(time.Millisecond * time.Duration(demo.CFG.CfgOpSample))
 	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
+	
 
 	/* RUN JOB... */
 	go demo.Demo_Simulation(t0)
+	pkg.Json("demo *DemoDeviceClient) StartDemoJob( )", demo.EVT)
 }
 
-func (demo *DemoDeviceClient) EndDemoJob() {
-	fmt.Printf(" END JOB\n")
+func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
+	fmt.Printf("(demo *DemoDeviceClient) EndDemoJob( )...\n")
 
 	/* CAPTURE TIME VALUE FOR JOB TERMINATION: HDR, EVT */
-	demo.EVT.EvtTime =  time.Now().UTC().UnixMilli()
+	t0 := time.Now().UTC()
+	endTime := t0.UnixMilli()
 
-	demo.HDR.HdrTime = demo.EVT.EvtTime
-	demo.HDR.HdrAddr = demo.DESDevSerial
-	demo.HDR.HdrUserID = demo.EVT.EvtUserID
-	demo.HDR.HdrApp = demo.EVT.EvtApp
-	demo.HDR.HdrJobEnd = demo.EVT.EvtTime
+	evt.EvtTime = endTime
+	evt.EvtTitle = "JOB ENDED"
+	evt.EvtMsg = demo.HDR.HdrJobName
+
+	demo.HDR.HdrTime = evt.EvtTime
+	demo.HDR.HdrUserID = evt.EvtUserID
+	demo.HDR.HdrApp = evt.EvtApp
+	demo.HDR.HdrJobEnd = evt.EvtTime
+
+	zero := demo.GetZeroJob()	
+	demo.WriteEvtToFlash(zero, evt)
+	demo.WriteHdrToFlash(zero, demo.HDR)
+
+	demo.WriteEvtToFlash(demo.Job, evt)
+	demo.WriteHdrToFlash(demo.Job, demo.HDR)
+
 	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
-	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
+	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&evt)
+
+	demo.EVT = evt
 }
 
 func (demo *DemoDeviceClient) MoveValve() {

@@ -70,6 +70,7 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 	job.Headers = []c001v001.Header{(job).RegisterJob_Default_JobHeader()}
 	job.Configs = []c001v001.Config{(job).RegisterJob_Default_JobConfig()}
 	job.Events = []c001v001.Event{(job).RegisterJob_Default_JobEvent()}
+	job.Samples = []c001v001.Sample{ { SmpTime: t, SmpJobName: job.DESJobName } }
 	job.RegisterJob()
 
 	demo := c001v001.DemoDeviceClient{
@@ -176,6 +177,7 @@ func main() {
 		// regs = append(regs, MakeDemoC001V001("DEMO000004", user.ID.String()))
 	}
 
+	fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
 	for _, reg := range regs {
 		demo := c001v001.DemoDeviceClient{
 			Device: c001v001.Device{
@@ -183,33 +185,20 @@ func main() {
 				Job:             c001v001.Job{DESRegistration: reg},
 			},
 		}
-		demo.GetAdmFromFlash(demo.Job, &demo.ADM)
-		demo.GetHdrFromFlash(demo.Job, &demo.HDR)
-		demo.GetCfgFromFlash(demo.Job, &demo.CFG)
-		evts := demo.ReadEvtDir(demo.Job)
-		lastEVT := evts[len(evts)-1]
-		if lastEVT.EvtCode != 1 {
-			user := pkg.User{}
-			pkg.DES.DB.Last(&user)
-			demo.WriteEvtToFlash(demo.Job, c001v001.Event{
-				EvtTime:   time.Now().UTC().UnixMilli(),
-				EvtAddr:   "DEMO",
-				EvtUserID: user.ID.String(),
-				EvtApp:    "DEMO",
-
-				EvtCode:  1,
-				EvtTitle: "Server Restart - Ending Current Job",
-				EvtMsg:   "End Job to ensure this demo device is ready to start a new demo job.",
-			})
-		}
-		demo.EVT = lastEVT
 
 		demo.MQTTDemoDeviceClient_Connect()
 		defer demo.MQTTDemoDeviceClient_Disconnect()
+
+		demo.GetDeviceStatus()
+		go demo.Demo_Simulation(time.Now().UTC())
+
+		c001v001.DemoDeviceClients[demo.DESDevSerial] = demo
+		// d := c001v001.DemoDeviceClients[demo.DESDevSerial]
+		// fmt.Printf("\nCached DemoDeviceClient %s, current event code: %d\n", d.DESDevSerial, d.EVT.EvtCode)
 	}
 
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
-	fmt.Println("Connecting all C001V001 MQTT Device Clients...")
+	fmt.Println("\n\nConnecting all C001V001 MQTT Device Clients...")
 	c001v001.MQTTDeviceClient_CreateAndConnectAll()
 
 	/* MAIN SER$VER */
@@ -259,6 +248,7 @@ func main() {
 	api.Route("/001/001/device", func(router fiber.Router) {
 		router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
 		router.Post("/start", pkg.DesAuth, (&c001v001.Device{}).HandleStartJob)
+		router.Post("/end", pkg.DesAuth, (&c001v001.Device{}).HandleEndJob)
 		router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
 		router.Get("/ws", pkg.DesAuth, websocket.New(
 			(&c001v001.DeviceUserClient{}).WSDeviceUserClient_Connect,

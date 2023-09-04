@@ -122,36 +122,27 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 	// duc.DESMQTTClient.ClientOptions.ClientID)
 
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().Sub(duc.DESMQTTClient)
-
 	duc.MQTTSubscription_DeviceUserClient_SIGHeader().Sub(duc.DESMQTTClient)
-
 	duc.MQTTSubscription_DeviceUserClient_SIGConfig().Sub(duc.DESMQTTClient)
-
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().Sub(duc.DESMQTTClient)
-
 	duc.MQTTSubscription_DeviceUserClient_SIGSample().Sub(duc.DESMQTTClient)
-
 	duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().Sub(duc.DESMQTTClient)
 
 	pkg.MQTTUserClients[duc.WSClientID] = duc.DESMQTTClient
-	userClient := pkg.MQTTUserClients[duc.WSClientID]
-	fmt.Printf("\n%s client ID: %s\n", duc.WSClientID, userClient.MQTTClientID)
+	// userClient := pkg.MQTTUserClients[duc.WSClientID]
+	// fmt.Printf("\n%s client ID: %s\n", duc.WSClientID, userClient.MQTTClientID)
 
+	fmt.Printf("\n(duc) MQTTDeviceUserClient_Connect( ) -> ClientID: %s\n", duc.ClientID)
 	return err
 }
 func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().UnSub(duc.DESMQTTClient)
-
 	duc.MQTTSubscription_DeviceUserClient_SIGHeader().UnSub(duc.DESMQTTClient)
-
 	duc.MQTTSubscription_DeviceUserClient_SIGConfig().UnSub(duc.DESMQTTClient)
-
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().UnSub(duc.DESMQTTClient)
-
 	duc.MQTTSubscription_DeviceUserClient_SIGSample().UnSub(duc.DESMQTTClient)
-
 	duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().UnSub(duc.DESMQTTClient)
 
 	/* DISCONNECT THE DESMQTTCLient */
@@ -159,7 +150,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	delete(pkg.MQTTUserClients, duc.WSClientID)
 
-	fmt.Printf("(duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( ... ): Complete.\n")
+	fmt.Printf("\n(duc) MQTTDeviceUserClient_Disconnect( ): Complete -> ClientID: %s\n", duc.ClientID)
 }
 
 /*
