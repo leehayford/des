@@ -123,7 +123,7 @@ func (cfg *Config) FilterCfgBytes() (out []byte) {
 	out = append(out, pkg.Int32ToBytes(cfg.CfgOpSample)...)
 	out = append(out, pkg.Int32ToBytes(cfg.CfgOpLog)...)
 	out = append(out, pkg.Int32ToBytes(cfg.CfgOpTrans)...)
-	
+
 	out = append(out, pkg.Int32ToBytes(cfg.CfgDiagSample)...)
 	out = append(out, pkg.Int32ToBytes(cfg.CfgDiagLog)...)
 	out = append(out, pkg.Int32ToBytes(cfg.CfgDiagTrans)...)
@@ -135,9 +135,9 @@ func (cfg *Config) MakeCfgFromBytes(b []byte) {
 	cfg = &Config{
 
 		CfgTime:   pkg.BytesToInt64_L(b[0:8]),
-		CfgAddr:   pkg.FFStrBytesToString(b[8:44]),
-		CfgUserID: pkg.FFStrBytesToString(b[44:80]),
-		CfgApp:    pkg.FFStrBytesToString(b[80:116]),
+		CfgAddr:   pkg.StrBytesToString(b[8:44]),
+		CfgUserID: pkg.StrBytesToString(b[44:80]),
+		CfgApp:    pkg.StrBytesToString(b[80:116]),
 
 		CfgSCVD:     pkg.BytesToFloat32_L(b[116:120]),
 		CfgSCVDMult: pkg.BytesToFloat32_L(b[120:124]),

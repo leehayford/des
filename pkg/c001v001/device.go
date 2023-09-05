@@ -2,7 +2,7 @@ package c001v001
 
 import (
 	"fmt"
-
+	"time"
 	"github.com/leehayford/des/pkg"
 )
 
@@ -88,6 +88,15 @@ func (device *Device) StartJob() {
 	if err := device.Job.RegisterJob(); err != nil {
 		pkg.TraceErr(err)
 	}
+	
+	d := Devices[device.DESDevSerial]
+	pkg.Json("(device *Device) StartJob(): -> Devices[device.DESDevSerial] BEFORE UPDATE", d)
+
+	device.DESMQTTClient = d.DESMQTTClient
+	Devices[device.DESDevSerial] = *device
+	d = Devices[device.DESDevSerial]
+	pkg.Json("(device *Device) StartJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", d)
+
 }
 func (device *Device) EndJob() {
 
@@ -100,16 +109,16 @@ func (device *Device) EndJob() {
 	device.Job.DESJob.DESJobRegUserID = device.EVT.EvtUserID
 	device.Job.DESJob.DESJobRegApp = device.EVT.EvtApp
 	device.Job.DESJob.DESJobEnd = device.EVT.EvtTime
-	pkg.Json("CLOSE DES JOB X ->", device.Job.DESJob)
+	pkg.Json("(device *Device) EndJob() -> CLOSE DES JOB X ->", device.Job.DESJob)
 	pkg.DES.DB.Save(device.Job.DESJob)
 
 	/* UPDATE DES JOB 0 */
 	zero := device.GetZeroJob()
-	zero.DESJobRegTime = device.EVT.EvtTime
+	zero.DESJobRegTime = time.Now().UTC().UnixMilli()
 	zero.DESJobRegAddr = device.EVT.EvtAddr
 	zero.DESJobRegUserID = device.EVT.EvtUserID
 	zero.DESJobRegApp = device.EVT.EvtApp
-	pkg.Json("UPDATE DES JOB 0  ->", zero.DESJob)
+	pkg.Json("(device *Device) EndJob() ->UPDATE DES JOB 0  ->", zero.DESJob)
 	pkg.DES.DB.Save(zero.DESJob)
 
 	/* SET DEVICE JOB TO JOB 0 - > AVEC DEFAULT HEADER */

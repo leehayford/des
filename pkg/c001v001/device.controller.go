@@ -230,7 +230,7 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 		EvtAddr:   c.IP(),
 		EvtUserID: device.DESJobRegUserID,
 		EvtApp:    device.DESJobRegApp,
-		EvtTitle:  "Start Job Request",
+		EvtTitle:  "Job Start Request",
 		EvtMsg:    "Job start sequence initiated.",
 		EvtCode:   2,
 	}
@@ -253,6 +253,8 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	device.DESMQTTClient = d.DESMQTTClient
 	fmt.Printf("\nHandleStartJob( ) -> Check %s MQTT device: %v\n\n", device.DESDevSerial, device.MQTTClientID)
 	
+	Devices[device.DESDevSerial] = *device
+
 	// /* MQTT PUB CMD: ADM, HDR, CFG, EVT */
 	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
@@ -302,7 +304,8 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	// pkg.Json("(dev *Device) HandleEndJob(): -> c.BodyParser(&device) -> dev", device)
 
 	time := time.Now().UTC().UnixMilli()
-	evt := Event{
+
+	device.EVT = Event{
 		EvtTime:   time,
 		EvtAddr:   c.IP(),
 		EvtUserID: device.DESJobRegUserID,
@@ -312,22 +315,25 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 		EvtCode:   1,
 	}
 
+	/* LOG TO JOB_0: EVT */
+	zero := device.GetZeroJob()
+	zero.Write(&device.EVT)
+	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
+
 	d := Devices[device.DESDevSerial]
 	pkg.Json("(device *Device) HandleEndJob(): -> Devices[device.DESDevSerial]", d)
 
-	/* LOG TO JOB_0: EVT */
-	zero := d.GetZeroJob()
-	zero.Write(&evt)
-	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
+	device.DESMQTTClient = d.DESMQTTClient
+	device.Job = d.Job
+	device.EVT.EvtID = 0
+	device.Job.Write(&device.EVT)
+	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", device.Job.DESJobName)
 
-	evt.EvtID = 0
-	d.EVT = evt
-	d.Job.Write(&d.EVT)
-	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", d.DESJobName)
+	Devices[device.DESDevSerial] = *device
 
 	/* MQTT PUB CMD: EVT */
-	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", d.DESDevSerial, d.MQTTClientID)
-	d.MQTTPublication_DeviceClient_CMDEvent(evt)
+	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -390,7 +396,13 @@ func (device *Device) GetDeviceStatus() (err error) {
 	db.Last(&device.SMP)
 
 	db.Close()
+	
+	d := Devices[device.DESDevSerial]
+	device.DESMQTTClient = d.DESMQTTClient
+	Devices[device.DESDevSerial] = *device
+
 	// pkg.Json("(device *Device) GetDeviceStatus( ) -> device.EVT", device.EVT)
-	fmt.Printf("\n(device *Device) GetDeviceStatus( ) -> %s: device.EVT.EvtCode: %s\n", device.DESDevSerial, device.EVT.EvtTitle)
+	// fmt.Printf("\n(device *Device) GetDeviceStatus( ) -> %s: device: %s\n", device.DESDevSerial, device.EVT.EvtTitle)
+	pkg.Json("(device *Device) GetDeviceStatus( ) -> device:", device)
 	return
 }

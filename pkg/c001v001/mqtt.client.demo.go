@@ -122,6 +122,7 @@ func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
 	// demo.MQTTDemoDeviceClient_Connect()
 
 	zero := demo.GetZeroJob()
+	pkg.TraceFunc("Call -> demo.ReadEvtDir(zero)")
 	evts := demo.ReadEvtDir(zero)
 	evt := evts[len(evts)-1]
 
@@ -855,7 +856,7 @@ func (demo *DemoDeviceClient) ReadEvtDir(job Job) (evts []Event) {
 			pkg.TraceErr(err)
 		} else {
 			evt := &Event{}
-			demo.GetEvtFromFlash(demo.Job, i, evt) // pkg.Json("(demo *DemoDeviceClient) ReadEvtDir( )", evt)
+			demo.GetEvtFromFlash(job, i, evt) // pkg.Json("(demo *DemoDeviceClient) ReadEvtDir( )", evt)
 			evts = append(evts, *evt)
 		}
 	}
@@ -898,6 +899,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.EVT = evt
 
 	zero := demo.GetZeroJob()
+	// pkg.TraceFunc("Call -> demo.ReadEvtDir(zero)")
 	evts := demo.ReadEvtDir(zero)
 	lastZeroEVT := evts[len(evts)-1]
 	/* MAKE SURE THE PREVIOUS JOB IS ENDED */
@@ -956,7 +958,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.EVT.EvtMsg = demo.HDR.HdrJobName
 
 	demo.Demo_Simulation_Take_Sample(t0, time.Now().UTC())
-	pkg.Json("(demo *DemoDeviceClient) StartDemoJob( ) -> First Sample ", demo.SMP)
+	pkg.Json("(demo *DemoDeviceClient) StartDemoJob( ) -> Initial Sample ", demo.SMP)
 
 	/* WRITE TO FLASH - JOB_0 */
 	demo.WriteAdmToFlash(zero, demo.ADM)
@@ -994,16 +996,16 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(&demo.ADM)
 	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
 	demo.MQTTPublication_DemoDeviceClient_SIGConfig(&demo.CFG)
+
 	smp := Demo_EncodeMQTTSampleMessage(demo.HDR.HdrJobName, 0, demo.SMP)
 	demo.MQTTPublication_DemoDeviceClient_SIGSample(&smp)
-	pkg.Json("demo *DemoDeviceClient) StartDemoJob( ) -> Initial Sample", demo.SMP)
 
 	time.Sleep(time.Millisecond * time.Duration(demo.CFG.CfgOpSample))
 	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
 
 	/* RUN JOB... */
 	go demo.Demo_Simulation(t0)
-	pkg.Json("demo *DemoDeviceClient) StartDemoJob( )", demo.EVT)
+	pkg.Json("(demo *DemoDeviceClient) StartDemoJob( )", demo.EVT)
 }
 
 func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
@@ -1013,7 +1015,6 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	t0 := time.Now().UTC()
 	endTime := t0.UnixMilli()
 
-	demo.EVT = evt
 	evt.EvtTime = endTime
 	evt.EvtTitle = "JOB ENDED"
 	evt.EvtMsg = demo.HDR.HdrJobName
@@ -1021,6 +1022,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	zero := demo.GetZeroJob()
 	demo.GetHdrFromFlash(zero, &demo.HDR)
 	demo.HDR.HdrTime = evt.EvtTime
+	demo.HDR.HdrAddr = evt.EvtAddr
 	demo.HDR.HdrUserID = evt.EvtUserID
 	demo.HDR.HdrApp = evt.EvtApp
 	demo.HDR.HdrJobEnd = evt.EvtTime
@@ -1034,7 +1036,8 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
 	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&evt)
 
-	pkg.Json("demo *DemoDeviceClient) EndDemoJob( )", demo.EVT)
+	demo.EVT = evt
+	pkg.Json("(demo *DemoDeviceClient) EndDemoJob( )", demo.EVT)
 }
 
 func (demo *DemoDeviceClient) MoveValve() {

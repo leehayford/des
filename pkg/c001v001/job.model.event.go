@@ -66,23 +66,20 @@ func (evt *Event) FilterEvtBytes() (out []byte) {
 }
 func (evt *Event) MakeEvtFromBytes(b []byte) {
 
-	evt = &Event {
+	evt = &Event{
 
 		EvtTime:   pkg.BytesToInt64_L(b[0:8]),
-		EvtAddr:   pkg.FFStrBytesToString(b[8:44]),
-		EvtUserID: pkg.FFStrBytesToString(b[44:80]),
-		EvtApp:    pkg.FFStrBytesToString(b[80:116]),
+		EvtAddr:   pkg.StrBytesToString(b[8:44]),
+		EvtUserID: pkg.StrBytesToString(b[44:80]),
+		EvtApp:    pkg.StrBytesToString(b[80:116]),
 
-		EvtCode: pkg.BytesToInt32_L(b[116:120]),
-		EvtTitle: pkg.FFStrBytesToString(b[120:156]),
-		EvtMsg: pkg.FFStrBytesToString(b[156:]),
+		EvtCode:  pkg.BytesToInt32_L(b[116:120]),
+		EvtTitle: pkg.StrBytesToString(b[120:156]),
+		EvtMsg:   pkg.StrBytesToString(b[156:]),
 	}
 	//  pkg.Json("(demo *DemoDeviceClient)MakeEvtFromBytes() -> evt", evt)
 	return
 }
-
-
-
 
 type EventTyp struct {
 	EvtTypID   int64  `gorm:"unique; primaryKey" json:"evt_typ_id"`
@@ -124,7 +121,6 @@ var EVENT_TYPES = []EventTyp{
 	{EvtTypCode: 12, EvtTypName: "MODE HIGH FLOW"},
 
 	{EvtTypCode: 13, EvtTypName: "MODE LOW FLOW"},
-
 }
 
 // /*ADMIN EVENT TYPES*/

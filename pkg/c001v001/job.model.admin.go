@@ -165,7 +165,7 @@ func (adm *Admin) FilterAdmRecord() MQTT_Admin {
 ADMIN - AS STORED IN DEVICE FLASH
 */
 func (adm *Admin) FilterAdmBytes() (out []byte) {
-	
+
 	out = append(out, pkg.Int64ToBytes(adm.AdmTime)...)
 	out = append(out, pkg.StringToNBytes(adm.AdmAddr, 36)...)
 	out = append(out, pkg.StringToNBytes(adm.AdmUserID, 36)...)
@@ -204,7 +204,7 @@ func (adm *Admin) FilterAdmBytes() (out []byte) {
 	out = append(out, pkg.Float32ToBytes(adm.AdmLFSDiff)...)
 	out = append(out, pkg.Float32ToBytes(adm.AdmLFSDiffMin)...)
 	out = append(out, pkg.Float32ToBytes(adm.AdmLFSDiffMax)...)
-	
+
 	return
 }
 func (adm *Admin) MakeAdmFromBytes(b []byte) {
@@ -212,43 +212,43 @@ func (adm *Admin) MakeAdmFromBytes(b []byte) {
 	adm = &Admin{
 
 		AdmTime:   pkg.BytesToInt64_L(b[0:8]),
-		AdmAddr:   pkg.FFStrBytesToString(b[8:44]),
-		AdmUserID: pkg.FFStrBytesToString(b[44:80]),
-		AdmApp:    pkg.FFStrBytesToString(b[80:116]),
+		AdmAddr:   pkg.StrBytesToString(b[8:44]),
+		AdmUserID: pkg.StrBytesToString(b[44:80]),
+		AdmApp:    pkg.StrBytesToString(b[80:116]),
 
-		AdmDefHost: pkg.FFStrBytesToString(b[116:148]),
+		AdmDefHost: pkg.StrBytesToString(b[116:148]),
 		AdmDefPort: pkg.BytesToInt32_L(b[148:152]),
-		AdmOpHost: pkg.FFStrBytesToString(b[152:184]),
-		AdmOpPort: pkg.BytesToInt32_L(b[184:188]),
+		AdmOpHost:  pkg.StrBytesToString(b[152:184]),
+		AdmOpPort:  pkg.BytesToInt32_L(b[184:188]),
 
-		AdmSerial: pkg.FFStrBytesToString(b[188:198]),
-		AdmVersion: pkg.FFStrBytesToString(b[198:201]),
-		AdmClass: pkg.FFStrBytesToString(b[201:204]),
+		AdmSerial:  pkg.StrBytesToString(b[188:198]),
+		AdmVersion: pkg.StrBytesToString(b[198:201]),
+		AdmClass:   pkg.StrBytesToString(b[201:204]),
 
-		AdmBatHiAmp:   pkg.BytesToFloat32_L(b[204:208]),
-		AdmBatLoVolt:  pkg.BytesToFloat32_L(b[208:212]),
+		AdmBatHiAmp:  pkg.BytesToFloat32_L(b[204:208]),
+		AdmBatLoVolt: pkg.BytesToFloat32_L(b[208:212]),
 
 		AdmMotHiAmp: pkg.BytesToFloat32_L(b[212:216]),
 
-		AdmHFSFlow: pkg.BytesToFloat32_L(b[216:220]),
-		AdmHFSFlowMin: pkg.BytesToFloat32_L(b[220:224]),
-		AdmHFSFlowMax: pkg.BytesToFloat32_L(b[224:228]),
-		AdmHFSPress: pkg.BytesToFloat32_L(b[228:232]),
+		AdmHFSFlow:     pkg.BytesToFloat32_L(b[216:220]),
+		AdmHFSFlowMin:  pkg.BytesToFloat32_L(b[220:224]),
+		AdmHFSFlowMax:  pkg.BytesToFloat32_L(b[224:228]),
+		AdmHFSPress:    pkg.BytesToFloat32_L(b[228:232]),
 		AdmHFSPressMin: pkg.BytesToFloat32_L(b[232:236]),
 		AdmHFSPressMax: pkg.BytesToFloat32_L(b[236:240]),
-		AdmHFSDiff: pkg.BytesToFloat32_L(b[240:244]),
-		AdmHFSDiffMin: pkg.BytesToFloat32_L(b[244:248]),
-		AdmHFSDiffMax: pkg.BytesToFloat32_L(b[248:252]),
+		AdmHFSDiff:     pkg.BytesToFloat32_L(b[240:244]),
+		AdmHFSDiffMin:  pkg.BytesToFloat32_L(b[244:248]),
+		AdmHFSDiffMax:  pkg.BytesToFloat32_L(b[248:252]),
 
-		AdmLFSFlow: pkg.BytesToFloat32_L(b[252:256]),
-		AdmLFSFlowMin: pkg.BytesToFloat32_L(b[256:260]),
-		AdmLFSFlowMax: pkg.BytesToFloat32_L(b[260:264]),
-		AdmLFSPress: pkg.BytesToFloat32_L(b[264:268]),
+		AdmLFSFlow:     pkg.BytesToFloat32_L(b[252:256]),
+		AdmLFSFlowMin:  pkg.BytesToFloat32_L(b[256:260]),
+		AdmLFSFlowMax:  pkg.BytesToFloat32_L(b[260:264]),
+		AdmLFSPress:    pkg.BytesToFloat32_L(b[264:268]),
 		AdmLFSPressMin: pkg.BytesToFloat32_L(b[268:272]),
 		AdmLFSPressMax: pkg.BytesToFloat32_L(b[272:276]),
-		AdmLFSDiff: pkg.BytesToFloat32_L(b[276:280]),
-		AdmLFSDiffMin: pkg.BytesToFloat32_L(b[280:284]),
-		AdmLFSDiffMax: pkg.BytesToFloat32_L(b[284:288]),
+		AdmLFSDiff:     pkg.BytesToFloat32_L(b[276:280]),
+		AdmLFSDiffMin:  pkg.BytesToFloat32_L(b[280:284]),
+		AdmLFSDiffMax:  pkg.BytesToFloat32_L(b[284:288]),
 	}
 	//  pkg.Json("(demo *DemoDeviceClient)MakeAdmFromBytes() -> adm", adm)
 	return

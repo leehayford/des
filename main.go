@@ -171,10 +171,11 @@ func main() {
 		user := pkg.User{}
 		pkg.DES.DB.Last(&user)
 		regs = append(regs, MakeDemoC001V001("DEMO000000", user.ID.String()))
-		// regs = append(regs, MakeDemoC001V001("DEMO000001", user.ID.String()))
-		// regs = append(regs, MakeDemoC001V001("DEMO000002", user.ID.String()))
+		regs = append(regs, MakeDemoC001V001("DEMO000001", user.ID.String()))
+		regs = append(regs, MakeDemoC001V001("DEMO000002", user.ID.String()))
 		// regs = append(regs, MakeDemoC001V001("DEMO000003", user.ID.String()))
 		// regs = append(regs, MakeDemoC001V001("DEMO000004", user.ID.String()))
+		MakeDemoC001V001("RENE123456", user.ID.String())
 	}
 
 	fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
@@ -193,6 +194,7 @@ func main() {
 		demo.GetDeviceStatus()
 		go demo.Demo_Simulation(time.Now().UTC())
 	}
+
 
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
 	fmt.Println("\n\nConnecting all C001V001 MQTT Device Clients...")

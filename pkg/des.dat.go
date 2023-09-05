@@ -127,15 +127,23 @@ func Float32ToBytes(in float32) []byte {
 	return b.Bytes()
 }
 
-func FFStrBytesToString(b []byte) (out string) {
+// func StrBytesToString(b []byte) (out string) {
+// 	for i := range b {
+// 		if b[i] != 255 {
+// 			return string(b[i:])
+// 		}
+// 	}
+// 	return
+// }
+
+func StrBytesToString(b []byte) (out string) {
 	for i := range b {
-		if b[i] != 255 {
-			return string(b[i:])
+		if b[i] == 32 {
+			return string(b[:i])
 		}
 	}
 	return
 }
-
 /*STRING INPUT*/
 func StringToNBytes(str string, size int) []byte {
 
@@ -148,9 +156,10 @@ func StringToNBytes(str string, size int) []byte {
 	if l > size {
 		return bin[l-size:]
 	}
-	// out := make([]byte, size)
-	out := bytes.Repeat([]byte{0xFF}, size)
-	copy(out[size-l:], bin)
+	// out := bytes.Repeat([]byte{0xFF}, size)
+	// copy(out[size-l:], bin)
+	out := bytes.Repeat([]byte{0x20}, size)
+	copy(out[:size-l], bin)
 	return out
 }
 

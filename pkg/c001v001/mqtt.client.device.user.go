@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"net/url"
-	"time"
+	// "time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gofiber/contrib/websocket"
@@ -175,15 +175,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
 				pkg.TraceErr(err)
 			}
-			time.Sleep(time.Millisecond * 300) // wait for DB write to complete
-
-			db := duc.JDB()
-			db.Connect()
-			defer db.Close()
-			db.Last(&adm)
-			db.Close()
+			// time.Sleep(time.Millisecond * 300) // wait for DB write to complete
+			// db := duc.JDB()
+			// db.Connect()
+			// defer db.Close()
+			// db.Last(&adm)
+			// db.Close()
 			js, err := json.Marshal(&WSMessage{Type: "admin", Data: adm})
-			// js, err := json.Marshal(adm)
 			if err != nil {
 				pkg.TraceErr(err)
 			}
@@ -209,15 +207,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader() pkg.M
 			if err := json.Unmarshal(msg.Payload(), &hdr); err != nil {
 				pkg.TraceErr(err)
 			}
-			time.Sleep(time.Millisecond * 300) // wait for DB write to complete
-
-			db := duc.JDB()
-			db.Connect()
-			defer db.Close()
-			db.Last(&hdr)
-			db.Close()
+			// time.Sleep(time.Millisecond * 300) // wait for DB write to complete
+			// db := duc.JDB()
+			// db.Connect()
+			// defer db.Close()
+			// db.Last(&hdr)
+			// db.Close()
 			js, err := json.Marshal(&WSMessage{Type: "header", Data: hdr})
-			// js, err := json.Marshal(hdr)
 			if err != nil {
 				pkg.TraceErr(err)
 			}
@@ -243,15 +239,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.M
 			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
 				pkg.TraceErr(err)
 			}
-			time.Sleep(time.Millisecond * 300) // wait for DB write to complete
-
-			db := duc.JDB()
-			db.Connect()
-			defer db.Close()
-			db.Last(&cfg)
-			db.Close()
+			// time.Sleep(time.Millisecond * 300) // wait for DB write to complete
+			// db := duc.JDB()
+			// db.Connect()
+			// defer db.Close()
+			// db.Last(&cfg)
+			// db.Close()
 			js, err := json.Marshal(&WSMessage{Type: "config", Data: cfg})
-			// js, err := json.Marshal(cfg)
 			if err != nil {
 				pkg.TraceErr(err)
 			}
@@ -277,15 +271,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQ
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
 				pkg.TraceErr(err)
 			}
-			time.Sleep(time.Millisecond * 300) // wait for DB write to complete
-
-			db := duc.JDB()
-			db.Connect()
-			defer db.Close()
-			db.Last(&evt)
-			db.Close()
+			// time.Sleep(time.Millisecond * 300) // wait for DB write to complete
+			// db := duc.JDB()
+			// db.Connect()
+			// defer db.Close()
+			// db.Last(&evt)
+			// db.Close()
 			js, err := json.Marshal(&WSMessage{Type: "event", Data: evt})
-			// js, err := json.Marshal(evt)
 			if err != nil {
 				pkg.TraceErr(err)
 			}

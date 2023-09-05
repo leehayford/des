@@ -108,19 +108,19 @@ func (hdr *Header) MakeHdrFromBytes(b []byte) {
 	hdr = &Header{
 
 		HdrTime:   pkg.BytesToInt64_L(b[0:8]),
-		HdrAddr:   pkg.FFStrBytesToString(b[8:44]),
-		HdrUserID: pkg.FFStrBytesToString(b[44:80]),
-		HdrApp:    pkg.FFStrBytesToString(b[80:116]),
+		HdrAddr:   pkg.StrBytesToString(b[8:44]),
+		HdrUserID: pkg.StrBytesToString(b[44:80]),
+		HdrApp:    pkg.StrBytesToString(b[80:116]),
 
-		HdrJobName:  pkg.FFStrBytesToString(b[116:140]),
+		HdrJobName:  pkg.StrBytesToString(b[116:140]),
 		HdrJobStart: pkg.BytesToInt64_L(b[140:148]),
 		HdrJobEnd:   pkg.BytesToInt64_L(b[148:156]),
 
-		HdrWellCo:    pkg.FFStrBytesToString(b[156:188]),
-		HdrWellName:  pkg.FFStrBytesToString(b[188:220]),
-		HdrWellSFLoc: pkg.FFStrBytesToString(b[220:252]),
-		HdrWellBHLoc: pkg.FFStrBytesToString(b[252:284]),
-		HdrWellLic:   pkg.FFStrBytesToString(b[284:316]),
+		HdrWellCo:    pkg.StrBytesToString(b[156:188]),
+		HdrWellName:  pkg.StrBytesToString(b[188:220]),
+		HdrWellSFLoc: pkg.StrBytesToString(b[220:252]),
+		HdrWellBHLoc: pkg.StrBytesToString(b[252:284]),
+		HdrWellLic:   pkg.StrBytesToString(b[284:316]),
 
 		HdrGeoLng: pkg.BytesToFloat32_L(b[316:320]),
 		HdrGeoLat: pkg.BytesToFloat32_L(b[320:324]),
