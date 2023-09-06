@@ -2,6 +2,7 @@ package c001v001
 
 import (
 	"fmt"
+	"strings"
 	"time"
 	"github.com/leehayford/des/pkg"
 )
@@ -53,6 +54,79 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 	return
 }
 
+func (device *Device) ZeroJobName() string {
+	return fmt.Sprintf("%s_0000000000000", device.DESDevSerial)
+}
+func (device *Device) ZeroJobDB() *pkg.DBI {
+	return &pkg.DBI{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.ZeroJobName()))}
+}
+func (device *Device) ZeroJob() Job {
+	return Job{ DESRegistration: pkg.DESRegistration{ DESJob: pkg.DESJob{ DESJobName: device.ZeroJobName() }} }
+}
+
+func (device *Device) GetZeroJob() (zero Job) {
+	// fmt.Printf("\n(device) GetZeroJob() for: %s\n", device.DESDevSerial)
+	qry := pkg.DES.DB.
+		Table("des_devs AS d").
+		Select("d.*, j.*").
+		Joins("JOIN des_jobs AS j ON d.des_dev_id = j.des_job_dev_id").
+		Where("d.des_dev_serial = ? AND j.des_job_name LIKE ?",
+			device.DESDevSerial, fmt.Sprintf("%s_0000000000000", device.DESDevSerial))
+
+	res := qry.Scan(&zero.DESRegistration)
+	if res.Error != nil {
+		pkg.TraceErr(res.Error)
+	}
+	// pkg.Json("(device *Device) GetZeroJob( )", zero)
+	return
+}
+func (device *Device) GetCurrentJob() {
+	// fmt.Printf("\n(device) GetCurrentJob() for: %s\n", device.DESDevSerial)
+
+	subQryLatestJob := pkg.DES.DB.
+		Table("des_jobs").
+		Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
+		Where("des_job_end = 0").
+		Group("des_job_dev_id")
+
+	qry := pkg.DES.DB.
+		Table("des_jobs").
+		Select("des_devs.*, des_jobs.*").
+		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
+		Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
+		Where("des_devs.des_dev_serial = ? ", device.DESDevSerial)
+
+	res := qry.Scan(&device.Job.DESRegistration)
+	if res.Error != nil {
+		pkg.TraceErr(res.Error)
+	}
+	// pkg.Json("(device *Device) GetCurrentJob( )", device.Job)
+	return
+}
+func (device *Device) GetDeviceStatus() (err error) {
+	device.GetCurrentJob()
+	db := device.Job.JDB()
+	db.Connect()
+	defer db.Close()
+
+	db.Last(&device.ADM)
+	db.Last(&device.HDR)
+	db.Last(&device.CFG)
+	db.Last(&device.EVT)
+	db.Last(&device.SMP)
+
+	db.Close()
+	
+	d := Devices[device.DESDevSerial]
+	device.DESMQTTClient = d.DESMQTTClient
+	Devices[device.DESDevSerial] = *device
+
+	// pkg.Json("(device *Device) GetDeviceStatus( ) -> device.EVT", device.EVT)
+	// fmt.Printf("\n(device *Device) GetDeviceStatus( ) -> %s: device: %s\n", device.DESDevSerial, device.EVT.EvtTitle)
+	// pkg.Json("(device *Device) GetDeviceStatus( ) -> device:", device)
+	return
+}
+
 func (device *Device) StartJob() {
 
 	device.ADM.AdmID = 0
@@ -95,7 +169,7 @@ func (device *Device) StartJob() {
 	device.DESMQTTClient = d.DESMQTTClient
 	Devices[device.DESDevSerial] = *device
 	d = Devices[device.DESDevSerial]
-	pkg.Json("(device *Device) StartJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", d)
+	// pkg.Json("(device *Device) StartJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", d)
 
 }
 func (device *Device) EndJob() {
@@ -118,7 +192,7 @@ func (device *Device) EndJob() {
 	zero.DESJobRegAddr = device.EVT.EvtAddr
 	zero.DESJobRegUserID = device.EVT.EvtUserID
 	zero.DESJobRegApp = device.EVT.EvtApp
-	pkg.Json("(device *Device) EndJob() ->UPDATE DES JOB 0  ->", zero.DESJob)
+	pkg.Json("(device *Device) EndJob() -> UPDATE DES JOB 0  ->", zero.DESJob)
 	pkg.DES.DB.Save(zero.DESJob)
 
 	/* SET DEVICE JOB TO JOB 0 - > AVEC DEFAULT HEADER */
@@ -127,8 +201,15 @@ func (device *Device) EndJob() {
 	device.HDR.HdrID = 0
 	device.Job.Write(&device.HDR)
 
-	// pkg.TraceFunc("Call -> device.GetDeviceStatus( )")
-	device.GetDeviceStatus()
+	d := Devices[device.DESDevSerial]
+	// pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] BEFORE UPDATE", d)
+
+	device.DESMQTTClient = d.DESMQTTClient
+	Devices[device.DESDevSerial] = *device
+	d = Devices[device.DESDevSerial]
+	// pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", d)
+
+	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
 }
 
 /* MQTT TOPICS - SIGNAL */

@@ -239,7 +239,7 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	// pkg.Json("(device *Device) HandleStartJob(): -> device", device)
 
 	/* LOG TO JOB_0: ADM, HDR, CFG, EVT */
-	zero := device.GetZeroJob()
+	zero := device.ZeroJob()
 	zero.Write(&device.ADM)
 	zero.Write(&device.HDR)
 	zero.Write(&device.CFG)
@@ -316,7 +316,7 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	}
 
 	/* LOG TO JOB_0: EVT */
-	zero := device.GetZeroJob()
+	zero := device.ZeroJob()
 	zero.Write(&device.EVT)
 	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
 
@@ -342,67 +342,3 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	})
 }
 
-func (device *Device) GetZeroJob() (zero Job) {
-	// fmt.Printf("\n(device) GetZeroJob() for: %s\n", device.DESDevSerial)
-	qry := pkg.DES.DB.
-		Table("des_devs AS d").
-		Select("d.*, j.*").
-		Joins("JOIN des_jobs AS j ON d.des_dev_id = j.des_job_dev_id").
-		Where("d.des_dev_serial = ? AND j.des_job_name LIKE ?",
-			device.DESDevSerial, fmt.Sprintf("%s_0000000000000", device.DESDevSerial))
-
-	res := qry.Scan(&zero.DESRegistration)
-	if res.Error != nil {
-		pkg.TraceErr(res.Error)
-	}
-	// pkg.Json("(device *Device) GetZeroJob( )", zero)
-	return
-}
-
-func (device *Device) GetCurrentJob() {
-	// fmt.Printf("\n(device) GetCurrentJob() for: %s\n", device.DESDevSerial)
-
-	subQryLatestJob := pkg.DES.DB.
-		Table("des_jobs").
-		Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
-		Where("des_job_end = 0").
-		Group("des_job_dev_id")
-
-	qry := pkg.DES.DB.
-		Table("des_jobs").
-		Select("des_devs.*, des_jobs.*").
-		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
-		Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
-		Where("des_devs.des_dev_serial = ? ", device.DESDevSerial)
-
-	res := qry.Scan(&device.Job.DESRegistration)
-	if res.Error != nil {
-		pkg.TraceErr(res.Error)
-	}
-	// pkg.Json("(device *Device) GetCurrentJob( )", device.Job)
-	return
-}
-
-func (device *Device) GetDeviceStatus() (err error) {
-	device.GetCurrentJob()
-	db := device.Job.JDB()
-	db.Connect()
-	defer db.Close()
-
-	db.Last(&device.ADM)
-	db.Last(&device.HDR)
-	db.Last(&device.CFG)
-	db.Last(&device.EVT)
-	db.Last(&device.SMP)
-
-	db.Close()
-	
-	d := Devices[device.DESDevSerial]
-	device.DESMQTTClient = d.DESMQTTClient
-	Devices[device.DESDevSerial] = *device
-
-	// pkg.Json("(device *Device) GetDeviceStatus( ) -> device.EVT", device.EVT)
-	// fmt.Printf("\n(device *Device) GetDeviceStatus( ) -> %s: device: %s\n", device.DESDevSerial, device.EVT.EvtTitle)
-	pkg.Json("(device *Device) GetDeviceStatus( ) -> device:", device)
-	return
-}

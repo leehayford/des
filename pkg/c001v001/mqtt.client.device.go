@@ -108,13 +108,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 
 			/* PARSE / STORE THE ADMIN IN ZERO JOB */
 			adm := Admin{}
-			zero := device.GetZeroJob()
+			zero := device.ZeroJob()
 			zero.WriteMQTT(msg.Payload(), &adm)
+			adm.AdmID = 0
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			device.ADM = adm
 			if device.EVT.EvtCode > 1 {
-				device.ADM.AdmID = 0
 				device.Job.WriteMQTT(msg.Payload(), &device.ADM)
 			}
 		},
@@ -131,13 +131,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 
 			/* PARSE / STORE THE HEADER IN ZERO JOB */
 			hdr := Header{}
-			zero := device.GetZeroJob()
+			zero := device.ZeroJob()
 			zero.WriteMQTT(msg.Payload(), &hdr)
+			hdr.HdrID = 0
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			device.HDR = hdr
 			if device.EVT.EvtCode > 1 {
-				device.HDR.HdrID = 0
 				device.Job.WriteMQTT(msg.Payload(), &device.HDR)
 			}
 		},
@@ -154,13 +154,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 
 			/* PARSE / STORE THE CONFIG IN ZERO JOB */
 			cfg := Config{}
-			zero := device.GetZeroJob()
+			zero := device.ZeroJob()
 			zero.WriteMQTT(msg.Payload(), &cfg)
+			cfg.CfgID = 0
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			device.CFG = cfg
 			if device.EVT.EvtCode > 1 {
-				device.CFG.CfgID = 0
 				device.Job.WriteMQTT(msg.Payload(), &device.CFG)
 			}
 		},
@@ -177,14 +177,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 
 			/* PARSE / STORE THE EVENT IN ZERO JOB */
 			evt := Event{}
-			zero := device.GetZeroJob()
+			zero := device.ZeroJob()
 			zero.WriteMQTT(msg.Payload(), &evt)
+			evt.EvtID = 0
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			code := evt.EvtCode
 			device.EVT = evt
-			device.EVT.EvtID = 0
-			switch code {
+			switch evt.EvtCode {
 
 			case 1: // End Job
 				device.EndJob()
@@ -212,8 +211,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.SMP.SmpID = 0
-			device.Job.WriteMQTTSample(msg.Payload(), &device.SMP)
+			smp := Sample{}
+			device.Job.WriteMQTTSample(msg.Payload(), &smp)
+
+			d := Devices[device.DESDevSerial]
+			d.SMP = smp
 		},
 	}
 }

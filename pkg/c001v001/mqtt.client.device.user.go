@@ -43,7 +43,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	wscid := fmt.Sprintf("%s-%s-%s",
 		c.RemoteAddr().String(),
 		des_reg.DESDevRegUserID,
-		des_reg.DESJobName,
+		des_reg.DESDevSerial,
 	) // fmt.Printf("WSDeviceUserClient_Connect -> wscid: %s\n", wscid)
 
 	duc = DeviceUserClient{
