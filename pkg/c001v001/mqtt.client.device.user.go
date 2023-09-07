@@ -17,11 +17,6 @@ import (
 type DeviceUserClient struct {
 	Device
 	outChan chan string
-	// adminChan  chan string
-	// configChan chan string
-	// eventChan  chan string
-	// sampleChan chan string
-	// diagChan   chan string
 	WSClientID string
 	CTX        context.Context
 	Cancel     context.CancelFunc
@@ -107,12 +102,6 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 
 	duc.MQTTUser = user
 	duc.MQTTPW = pw
-	// duc.MQTTClientID = fmt.Sprintf(
-	// 	"DeviceUser-%s-%s-%s",
-	// 	duc.DESDevClass,
-	// 	duc.DESDevVersion,
-	// 	duc.DESDevSerial,
-	// )
 	duc.MQTTClientID = duc.WSClientID
 	if err = duc.DESMQTTClient.DESMQTTClient_Connect(); err != nil {
 		return err
@@ -175,12 +164,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
 				pkg.TraceErr(err)
 			}
-			// time.Sleep(time.Millisecond * 300) // wait for DB write to complete
-			// db := duc.JDB()
-			// db.Connect()
-			// defer db.Close()
-			// db.Last(&adm)
-			// db.Close()
+
 			js, err := json.Marshal(&WSMessage{Type: "admin", Data: adm})
 			if err != nil {
 				pkg.TraceErr(err)
@@ -207,12 +191,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader() pkg.M
 			if err := json.Unmarshal(msg.Payload(), &hdr); err != nil {
 				pkg.TraceErr(err)
 			}
-			// time.Sleep(time.Millisecond * 300) // wait for DB write to complete
-			// db := duc.JDB()
-			// db.Connect()
-			// defer db.Close()
-			// db.Last(&hdr)
-			// db.Close()
+
 			js, err := json.Marshal(&WSMessage{Type: "header", Data: hdr})
 			if err != nil {
 				pkg.TraceErr(err)
@@ -239,12 +218,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.M
 			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
 				pkg.TraceErr(err)
 			}
-			// time.Sleep(time.Millisecond * 300) // wait for DB write to complete
-			// db := duc.JDB()
-			// db.Connect()
-			// defer db.Close()
-			// db.Last(&cfg)
-			// db.Close()
+
 			js, err := json.Marshal(&WSMessage{Type: "config", Data: cfg})
 			if err != nil {
 				pkg.TraceErr(err)
@@ -271,12 +245,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQ
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
 				pkg.TraceErr(err)
 			}
-			// time.Sleep(time.Millisecond * 300) // wait for DB write to complete
-			// db := duc.JDB()
-			// db.Connect()
-			// defer db.Close()
-			// db.Last(&evt)
-			// db.Close()
+
 			js, err := json.Marshal(&WSMessage{Type: "event", Data: evt})
 			if err != nil {
 				pkg.TraceErr(err)
@@ -308,13 +277,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 			for _, b64 := range mqtts.Data {
 
 				// Decode base64 string
-				sample := &Sample{SmpJobName: mqtts.DesJobName}
-				if err := duc.Job.DecodeMQTTSample(b64, sample); err != nil {
+				sample := Sample{SmpJobName: mqtts.DesJobName}
+				if err := duc.Job.DecodeMQTTSample(b64, &sample); err != nil {
 					pkg.TraceErr(err)
 				}
 
 				// Create a JSON version thereof
-				js, err := json.Marshal(&WSMessage{Type: "sample", Data: *sample})
+				js, err := json.Marshal(&WSMessage{Type: "sample", Data: sample})
 				if err != nil {
 					pkg.TraceErr(err)
 				} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)

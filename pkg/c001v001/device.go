@@ -164,11 +164,11 @@ func (device *Device) StartJob() {
 	}
 	
 	d := Devices[device.DESDevSerial]
-	pkg.Json("(device *Device) StartJob(): -> Devices[device.DESDevSerial] BEFORE UPDATE", d)
+	// pkg.Json("(device *Device) StartJob(): -> Devices[device.DESDevSerial] BEFORE UPDATE", d)
 
 	device.DESMQTTClient = d.DESMQTTClient
 	Devices[device.DESDevSerial] = *device
-	d = Devices[device.DESDevSerial]
+	// d = Devices[device.DESDevSerial]
 	// pkg.Json("(device *Device) StartJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", d)
 
 }
@@ -206,7 +206,7 @@ func (device *Device) EndJob() {
 
 	device.DESMQTTClient = d.DESMQTTClient
 	Devices[device.DESDevSerial] = *device
-	d = Devices[device.DESDevSerial]
+	// d = Devices[device.DESDevSerial]
 	// pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", d)
 
 	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)

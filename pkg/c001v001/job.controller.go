@@ -165,7 +165,7 @@ func (job *Job) RegisterJob_Default_JobHeader() (hdr Header) {
 		HdrApp:    job.DESJobRegApp,
 
 		// HdrWellCo: "UNKNOWN",
-		HdrWellName: job.DESJobName,
+		// HdrWellName: job.DESJobName,
 		// HdrWellSFLoc: "UNKNOWN",
 		// HdrWellBHLoc: "UNKNOWN",
 		// HdrWellLic: "UNKNOWN",

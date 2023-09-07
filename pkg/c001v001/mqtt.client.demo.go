@@ -380,11 +380,12 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 			/* WRITE TO SIM 'FLASH' -> JOB 0 */
 			demo.WriteAdmToFlash(demo.ZeroJobName(), demo.ADM)
 
-			/* UPDATE TIME / SOURCE */
-			demo.ADM.AdmTime = time.Now().UTC().UnixMilli()
-			demo.ADM.AdmApp = demo.DESDevSerial
-
 			if demo.EVT.EvtCode > 2 {
+
+				/* UPDATE TIME / SOURCE */
+				demo.ADM.AdmTime = time.Now().UTC().UnixMilli()
+				demo.ADM.AdmApp = demo.DESDevSerial
+	
 				/* WRITE TO SIM 'FLASH' -> JOB X */
 				demo.WriteAdmToFlash(demo.Job.DESJobName, demo.ADM)
 			}
@@ -411,11 +412,12 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 			/* WRITE TO SIM 'FLASH' -> JOB 0 */
 			demo.WriteHdrToFlash(demo.ZeroJobName(), demo.HDR)
 			
-			/* UPDATE TIME / SOURCE */
-			demo.HDR.HdrTime = time.Now().UTC().UnixMilli()
-			demo.HDR.HdrApp = demo.DESDevSerial
-
 			if demo.EVT.EvtCode > 2 {
+
+				/* UPDATE TIME / SOURCE */
+				demo.HDR.HdrTime = time.Now().UTC().UnixMilli()
+				demo.HDR.HdrApp = demo.DESDevSerial
+	
 				/* WRITE TO SIM 'FLASH' -> JOB X */
 				demo.WriteHdrToFlash(demo.Job.DESJobName, demo.HDR)
 			}
@@ -441,12 +443,13 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 			
 			/* WRITE TO SIM 'FLASH' -> JOB 0 */
 			demo.WriteCfgToFlash(demo.ZeroJobName(), demo.CFG)
-			
-			/* UPDATE TIME / SOURCE */
-			demo.CFG.CfgTime = time.Now().UTC().UnixMilli()
-			demo.CFG.CfgApp = demo.DESDevSerial
 
 			if demo.EVT.EvtCode > 2 {
+			
+				/* UPDATE TIME / SOURCE */
+				demo.CFG.CfgTime = time.Now().UTC().UnixMilli()
+				demo.CFG.CfgApp = demo.DESDevSerial
+
 				/* WRITE TO SIM 'FLASH' */
 				demo.WriteCfgToFlash(demo.Job.DESJobName, demo.CFG)
 			}
@@ -470,6 +473,9 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 				pkg.TraceErr(err)
 			}
 
+			/* WRITE TO SIM 'FLASH' -> JOB 0 */
+			demo.WriteEvtToFlash(demo.ZeroJobName(), evt)
+			
 			switch evt.EvtCode {
 
 			case 1: // End Job
@@ -1045,16 +1051,15 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	// 	})
 	// }
 
-	/* WRITE TO SIM 'FLASH' -> JOB 0 */
-	demo.WriteEvtToFlash(demo.ZeroJobName(), evt)
-
 	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
 	t0 := time.Now().UTC()
 	startTime := t0.UnixMilli()
 
+
 	// Get last ADM from Job_0 -> if time doesn't match JOB START event time, use default Admin settings
-	demo.GetAdmFromFlash(demo.ZeroJobName(), &demo.ADM)
+	// demo.GetAdmFromFlash(demo.ZeroJobName(), &demo.ADM)
 	if demo.ADM.AdmTime != evt.EvtTime {
+		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT ADMIN.\n")
 		demo.ADM = demo.RegisterJob_Default_JobAdmin()
 	}
 	demo.ADM.AdmTime = startTime
@@ -1063,8 +1068,9 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.ADM.AdmApp = evt.EvtApp
 
 	// Get last HDR from Job_0 -> if time doesn't match JOB START event time, use default Header settings
-	demo.GetHdrFromFlash(demo.ZeroJobName(), &demo.HDR)
+	// demo.GetHdrFromFlash(demo.ZeroJobName(), &demo.HDR)
 	if demo.HDR.HdrTime != evt.EvtTime {
+		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT HEADER\n")
 		demo.HDR = demo.RegisterJob_Default_JobHeader()
 	}
 	demo.HDR.HdrTime = startTime
@@ -1078,8 +1084,9 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.HDR.HdrGeoLat = 51.85 + rand.Float32()*(54.35-51.85)
 
 	// Get last CFG from Job_0 -> if time doesn't match JOB START event time, use default Config settings
-	demo.GetCfgFromFlash(demo.ZeroJobName(), &demo.CFG)
+	// demo.GetCfgFromFlash(demo.ZeroJobName(), &demo.CFG)
 	if demo.CFG.CfgTime != evt.EvtTime {
+		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT CONFIG.\n")
 		demo.CFG = demo.RegisterJob_Default_JobConfig()
 	}
 	demo.CFG.CfgTime = startTime
@@ -1090,6 +1097,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 
 	// update Event Time
 	demo.EVT = evt
+	demo.EVT.EvtAddr = demo.DESDevSerial
 	demo.EVT.EvtTime = startTime
 	demo.EVT.EvtTitle = "JOB STARTED"
 	demo.EVT.EvtMsg = demo.HDR.HdrJobName
@@ -1098,14 +1106,14 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	smp := Demo_EncodeMQTTSampleMessage(demo.HDR.HdrJobName, 0, demo.SMP)
 	pkg.Json("(demo *DemoDeviceClient) StartDemoJob( ) -> Initial Sample ", demo.SMP)
 
-	/* WRITE TO FLASH - JOB_0 */
+	/* WRITE TO FLASH - JOB 0 */
 	demo.WriteAdmToFlash(demo.ZeroJobName(), demo.ADM)
 	demo.WriteHdrToFlash(demo.ZeroJobName(), demo.HDR)
 	demo.WriteCfgToFlash(demo.ZeroJobName(), demo.CFG)
 	demo.WriteEvtToFlash(demo.ZeroJobName(), demo.EVT)
 	demo.WriteSmpToFlash(demo.ZeroJobName(), demo.SMP)
 
-	/* WRITE TO FLASH - JOB_X */
+	/* WRITE TO FLASH - JOB X */
 	demo.Job = Job{
 		DESRegistration: pkg.DESRegistration{
 			DESDev: demo.DESDev,
@@ -1130,7 +1138,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.WriteSmpToFlash(demo.Job.DESJobName, demo.SMP)
 	demo.WriteEvtToFlash(demo.Job.DESJobName, demo.EVT)
 
-	// each[ ADM, HDR, CFG, EVT ] { MQTT out ( avec time.Now() ) }
+	/* SEND CONFIRMATION */
 	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(&demo.ADM)
 	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
 	demo.MQTTPublication_DemoDeviceClient_SIGConfig(&demo.CFG)
@@ -1145,34 +1153,36 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	fmt.Printf("(demo *DemoDeviceClient) EndDemoJob( )...\n")
 
-	/* WRITE TO SIM 'FLASH' -> JOB 0 */
-	demo.WriteEvtToFlash(demo.ZeroJobName(), evt)
-
 	/* CAPTURE TIME VALUE FOR JOB TERMINATION: HDR, EVT */
 	t0 := time.Now().UTC()
 	endTime := t0.UnixMilli()
 
-	evt.EvtTime = endTime
-	evt.EvtTitle = "JOB ENDED"
-	evt.EvtMsg = demo.HDR.HdrJobName
 
-	demo.GetHdrFromFlash(demo.ZeroJobName(), &demo.HDR)
-	demo.HDR.HdrTime = evt.EvtTime
-	demo.HDR.HdrAddr = evt.EvtAddr
+	// demo.GetHdrFromFlash(demo.ZeroJobName(), &demo.HDR)
+	demo.HDR.HdrTime = endTime
+	demo.HDR.HdrAddr = demo.DESDevSerial
 	demo.HDR.HdrUserID = evt.EvtUserID
 	demo.HDR.HdrApp = evt.EvtApp
-	demo.HDR.HdrJobEnd = evt.EvtTime
-
-	demo.WriteEvtToFlash(demo.ZeroJobName(), evt)
-	demo.WriteHdrToFlash(demo.ZeroJobName(), demo.HDR)
-
-	demo.WriteEvtToFlash(demo.Job.DESJobName, evt)
-	demo.WriteHdrToFlash(demo.Job.DESJobName, demo.HDR)
-
-	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
-	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&evt)
+	demo.HDR.HdrJobEnd = endTime
 
 	demo.EVT = evt
+	demo.EVT.EvtAddr = demo.DESDevSerial
+	demo.EVT.EvtTime = endTime
+	demo.EVT.EvtTitle = "JOB ENDED"
+	demo.EVT.EvtMsg = demo.HDR.HdrJobName
+
+	/* WRITE TO FLASH - JOB 0 */
+	demo.WriteEvtToFlash(demo.ZeroJobName(), demo.EVT)
+	demo.WriteHdrToFlash(demo.ZeroJobName(), demo.HDR)
+
+	/* WRITE TO FLASH - JOB X */
+	demo.WriteEvtToFlash(demo.Job.DESJobName, demo.EVT)
+	demo.WriteHdrToFlash(demo.Job.DESJobName, demo.HDR)
+
+	/* SEND CONFIRMATION */
+	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
+	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
+
 	pkg.Json("(demo *DemoDeviceClient) EndDemoJob( )", demo.EVT)
 }
 

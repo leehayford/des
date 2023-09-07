@@ -28,7 +28,7 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	devices := []Device{}
 	for _, reg := range regs {
 
-		pkg.Json("HandleGetDeviceList( ) -> reg", reg)
+		// pkg.Json("HandleGetDeviceList( ) -> reg", reg)
 		go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
 
 			defer wg.Done()
@@ -318,15 +318,16 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	/* LOG TO JOB_0: EVT */
 	zero := device.ZeroJob()
 	zero.Write(&device.EVT)
+	device.EVT.EvtID = 0
 	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
 
 	d := Devices[device.DESDevSerial]
-	pkg.Json("(device *Device) HandleEndJob(): -> Devices[device.DESDevSerial]", d)
-
 	device.DESMQTTClient = d.DESMQTTClient
 	device.Job = d.Job
-	device.EVT.EvtID = 0
+	// pkg.Json("(device *Device) HandleEndJob(): -> Devices[device.DESDevSerial]", d)
+
 	device.Job.Write(&device.EVT)
+	device.EVT.EvtID = 0
 	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", device.Job.DESJobName)
 
 	Devices[device.DESDevSerial] = *device

@@ -47,11 +47,8 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 	// deviceClient := pkg.MQTTDevClients[device.DESDevSerial]
 	// fmt.Printf("\n%s client ID: %s\n", device.DESDevSerial, deviceClient.MQTTClientID)
 
-	// pkg.TraceFunc("Call -> device.GetDeviceStatus( )")
-	// device.GetDeviceStatus()
 	Devices[device.DESDevSerial] = *device
 	d := Devices[device.DESDevSerial]
-	// fmt.Printf("\nCached Device %s, current event code: %d\n", d.DESDevSerial, d.EVT.EvtCode)
 	fmt.Printf("\n(device) MQTTDeviceClient_Connect( ) -> ClientID: %s\n", d.ClientID)
 	return err
 }
@@ -107,14 +104,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* PARSE / STORE THE ADMIN IN ZERO JOB */
-			adm := Admin{}
 			zero := device.ZeroJob()
-			zero.WriteMQTT(msg.Payload(), &adm)
-			adm.AdmID = 0
+			device.ADM.AdmID = 0
+			zero.WriteMQTT(msg.Payload(), &device.ADM)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			device.ADM = adm
 			if device.EVT.EvtCode > 1 {
+				device.ADM.AdmID = 0
 				device.Job.WriteMQTT(msg.Payload(), &device.ADM)
 			}
 		},
@@ -130,14 +126,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* PARSE / STORE THE HEADER IN ZERO JOB */
-			hdr := Header{}
 			zero := device.ZeroJob()
-			zero.WriteMQTT(msg.Payload(), &hdr)
-			hdr.HdrID = 0
-
+			device.HDR.HdrID = 0
+			zero.WriteMQTT(msg.Payload(), &device.HDR)
+			
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			device.HDR = hdr
 			if device.EVT.EvtCode > 1 {
+				device.HDR.HdrID = 0
 				device.Job.WriteMQTT(msg.Payload(), &device.HDR)
 			}
 		},
@@ -153,14 +148,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* PARSE / STORE THE CONFIG IN ZERO JOB */
-			cfg := Config{}
 			zero := device.ZeroJob()
-			zero.WriteMQTT(msg.Payload(), &cfg)
-			cfg.CfgID = 0
+			device.CFG.CfgID = 0
+			zero.WriteMQTT(msg.Payload(), &device.CFG)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			device.CFG = cfg
 			if device.EVT.EvtCode > 1 {
+				device.CFG.CfgID = 0
 				device.Job.WriteMQTT(msg.Payload(), &device.CFG)
 			}
 		},
@@ -176,14 +170,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* PARSE / STORE THE EVENT IN ZERO JOB */
-			evt := Event{}
 			zero := device.ZeroJob()
-			zero.WriteMQTT(msg.Payload(), &evt)
-			evt.EvtID = 0
+			device.EVT.EvtID = 0
+			zero.WriteMQTT(msg.Payload(), &device.EVT)
+			pkg.Json("MQTTSubscription_DeviceClient_SIGEvent(...) -> evice.EVT :", device.EVT)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			device.EVT = evt
-			switch evt.EvtCode {
+			switch device.EVT.EvtCode {
 
 			case 1: // End Job
 				device.EndJob()
@@ -211,11 +204,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			smp := Sample{}
-			device.Job.WriteMQTTSample(msg.Payload(), &smp)
-
-			d := Devices[device.DESDevSerial]
-			d.SMP = smp
+			device.Job.WriteMQTTSample(msg.Payload(), &device.SMP)
 		},
 	}
 }

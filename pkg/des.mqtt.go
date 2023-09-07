@@ -22,7 +22,9 @@ var MQTTDevClients = make(MQTTClientsMap)
 var MQTTUserClients = make(MQTTClientsMap)
 var MQTTDemoClients = make(MQTTClientsMap)
 
-func (desm *DESMQTTClient) DESMQTTClient_Connect() (err error) {
+// func (desm *DESMQTTClient) DESMQTTClient_Connect( subs []MQTTSubscription ) (err error) {
+
+func (desm *DESMQTTClient) DESMQTTClient_Connect( ) (err error) {
 
 	/*Cerate MQTT Client Options*/
 	desm.ClientOptions = *phao.NewClientOptions()
@@ -30,13 +32,15 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect() (err error) {
 	desm.SetUsername(desm.MQTTUser)
 	desm.SetPassword(desm.MQTTPW)
 	desm.SetClientID(desm.MQTTClientID)
-	desm.SetKeepAlive(time.Second * 60)
+	desm.SetPingTimeout(time.Second * 11)
+	desm.SetKeepAlive(time.Second * 10)
 	desm.SetAutoReconnect(true)
-	desm.SetMaxReconnectInterval(time.Second * 60)
+	desm.SetMaxReconnectInterval(time.Second * 10)
 	desm.OnConnect = func(c phao.Client) {
-		// fmt.Printf(
-		// 	"\nDESMQTTClient: %s connected...\n", desm.MQTTClientID,
-		// )
+		fmt.Printf("\nDESMQTTClient: %s connected...\n", desm.MQTTClientID,)
+		// for _, s := range subs {
+		// 	s.Sub(c)
+		// }
 	}
 	desm.OnConnectionLost = func(c phao.Client, err error) {
 		fmt.Printf(
