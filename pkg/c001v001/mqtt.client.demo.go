@@ -795,7 +795,7 @@ func (demo *DemoDeviceClient) WriteAdmToFlash(jobName string, adm Admin) (err er
 		pkg.TraceErr(err)
 	}
 
-	f, err := os.OpenFile(fmt.Sprintf("%s/adm.bin", dir), os.O_APPEND|os.O_CREATE, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/adm.bin", dir), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return pkg.TraceErr(err)
 	}
@@ -848,7 +848,7 @@ func (demo *DemoDeviceClient) WriteHdrToFlash(jobName string, hdr Header) (err e
 		pkg.TraceErr(err)
 	}
 
-	f, err := os.OpenFile(fmt.Sprintf("%s/hdr.bin", dir), os.O_APPEND|os.O_CREATE, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/hdr.bin", dir), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return pkg.TraceErr(err)
 	}
@@ -901,7 +901,7 @@ func (demo *DemoDeviceClient) WriteCfgToFlash(jobName string, cfg Config) (err e
 		pkg.TraceErr(err)
 	}
 
-	f, err := os.OpenFile(fmt.Sprintf("%s/cfg.bin", dir), os.O_APPEND|os.O_CREATE, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/cfg.bin", dir), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return pkg.TraceErr(err)
 	}
@@ -954,7 +954,7 @@ func (demo *DemoDeviceClient) WriteEvtToFlash(jobName string, evt Event) (err er
 		pkg.TraceErr(err)
 	}
 
-	f, err := os.OpenFile(fmt.Sprintf("%s/%d.bin", dir, evt.EvtTime), os.O_APPEND|os.O_CREATE, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/%d.bin", dir, evt.EvtTime), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return pkg.TraceErr(err)
 	}
