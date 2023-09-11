@@ -1023,7 +1023,7 @@ func (demo *DemoDeviceClient) WriteSmpToFlash(jobName string, smp Sample) (err e
 		pkg.TraceErr(err)
 	}
 
-	f, err := os.OpenFile(fmt.Sprintf("%s/smp.bin", dir), os.O_APPEND|os.O_CREATE, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/smp.bin", dir), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return pkg.TraceErr(err)
 	}
