@@ -25,6 +25,8 @@ type DeviceUserClient struct {
 }
 
 func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
+
+	c.SetReadDeadline(time.Time{})
 	fmt.Println("WSDeviceUserClient_Connect( ... ): So far, so good...")
 
 	des_regStr, _ := url.QueryUnescape(c.Query("des_reg"))
