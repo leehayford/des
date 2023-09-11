@@ -52,7 +52,6 @@ func main() {
 	}
 
 	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
-
 	regs, err := c001v001.GetDemoDeviceList()
 	if err != nil {
 		pkg.TraceErr(err)
@@ -64,8 +63,6 @@ func main() {
 		regs = append(regs, c001v001.MakeDemoC001V001("DEMO000000", user.ID.String()))
 		regs = append(regs, c001v001.MakeDemoC001V001("DEMO000001", user.ID.String()))
 		regs = append(regs, c001v001.MakeDemoC001V001("DEMO000002", user.ID.String()))
-		// regs = append(regs, c001v001.MakeDemoC001V001("DEMO000003", user.ID.String()))
-		// regs = append(regs, c001v001.MakeDemoC001V001("DEMO000004", user.ID.String()))
 		c001v001.MakeDemoC001V001("RENE123456", user.ID.String())
 	}
 
@@ -82,9 +79,10 @@ func main() {
 		defer demo.MQTTDemoDeviceClient_Disconnect()
 
 		// pkg.TraceFunc("Call -> device.GetDeviceStatus( )")
-		demo.GetDeviceStatus()
+		// demo.GetDeviceStatus()
 		go demo.Demo_Simulation(time.Now().UTC())
 	}
+	time.Sleep(time.Second * 1)
 
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
 	fmt.Println("\n\nConnecting all C001V001 MQTT Device Clients...")

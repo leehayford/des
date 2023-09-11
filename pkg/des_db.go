@@ -101,14 +101,14 @@ var DES DESDatabase = DESDatabase{
 func CreateDESDatabase(exists bool) (err error) {
 
 	if exists {
-		fmt.Printf("\nMigrating DES: %s\n", DES.ConnStr)
+		// fmt.Printf("\nMigrating DES: %s\n", DES.ConnStr)
 		err = DES.DB.AutoMigrate(
 			&User{},
 			&DESDev{},
 			&DESJob{},
 		)
 	} else {
-		fmt.Printf("\nCreating DES Tables: %s\n", DES.ConnStr)
+		// fmt.Printf("\nCreating DES Tables: %s\n", DES.ConnStr)
 		if err = DES.DB.Migrator().CreateTable(
 			&User{},
 			&DESDev{},

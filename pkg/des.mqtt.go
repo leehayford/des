@@ -37,7 +37,7 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect( ) (err error) {
 	desm.SetCleanSession(false)
 	desm.SetMaxReconnectInterval(time.Second * 10)
 	desm.OnConnect = func(c phao.Client) {
-		fmt.Printf("\nDESMQTTClient: %s connected...\n", desm.MQTTClientID,)
+		fmt.Printf("\n\nDESMQTTClient: %s connected...\n", desm.MQTTClientID,)
 	}
 	desm.OnConnectionLost = func(c phao.Client, err error) {
 		fmt.Printf(
@@ -79,8 +79,7 @@ type MQTTSubscription struct {
 func (sub MQTTSubscription) Sub(client DESMQTTClient) {
 	token := client.Subscribe(sub.Topic, sub.Qos, sub.Handler)
 	// token.WaitTimeout(time.Millisecond * 100)
-	token.Wait() 
-	fmt.Printf("\nSubscribed: %s to:\t%s\n\n", client.MQTTClientID, sub.Topic)
+	token.Wait() // fmt.Printf("\nSubscribed: %s to:\t%s\n\n", client.MQTTClientID, sub.Topic)
 }
 func (sub MQTTSubscription) UnSub(client DESMQTTClient) {
 	token := client.Unsubscribe(sub.Topic)

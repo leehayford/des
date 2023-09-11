@@ -157,7 +157,7 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	CLASS/VERSION SPECIFIC JOB START ACTIONS
 */
 func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleStartJob( )\n")
+	// fmt.Printf("\nHandleStartJob( )\n")
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
 	if role != "admin" {
@@ -235,24 +235,21 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 		EvtCode:   2,
 	}
 	// pkg.Json("(device *Device) HandleStartJob(): -> device.EVT", device.EVT)
-
 	// pkg.Json("(device *Device) HandleStartJob(): -> device", device)
 
-	/* LOG TO JOB_0: ADM, HDR, CFG, EVT */
+	// /* LOG TO JOB_0: ADM, HDR, CFG, EVT */
 	zero := device.ZeroJob()
-	zero.Write(&device.ADM)
-	zero.Write(&device.HDR)
-	zero.Write(&device.CFG)
+	// zero.Write(&device.ADM)
+	// zero.Write(&device.HDR)
+	// zero.Write(&device.CFG)
 	zero.Write(&device.EVT)
-	zero.Write(&device.SMP)
-	fmt.Printf("\nHandleStartJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
-	// pkg.Json("(device *Device) HandleStartJob(): -> device", device)
-
+	// zero.Write(&device.SMP)
+	// // fmt.Printf("\nHandleStartJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
+	// // pkg.Json("(device *Device) HandleStartJob(): -> device", device)
 
 	d := Devices[device.DESDevSerial]
 	device.DESMQTTClient = d.DESMQTTClient
-	fmt.Printf("\nHandleStartJob( ) -> Check %s MQTT device: %v\n\n", device.DESDevSerial, device.MQTTClientID)
-	
+	// fmt.Printf("\nHandleStartJob( ) -> Check %s MQTT device: %v\n", device.DESDevSerial, device.MQTTClientID)
 	Devices[device.DESDevSerial] = *device
 
 	// /* MQTT PUB CMD: ADM, HDR, CFG, EVT */
@@ -278,7 +275,7 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	CLASS/VERSION SPECIFIC JOB END ACTIONS
 */
 func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleEndtJob( )\n")
+	// fmt.Printf("\nHandleEndtJob( )\n")
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
 	if role != "admin" {
@@ -319,21 +316,19 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	zero := device.ZeroJob()
 	zero.Write(&device.EVT)
 	device.EVT.EvtID = 0
-	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
+	// fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
 
 	d := Devices[device.DESDevSerial]
 	if d.DESMQTTClient.Client == nil  { 
 		d.MQTTDeviceClient_Connect()
 	 }
-
 	device.DESMQTTClient = d.DESMQTTClient
 	device.Job = d.Job
 	// pkg.Json("(device *Device) HandleEndJob(): -> Devices[device.DESDevSerial]", d)
 
 	device.Job.Write(&device.EVT)
 	device.EVT.EvtID = 0
-	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", device.Job.DESJobName)
-
+	// fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", device.Job.DESJobName)
 	Devices[device.DESDevSerial] = *device
 
 	/* MQTT PUB CMD: EVT */

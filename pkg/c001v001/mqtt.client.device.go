@@ -49,8 +49,8 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 	// fmt.Printf("\n%s client ID: %s\n", device.DESDevSerial, deviceClient.MQTTClientID)
 
 	Devices[device.DESDevSerial] = *device
-	d := Devices[device.DESDevSerial]
-	fmt.Printf("\n(device) MQTTDeviceClient_Connect( ) -> ClientID: %s\n", d.ClientID)
+	// d := Devices[device.DESDevSerial]
+	// fmt.Printf("\n(device) MQTTDeviceClient_Connect( ) -> ClientID: %s\n", d.ClientID)
 	return err
 }
 func (device *Device) MQTTDeviceClient_Dicconnect() {

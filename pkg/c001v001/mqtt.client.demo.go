@@ -193,7 +193,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	DemoDeviceClients[demo.DESDevSerial] = *demo
 	// d := c001v001.DemoDeviceClients[demo.DESDevSerial]
 	// fmt.Printf("\nCached DemoDeviceClient %s, current event code: %d\n", d.DESDevSerial, d.EVT.EvtCode)
-	fmt.Printf("\n(demo) MQTTDemoDeviceClient_Connect( ) -> ClientID: %s\n", demo.ClientID)
+	// fmt.Printf("\n(demo) MQTTDemoDeviceClient_Connect( ) -> ClientID: %s\n", demo.ClientID)
 
 	return err
 }
@@ -604,6 +604,8 @@ func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 
 	demo.SMP.SmpVlvTgt = uint32(demo.CFG.CfgVlvTgt)
 	demo.SMP.SmpVlvPos = uint32(demo.CFG.CfgVlvPos)
+
+	demo.SMP.SmpJobName = demo.HDR.HdrJobName
 
 	/* TODO:  CHECK ALARMS BASED ON NEW SAMPLE VALUES...
 	SEND RESULTING EVENTS / CONFIG CHANGES
@@ -1040,7 +1042,7 @@ func (demo *DemoDeviceClient) WriteSmpToFlash(jobName string, smp Sample) (err e
 }
 
 func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
-	fmt.Printf("(demo *DemoDeviceClient) StartDemoJob( )...\n")
+	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( )...\n")
 
 	// /* MAKE SURE THE PREVIOUS JOB IS ENDED */
 	// evts := demo.ReadEvtDir(demo.ZeroJobName())
@@ -1109,8 +1111,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.EVT.EvtMsg = demo.HDR.HdrJobName
 
 	demo.Demo_Simulation_Take_Sample(t0, time.Now().UTC())
-	smp := Demo_EncodeMQTTSampleMessage(demo.HDR.HdrJobName, 0, demo.SMP)
-	pkg.Json("(demo *DemoDeviceClient) StartDemoJob( ) -> Initial Sample ", demo.SMP)
+	// pkg.Json("(demo *DemoDeviceClient) StartDemoJob( ) -> Initial Sample ", demo.SMP)
 
 	/* WRITE TO FLASH - JOB 0 */
 	demo.WriteAdmToFlash(demo.ZeroJobName(), demo.ADM)
@@ -1148,16 +1149,18 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(&demo.ADM)
 	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
 	demo.MQTTPublication_DemoDeviceClient_SIGConfig(&demo.CFG)
+	smp := Demo_EncodeMQTTSampleMessage(demo.HDR.HdrJobName, 0, demo.SMP)
 	demo.MQTTPublication_DemoDeviceClient_SIGSample(&smp)
 	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
 
 	/* RUN JOB... */
 	go demo.Demo_Simulation(t0)
-	pkg.Json("(demo *DemoDeviceClient) StartDemoJob( )", demo.EVT)
+	// pkg.Json("(demo *DemoDeviceClient) StartDemoJob( ) -> demo.EVT:", demo.EVT)
+	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( ) -> RUNNING %s...\n", demo.HDR.HdrJobName)
 }
 
 func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
-	fmt.Printf("(demo *DemoDeviceClient) EndDemoJob( )...\n")
+	// fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( )...\n")
 
 	/* CAPTURE TIME VALUE FOR JOB TERMINATION: HDR, EVT */
 	t0 := time.Now().UTC()
@@ -1189,7 +1192,12 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
 	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
 
-	pkg.Json("(demo *DemoDeviceClient) EndDemoJob( )", demo.EVT)
+	// pkg.Json("(demo *DemoDeviceClient) EndDemoJob( ) -> demo.EVT:", demo.EVT)
+	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) -> ENDED: %s\n", demo.HDR.HdrJobName)
+	
+	// demo.HDR = demo.Job.RegisterJob_Default_JobHeader()
+	// demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
+
 }
 
 func (demo *DemoDeviceClient) MoveValve() {

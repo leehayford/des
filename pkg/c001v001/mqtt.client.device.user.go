@@ -63,7 +63,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 		for {
 			_, msg, err := c.ReadMessage()
 			if err != nil {
-				fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() ERROR:\n%s", err.Error())
+				fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() %s ERROR:\n%s\n", duc.DESDevSerial, err.Error())
 				break
 			}
 			if string(msg) == "close" {
@@ -170,7 +170,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 			if err != nil {
 				pkg.TraceErr(err)
 			}
-			pkg.Json("MQTTSubscription_DeviceUserClient_SIGAdmin(...) -> adm :", adm)
+			// pkg.Json("MQTTSubscription_DeviceUserClient_SIGAdmin(...) -> adm :", adm)
 
 			/* SEND WS DATA */
 			duc.outChan <- string(js)
@@ -197,7 +197,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader() pkg.M
 			if err != nil {
 				pkg.TraceErr(err)
 			}
-			pkg.Json("MQTTSubscription_DeviceUserClient_SIGHeader(...) -> hdr :", hdr)
+			// pkg.Json("MQTTSubscription_DeviceUserClient_SIGHeader(...) -> hdr :", hdr)
 
 			/* SEND WS DATA */
 			duc.outChan <- string(js)
@@ -224,7 +224,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.M
 			if err != nil {
 				pkg.TraceErr(err)
 			}
-			pkg.Json("MQTTSubscription_DeviceUserClient_SIGConfig(...) -> cfg :", cfg)
+			// pkg.Json("MQTTSubscription_DeviceUserClient_SIGConfig(...) -> cfg :", cfg)
 
 			/* SEND WS DATA */
 			duc.outChan <- string(js)
@@ -251,7 +251,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQ
 			if err != nil {
 				pkg.TraceErr(err)
 			}
-			pkg.Json("MQTTSubscription_DeviceUserClient_SIGEvent(...) -> evt :", evt)
+			// pkg.Json("MQTTSubscription_DeviceUserClient_SIGEvent(...) -> evt :", evt)
 
 			/* SEND WS DATA */
 			duc.outChan <- string(js)
