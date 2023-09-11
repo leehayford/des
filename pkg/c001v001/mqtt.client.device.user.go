@@ -26,8 +26,7 @@ type DeviceUserClient struct {
 
 func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 
-	c.SetReadDeadline(time.Time{})
-	fmt.Println("WSDeviceUserClient_Connect( ... ): So far, so good...")
+	fmt.Println("\nWSDeviceUserClient_Connect( )...")
 
 	des_regStr, _ := url.QueryUnescape(c.Query("des_reg"))
 
@@ -78,6 +77,17 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 		fmt.Printf("WSDeviceUserClient_Connect -> go func() done\n")
 	}()
 
+	go func() {
+		for open {
+			time.Sleep(time.Second * 30)
+			js, err := json.Marshal(&WSMessage{Type: "live", Data: ""})
+			if err != nil {
+				pkg.TraceErr(err)
+			}
+			duc.outChan <- string(js)
+		}
+	}()
+
 	for open {
 		select {
 
@@ -91,6 +101,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	}
 	return
 }
+
 
 /*
 	MQTT DEVICE USER CLIENT
