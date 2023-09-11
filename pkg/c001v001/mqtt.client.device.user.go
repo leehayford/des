@@ -63,8 +63,8 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 		for {
 			_, msg, err := c.ReadMessage()
 			if err != nil {
-				fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() %s\n MSG: %s\n ERROR:\n%s\n", duc.DESDevSerial, string(msg), err.Error())
-				// break
+				fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() %s\n ERROR:\n%s\n", duc.DESDevSerial, err.Error())
+				break
 			}
 			if string(msg) == "close" {
 				fmt.Printf("WSDeviceUserClient_Connect -> go func() -> c.ReadMessage(): %s\n", string(msg))
