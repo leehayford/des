@@ -322,6 +322,10 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
 
 	d := Devices[device.DESDevSerial]
+	if d.DESMQTTClient.Client == nil  { 
+		d.MQTTDeviceClient_Connect()
+	 }
+
 	device.DESMQTTClient = d.DESMQTTClient
 	device.Job = d.Job
 	// pkg.Json("(device *Device) HandleEndJob(): -> Devices[device.DESDevSerial]", d)

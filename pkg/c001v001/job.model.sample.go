@@ -62,15 +62,17 @@ func (job *Job) WriteMQTTSample(msg []byte, smp *Sample) (err error) {
 	for _, b64 := range mqtts.Data {
 
 		// Decode base64 string
-		smp = &Sample{SmpJobName: mqtts.DesJobName}
+		smp.SmpJobName = mqtts.DesJobName
 		if err = job.DecodeMQTTSample(b64, smp); err != nil {
 			return err
 		}
 
 		// Write the Sample to the job database
+		smp.SmpID = 0
 		if err = job.Write(smp); err != nil {
 			return err
 		}
+		
 	}
 
 	return err

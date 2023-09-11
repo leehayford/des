@@ -90,11 +90,7 @@ func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
 		pkg.TraceErr(err)
 	}
 
-	wscid := fmt.Sprintf("%s-DEMO-%s-%s",
-		c.RemoteAddr().String(),
-		des_reg.DESDevRegUserID,
-		des_reg.DESJobName,
-	)
+	wscid := fmt.Sprintf("%s-DEMO",	des_reg.DESDevSerial)
 
 	demo = DemoDeviceClient{
 		Device: Device{
@@ -176,7 +172,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	demo.MQTTUser = pkg.MQTT_USER
 	demo.MQTTPW = pkg.MQTT_PW
 	demo.MQTTClientID = fmt.Sprintf(
-		"DMODevice-%s-%s-%s",
+		"%s-%s-%s-DEMO",
 		demo.DESDevClass,
 		demo.DESDevVersion,
 		demo.DESDevSerial,
@@ -503,8 +499,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 PUBLICATIONS
 */
 /* PUBLICATION -> ADMIN -> SIMULATED ADMINS */
-func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGAdmin(adm *Admin) bool {
-	return (pkg.MQTTPublication{
+func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGAdmin(adm *Admin) {
+	(pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGAdmin(),
 		Message:  pkg.MakeMQTTMessage(adm.FilterAdmRecord()),
@@ -515,8 +511,8 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGAdmin(adm *Adm
 }
 
 /* PUBLICATION -> HEADER -> SIMULATED HEADERS */
-func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGHeader(hdr *Header) bool {
-	return (pkg.MQTTPublication{
+func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGHeader(hdr *Header) {
+	(pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGHeader(),
 		Message:  pkg.MakeMQTTMessage(hdr.FilterHdrRecord()),
@@ -527,8 +523,8 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGHeader(hdr *He
 }
 
 /* PUBLICATION -> CONFIG -> SIMULATED CONFIGS */
-func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGConfig(cfg *Config) bool {
-	return (pkg.MQTTPublication{
+func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGConfig(cfg *Config) {
+	(pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGConfig(),
 		Message:  pkg.MakeMQTTMessage(cfg.FilterCfgRecord()),
@@ -539,8 +535,8 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGConfig(cfg *Co
 }
 
 /* PUBLICATION -> EVENT -> SIMULATED EVENTS */
-func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGEvent(evt *Event) bool {
-	return (pkg.MQTTPublication{
+func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGEvent(evt *Event) {
+	(pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGEvent(),
 		Message:  pkg.MakeMQTTMessage(evt.FilterEvtRecord()),
@@ -551,13 +547,13 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGEvent(evt *Eve
 }
 
 /* PUBLICATION -> SAMPLE -> SIMULATED SAMPLES */
-func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts *MQTT_Sample) bool {
+func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts *MQTT_Sample) {
 
 	b64, err := json.Marshal(mqtts)
 	if err != nil {
 		pkg.TraceErr(err)
 	} // pkg.Json("MQTT_Sample:", b64)
-	return (pkg.MQTTPublication{
+	(pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGSample(),
 		Message:  string(b64),
@@ -570,6 +566,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts *
 /*DEMO SIM -> PUBLISH TO MQTT */
 func (demo *DemoDeviceClient) Demo_Simulation(t0 time.Time) {
 
+	i := 0
 	for demo.EVT.EvtCode > 1 {
 		t := time.Now().UTC()
 		demo.Demo_Simulation_Take_Sample(t0, t)
@@ -578,7 +575,16 @@ func (demo *DemoDeviceClient) Demo_Simulation(t0 time.Time) {
 		demo.MQTTPublication_DemoDeviceClient_SIGSample(&smp)
 
 		time.Sleep(time.Millisecond * time.Duration(demo.CFG.CfgOpSample))
-
+		if i % 3 == 0 {
+			demo.CFG.CfgVlvTgt = 0
+		}
+		if i % 5 == 0 {
+			demo.CFG.CfgVlvTgt = 4
+		}
+		if i % 7 == 0 {
+			demo.CFG.CfgVlvTgt = 6
+		}
+		i++
 		// fmt.Printf("(demo *DemoDeviceClient) Demo_Simulation( ): %s -> %d\n", demo.DESDevSerial, t.UnixMilli())
 	}
 	// pkg.Json("(demo *DemoDeviceClient) Demo_Simulation( )", demo.EVT)

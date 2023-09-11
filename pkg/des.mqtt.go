@@ -14,6 +14,7 @@ type DESMQTTClient struct {
 	MQTTClientID string
 	phao.ClientOptions
 	phao.Client
+	Subs []MQTTSubscription
 }
 
 type MQTTClientsMap map[string]DESMQTTClient
@@ -21,8 +22,6 @@ type MQTTClientsMap map[string]DESMQTTClient
 var MQTTDevClients = make(MQTTClientsMap)
 var MQTTUserClients = make(MQTTClientsMap)
 var MQTTDemoClients = make(MQTTClientsMap)
-
-// func (desm *DESMQTTClient) DESMQTTClient_Connect( subs []MQTTSubscription ) (err error) {
 
 func (desm *DESMQTTClient) DESMQTTClient_Connect( ) (err error) {
 
@@ -35,12 +34,10 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect( ) (err error) {
 	desm.SetPingTimeout(time.Second * 11)
 	desm.SetKeepAlive(time.Second * 10)
 	desm.SetAutoReconnect(true)
+	desm.SetCleanSession(false)
 	desm.SetMaxReconnectInterval(time.Second * 10)
 	desm.OnConnect = func(c phao.Client) {
 		fmt.Printf("\nDESMQTTClient: %s connected...\n", desm.MQTTClientID,)
-		// for _, s := range subs {
-		// 	s.Sub(c)
-		// }
 	}
 	desm.OnConnectionLost = func(c phao.Client, err error) {
 		fmt.Printf(
@@ -99,24 +96,26 @@ type MQTTPublication struct {
 	WaitMS   int64
 }
 
-func (pub MQTTPublication) Pub(client DESMQTTClient) bool {
+func (pub MQTTPublication) Pub(client DESMQTTClient) {
 
 	// pkg.Json("DEMO_PublishSIG_MQTTSample(...) ->  des.MQTTPublication -> Pub(client phao.Client):", client)
-	token := client.Publish(
+	if token := client.Publish(
 		pub.Topic,
 		pub.Qos,
 		pub.Retained,
 		pub.Message,
-	)
-
-	if pub.WaitMS == 0 {
-		// return token.Wait()
-		x := token.Wait()
-		// pkg.Json("DEMO_PublishSIG_MQTTSample(...) ->  des.MQTTPublication -> token.Wait():", x)
-		return x
-	} else {
-		return token.WaitTimeout(time.Millisecond * 100)
+	); token.Wait() && token.Error() != nil {
+		TraceErr(token.Error())
 	}
+
+	// if pub.WaitMS == 0 {
+	// 	// return token.Wait()
+	// 	x := token.Wait()
+	// 	// pkg.Json("DEMO_PublishSIG_MQTTSample(...) ->  des.MQTTPublication -> token.Wait():", x)
+	// 	return x
+	// } else {
+	// 	return token.WaitTimeout(time.Millisecond * 100)
+	// }
 }
 
 func MakeMQTTMessage(mqtt interface{}) (msg string) {

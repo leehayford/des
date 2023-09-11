@@ -24,11 +24,12 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 	device.MQTTUser = class_version_user
 	device.MQTTPW = class_version_pw
 	device.MQTTClientID = fmt.Sprintf(
-		"DESDevice-%s-%s-%s",
+		"%s-%s-%s-DES",
 		device.DESDevClass,
 		device.DESDevVersion,
 		device.DESDevSerial,
 	)
+
 	if err = device.DESMQTTClient.DESMQTTClient_Connect(); err != nil {
 		return err
 	}
@@ -225,7 +226,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 PUBLICATIONS
 */
 /* PUBLICATION -> ADMINISTRATION */
-func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) bool {
+func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDAdmin(),
@@ -234,12 +235,11 @@ func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) bool {
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDAdmin(): -> cmd", cmd)
-
-	return cmd.Pub(device.DESMQTTClient)
+	cmd.Pub(device.DESMQTTClient)
 }
 
 /* PUBLICATION -> HEADER */
-func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) bool {
+func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) {
 
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDHeader(),
@@ -248,12 +248,11 @@ func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) bool {
 		WaitMS:   0,
 		Qos:      0,
 	}
-
-	return cmd.Pub(device.DESMQTTClient)
+	cmd.Pub(device.DESMQTTClient)
 }
 
 /* PUBLICATION -> CONFIGURATION */
-func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) bool {
+func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) {
 
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDConfig(),
@@ -262,12 +261,11 @@ func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) bool {
 		WaitMS:   0,
 		Qos:      0,
 	}
-
-	return cmd.Pub(device.DESMQTTClient)
+	cmd.Pub(device.DESMQTTClient)
 }
 
 /* PUBLICATION -> EVENT */
-func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) bool {
+func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) {
 
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDEvent(),
@@ -276,6 +274,5 @@ func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) bool {
 		WaitMS:   0,
 		Qos:      0,
 	}
-
-	return cmd.Pub(device.DESMQTTClient)
+	cmd.Pub(device.DESMQTTClient)
 }

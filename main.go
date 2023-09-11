@@ -31,11 +31,25 @@ import (
 
 func main() {
 
-	if err := pkg.DES.CreateDESDatabase(false); err != nil {
-		pkg.TraceErr(err)
+	/* ADMIN DB - CONNECT TO THE ADMIN DATABASE */
+	pkg.ADB.Connect()
+	defer pkg.ADB.Close()
+
+	/* CLEAN DATABASE - DROP ALL */
+	pkg.ADB.DropAllDatabases()
+
+	/* CREATE / MIGRATE & CONNECT DES DATABASE */
+	exists := pkg.ADB.CheckDatabaseExists(pkg.DES_DB)
+	if !exists {
+		pkg.ADB.CreateDatabase(pkg.DES_DB)
 	}
+
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
+	/* IF DES DATABASE DIDN'T ALREADY EXIST, CREATE TABLES, OTHERWISE MIGRATE */
+	if err := pkg.CreateDESDatabase(exists); err != nil {
+		pkg.TraceErr(err)
+	}
 
 	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
 
@@ -72,11 +86,9 @@ func main() {
 		go demo.Demo_Simulation(time.Now().UTC())
 	}
 
-
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
 	fmt.Println("\n\nConnecting all C001V001 MQTT Device Clients...")
 	c001v001.MQTTDeviceClient_CreateAndConnectAll()
-
 
 	/* MAIN SER$VER */
 	app := fiber.New()

@@ -44,16 +44,12 @@ func (job *Job) RegisterJob() (err error) {
 		return job_res.Error
 	}
 
-	/* ADMIN DB - CONNECT TO THE ADMIN DATABASE */
-	adb := pkg.DBI{ConnStr: pkg.ADMIN_DB_CONNECTION_STRING}
-	adb.Connect()
-	defer adb.Close()
-	existing := adb.CreateDatabase(strings.ToLower(job.DESJobName), false)
-	adb.Close()
-
-	if !existing { /* WE AVOID WRITING IF THE DATABASE WAS PRE-EXISTING */
+	dbName := strings.ToLower(job.DESJobName)
+	/* WE AVOID WRITING IF THE DATABASE WAS PRE-EXISTING */
+	if !pkg.ADB.CheckDatabaseExists(dbName) { 
 
 		/* CREATE NEW JOB DATABASE */
+		pkg.ADB.CreateDatabase(dbName)
 		db := job.JDB()
 		db.Connect()
 		defer db.Close()

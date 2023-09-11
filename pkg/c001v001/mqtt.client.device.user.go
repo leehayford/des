@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	// "strings"
+	"time"
 
 	"net/url"
-	// "time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gofiber/contrib/websocket"
@@ -35,9 +36,9 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	des_reg.DESDevRegAddr = c.RemoteAddr().String()
 	des_reg.DESJobRegAddr = c.RemoteAddr().String()
 
-	wscid := fmt.Sprintf("%s-%s-%s",
-		c.RemoteAddr().String(),
-		des_reg.DESDevRegUserID,
+	wscid := fmt.Sprintf("%d-%s",
+		// strings.Split(des_reg.DESJobRegUserID, "-")[4],
+		time.Now().UTC().UnixMilli() / 10,
 		des_reg.DESDevSerial,
 	) // fmt.Printf("WSDeviceUserClient_Connect -> wscid: %s\n", wscid)
 
