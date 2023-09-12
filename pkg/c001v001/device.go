@@ -169,47 +169,88 @@ func (device *Device) StartJob() {
 	fmt.Printf("\n(device *Device) StartJob( ): %s\n", device.HDR.HdrJobName)
 }
 func (device *Device) EndJob() {
-
-	device.EVT.EvtID = 0
-	device.Job.Write(&device.EVT)
+	
+	d := Devices[device.DESDevSerial] // pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] BEFORE UPDATE", d)
+	d.EVT = device.EVT
+	d.EVT.EvtID = 0
+	d.Job.Write(&d.EVT)
 
 	/* CLOSE DES JOB X */
-	device.Job.DESJob.DESJobRegTime = device.EVT.EvtTime
-	device.Job.DESJob.DESJobRegAddr = device.EVT.EvtAddr
-	device.Job.DESJob.DESJobRegUserID = device.EVT.EvtUserID
-	device.Job.DESJob.DESJobRegApp = device.EVT.EvtApp
-	device.Job.DESJob.DESJobEnd = device.EVT.EvtTime
-	// pkg.Json("(device *Device) EndJob() -> CLOSE DES JOB X ->", device.Job.DESJob)
-	pkg.DES.DB.Save(device.Job.DESJob)
-	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", device.HDR.HdrJobName)
+	d.Job.DESJob.DESJobRegTime = d.EVT.EvtTime
+	d.Job.DESJob.DESJobRegAddr = d.EVT.EvtAddr
+	d.Job.DESJob.DESJobRegUserID = d.EVT.EvtUserID
+	d.Job.DESJob.DESJobRegApp = d.EVT.EvtApp
+	d.Job.DESJob.DESJobEnd = d.EVT.EvtTime
+	// pkg.Json("(device *Device) EndJob() -> CLOSE DES JOB X ->", d.Job.DESJob)
+	pkg.DES.DB.Save(d.Job.DESJob)
+	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", d.HDR.HdrJobName)
 
 	/* UPDATE DES JOB 0 */
-	zero := device.GetZeroJob()
-	zero.DESJobRegTime = time.Now().UTC().UnixMilli()
-	zero.DESJobRegAddr = device.EVT.EvtAddr
-	zero.DESJobRegUserID = device.EVT.EvtUserID
-	zero.DESJobRegApp = device.EVT.EvtApp
+	zero := d.GetZeroJob()
+	zero.DESJobRegTime = time.Now().UTC().UnixMilli() // WE WANT THIS TO BE THE LATEST
+	zero.DESJobRegAddr = d.EVT.EvtAddr
+	zero.DESJobRegUserID = d.EVT.EvtUserID
+	zero.DESJobRegApp = d.EVT.EvtApp
 	// pkg.Json("(device *Device) EndJob() -> UPDATE DES JOB 0  ->", zero.DESJob)
 	pkg.DES.DB.Save(zero.DESJob)
 
 	/* SET DEVICE JOB TO JOB 0 - > AVEC DEFAULT HEADER */
-	device.Job = zero
+	d.Job = zero // ONLY THE DESRegistration is hydrated
 
-	device.ADM.AdmID = 0
-	device.ADM = device.Job.RegisterJob_Default_JobAdmin()
-	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
+	d.ADM = d.Job.RegisterJob_Default_JobAdmin()
+	d.ADM.AdmID = 0
+	d.MQTTPublication_DeviceClient_CMDAdmin(d.ADM)
 
-	device.HDR.HdrID = 0
-	device.HDR = device.Job.RegisterJob_Default_JobHeader()
-	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
+	d.HDR = d.Job.RegisterJob_Default_JobHeader()
+	d.HDR.HdrID = 0
+	d.MQTTPublication_DeviceClient_CMDHeader(d.HDR)
 
-	device.CFG.CfgID = 0
-	device.CFG = device.Job.RegisterJob_Default_JobConfig()
-	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
+	d.CFG = d.Job.RegisterJob_Default_JobConfig()
+	d.CFG.CfgID = 0
+	d.MQTTPublication_DeviceClient_CMDConfig(d.CFG)
 
-	d := Devices[device.DESDevSerial] // pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] BEFORE UPDATE", d)
-	device.DESMQTTClient = d.DESMQTTClient
-	Devices[device.DESDevSerial] = *device // d = Devices[device.DESDevSerial] // pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", d)
+	Devices[device.DESDevSerial] = d
+
+	// device.EVT.EvtID = 0
+	// device.Job.Write(&device.EVT)
+
+	// /* CLOSE DES JOB X */
+	// device.Job.DESJob.DESJobRegTime = device.EVT.EvtTime
+	// device.Job.DESJob.DESJobRegAddr = device.EVT.EvtAddr
+	// device.Job.DESJob.DESJobRegUserID = device.EVT.EvtUserID
+	// device.Job.DESJob.DESJobRegApp = device.EVT.EvtApp
+	// device.Job.DESJob.DESJobEnd = device.EVT.EvtTime
+	// // pkg.Json("(device *Device) EndJob() -> CLOSE DES JOB X ->", device.Job.DESJob)
+	// pkg.DES.DB.Save(device.Job.DESJob)
+	// fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", device.HDR.HdrJobName)
+
+	// /* UPDATE DES JOB 0 */
+	// zero := device.GetZeroJob()
+	// zero.DESJobRegTime = time.Now().UTC().UnixMilli() // WE WANT THIS TO BE THE LATEST
+	// zero.DESJobRegAddr = device.EVT.EvtAddr
+	// zero.DESJobRegUserID = device.EVT.EvtUserID
+	// zero.DESJobRegApp = device.EVT.EvtApp
+	// // pkg.Json("(device *Device) EndJob() -> UPDATE DES JOB 0  ->", zero.DESJob)
+	// pkg.DES.DB.Save(zero.DESJob)
+
+	// /* SET DEVICE JOB TO JOB 0 - > AVEC DEFAULT HEADER */
+	// device.Job = zero // ONLY THE DESRegistration is hydrated
+
+	// device.ADM = device.Job.RegisterJob_Default_JobAdmin()
+	// device.ADM.AdmID = 0
+	// device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
+
+	// device.HDR = device.Job.RegisterJob_Default_JobHeader()
+	// device.HDR.HdrID = 0
+	// device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
+
+	// device.CFG = device.Job.RegisterJob_Default_JobConfig()
+	// device.CFG.CfgID = 0
+	// device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
+
+	// d := Devices[device.DESDevSerial] // pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] BEFORE UPDATE", d)
+	// device.DESMQTTClient = d.DESMQTTClient
+	// Devices[device.DESDevSerial] = *device // d = Devices[device.DESDevSerial] // pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", d)
 
 }
 

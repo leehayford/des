@@ -36,7 +36,7 @@ func main() {
 	defer pkg.ADB.Close()
 
 	/* CLEAN DATABASE - DROP ALL */
-	pkg.ADB.DropAllDatabases()
+	// pkg.ADB.DropAllDatabases()
 
 	/* CREATE / MIGRATE & CONNECT DES DATABASE */
 	exists := pkg.ADB.CheckDatabaseExists(pkg.DES_DB)
@@ -136,6 +136,9 @@ func main() {
 		router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
 		router.Post("/start", pkg.DesAuth, (&c001v001.Device{}).HandleStartJob)
 		router.Post("/end", pkg.DesAuth, (&c001v001.Device{}).HandleEndJob)
+		router.Post("/admin", pkg.DesAuth, (&c001v001.Device{}).HandleSetAdmin)
+		router.Post("/header", pkg.DesAuth, (&c001v001.Device{}).HandleSetHeader)
+		router.Post("/config", pkg.DesAuth, (&c001v001.Device{}).HandleSetConfig)
 		router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
 		router.Get("/ws", pkg.DesAuth, websocket.New(
 			(&c001v001.DeviceUserClient{}).WSDeviceUserClient_Connect,

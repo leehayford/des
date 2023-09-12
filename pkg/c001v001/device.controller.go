@@ -10,6 +10,11 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
+/*
+RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
+ALOZNG WITH THE ACTIVE JOB FOR EACH DEVICE
+IN THE FORM OF A DESRegistration 
+*/
 func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 	fmt.Printf("\nHandleGetDeviceList( )\n")
@@ -197,9 +202,9 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	device.ADM.AdmTime = time
 	device.ADM.AdmAddr = c.IP()
 	device.ADM.AdmUserID = device.DESJobRegUserID
-	device.ADM.AdmDefHost = pkg.MQTT_BROKER
+	device.ADM.AdmDefHost = pkg.MQTT_HOST
 	device.ADM.AdmDefPort = pkg.MQTT_PORT
-	device.ADM.AdmOpHost = pkg.MQTT_BROKER
+	device.ADM.AdmOpHost = pkg.MQTT_HOST
 	device.ADM.AdmOpPort = pkg.MQTT_PORT
 	device.ADM.AdmSerial = device.Job.DESDevSerial
 	// pkg.Json("(device *Device) HandleStartJob(): -> device.ADM", device.ADM)
@@ -322,18 +327,19 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	if d.DESMQTTClient.Client == nil  { 
 		d.MQTTDeviceClient_Connect()
 	 }
-	device.DESMQTTClient = d.DESMQTTClient
-	device.Job = d.Job
+	// device.DESMQTTClient = d.DESMQTTClient
+	// device.Job = d.Job
 	// pkg.Json("(device *Device) HandleEndJob(): -> Devices[device.DESDevSerial]", d)
 
-	device.Job.Write(&device.EVT)
-	device.EVT.EvtID = 0
+	d.EVT = device.EVT
+	d.Job.Write(&d.EVT)
+	d.EVT.EvtID = 0
 	// fmt.Printf("\nHandleEndJob( ) -> DB Write to %s complete.\n", device.Job.DESJobName)
-	Devices[device.DESDevSerial] = *device
+	Devices[device.DESDevSerial] = d
 
 	/* MQTT PUB CMD: EVT */
-	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
+	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", d.DESDevSerial, d.MQTTClientID)
+	d.MQTTPublication_DeviceClient_CMDEvent(d.EVT)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -342,3 +348,176 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	})
 }
 
+/*
+USED TO ALTER THE ADMIN SETTINGS FOR A GIVEN DEVICE 
+BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
+*/
+func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) { 
+	fmt.Printf("\nHandleSetAdmin( )\n")
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to alter device administration data.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	if errors := pkg.ValidateStruct(device); errors != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail",
+			"errors": errors,
+		})
+	}
+	pkg.Json("(devive *Device) HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
+
+	device.ADM.AdmID = 0
+	device.ADM.AdmTime = time.Now().UTC().UnixMilli()	
+	device.ADM.AdmAddr = c.IP()
+	
+	/* LOG TO JOB_0: ADM */
+	zero := device.ZeroJob()
+	zero.Write(&device.ADM)
+	device.ADM.AdmID = 0
+	// fmt.Printf("\nHandleSetAdmin( ) -> DB Write to %s complete.\n", zero.DESJobName)
+
+	d := Devices[device.DESDevSerial]
+	if d.DESMQTTClient.Client == nil  { 
+		d.MQTTDeviceClient_Connect()
+	}
+	d.ADM = device.ADM
+	Devices[device.DESDevSerial] = d
+	
+	/* MQTT PUB CMD: ADM */
+	fmt.Printf("\nHandleSetAdmin( ) -> Publishing to %s with MQTT device client: %s\n\n", d.DESDevSerial, d.MQTTClientID)
+	d.MQTTPublication_DeviceClient_CMDAdmin(d.ADM)
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":  "success",
+		"data":    fiber.Map{"device": &device},
+		"message": "C001V001 SET ADMIN Reqest sent to device.",
+	})
+}
+
+/*
+USED TO ALTER THE HEADER SETTINGS FOR A GIVEN DEVICE 
+BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
+*/
+func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) { 
+	fmt.Printf("\nHandleSetHeader( )\n")
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to alter job header data.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	if errors := pkg.ValidateStruct(device); errors != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail",
+			"errors": errors,
+		})
+	}
+	pkg.Json("(devive *Device) HandleSetHeader(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
+
+	device.HDR.HdrID = 0
+	device.HDR.HdrTime = time.Now().UTC().UnixMilli()	
+	device.HDR.HdrAddr = c.IP()
+	
+	/* LOG TO JOB_0: HDR */
+	zero := device.ZeroJob()
+	zero.Write(&device.HDR)
+	device.HDR.HdrID = 0
+	// fmt.Printf("\nHandleSetHeader( ) -> DB Write to %s complete.\n", zero.DESJobName)
+
+	d := Devices[device.DESDevSerial]
+	if d.DESMQTTClient.Client == nil  { 
+		d.MQTTDeviceClient_Connect()
+	}
+	d.HDR = device.HDR
+	Devices[device.DESDevSerial] = d
+	
+	/* MQTT PUB CMD: HDR */
+	fmt.Printf("\nHandleSetHeader( ) -> Publishing to %s with MQTT device client: %s\n\n", d.DESDevSerial, d.MQTTClientID)
+	d.MQTTPublication_DeviceClient_CMDHeader(d.HDR)
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":  "success",
+		"data":    fiber.Map{"device": &device},
+		"message": "C001V001 SET HEADER Reqest sent to device.",
+	})
+}
+
+/*
+USED TO ALTER THE CONFIG SETTINGS FOR A GIVEN DEVICE 
+BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
+*/
+func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleSetConfig( )\n")
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to alter job configuration data.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	if errors := pkg.ValidateStruct(device); errors != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail",
+			"errors": errors,
+		})
+	}
+	pkg.Json("(devive *Device) HandleSetConfig(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
+
+	device.CFG.CfgID = 0
+	device.CFG.CfgTime = time.Now().UTC().UnixMilli()	
+	device.CFG.CfgAddr = c.IP()
+	
+	/* LOG TO JOB_0: CFG */
+	zero := device.ZeroJob()
+	zero.Write(&device.CFG)
+	device.CFG.CfgID = 0
+	// fmt.Printf("\nHandleSetConfig( ) -> DB Write to %s complete.\n", zero.DESJobName)
+
+	d := Devices[device.DESDevSerial]
+	if d.DESMQTTClient.Client == nil  { 
+		d.MQTTDeviceClient_Connect()
+	}
+	d.CFG = device.CFG
+	Devices[device.DESDevSerial] = d
+	
+	/* MQTT PUB CMD: CFG */
+	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", d.DESDevSerial, d.MQTTClientID)
+	d.MQTTPublication_DeviceClient_CMDConfig(d.CFG)
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":  "success",
+		"data":    fiber.Map{"device": &device},
+		"message": "C001V001 SET CONFIG Reqest sent to device.",
+	})
+}

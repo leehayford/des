@@ -174,9 +174,9 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			zero := device.ZeroJob()
 			device.EVT.EvtID = 0
 			zero.WriteMQTT(msg.Payload(), &device.EVT)
-			pkg.Json("MQTTSubscription_DeviceClient_SIGEvent(...) -> evice.EVT :", device.EVT)
+			// pkg.Json("MQTTSubscription_DeviceClient_SIGEvent(...) -> evice.EVT :", device.EVT)
 
-			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
+			/* DECIDE WHAT TO DO BASED ON THIS EVENT */
 			switch device.EVT.EvtCode {
 
 			case 1: // End Job
