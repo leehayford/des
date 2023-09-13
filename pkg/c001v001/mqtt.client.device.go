@@ -235,7 +235,11 @@ func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDAdmin(): -> cmd", cmd)
-	cmd.Pub(device.DESMQTTClient)
+	
+	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO 
+	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
+	*/
+	go cmd.Pub(device.DESMQTTClient)
 }
 
 /* PUBLICATION -> HEADER */
@@ -248,7 +252,11 @@ func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) {
 		WaitMS:   0,
 		Qos:      0,
 	}
-	cmd.Pub(device.DESMQTTClient)
+	
+	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO 
+	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
+	*/
+	go cmd.Pub(device.DESMQTTClient)
 }
 
 /* PUBLICATION -> CONFIGURATION */
@@ -261,7 +269,11 @@ func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) {
 		WaitMS:   0,
 		Qos:      0,
 	}
-	cmd.Pub(device.DESMQTTClient)
+	
+	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO 
+	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
+	*/
+	go cmd.Pub(device.DESMQTTClient)
 }
 
 /* PUBLICATION -> EVENT */
@@ -274,5 +286,9 @@ func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) {
 		WaitMS:   0,
 		Qos:      0,
 	}
-	cmd.Pub(device.DESMQTTClient)
+	
+	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO 
+	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
+	*/
+	go cmd.Pub(device.DESMQTTClient)
 }

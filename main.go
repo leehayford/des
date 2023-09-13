@@ -78,8 +78,7 @@ func main() {
 		demo.MQTTDemoDeviceClient_Connect()
 		defer demo.MQTTDemoDeviceClient_Disconnect()
 
-		// pkg.TraceFunc("Call -> device.GetDeviceStatus( )")
-		// demo.GetDeviceStatus()
+		demo.GetDemoDeviceStatus()
 		go demo.Demo_Simulation(time.Now().UTC())
 	}
 	time.Sleep(time.Second * 1)

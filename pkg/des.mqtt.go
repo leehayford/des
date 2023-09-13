@@ -31,10 +31,10 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect( ) (err error) {
 	desm.SetUsername(desm.MQTTUser)
 	desm.SetPassword(desm.MQTTPW)
 	desm.SetClientID(desm.MQTTClientID)
-	desm.SetPingTimeout(time.Second * 11)
+	desm.SetPingTimeout(time.Second * 20) // Must be 1.5 x greater than Keep-Alive
 	desm.SetKeepAlive(time.Second * 10)
 	desm.SetAutoReconnect(true)
-	desm.SetCleanSession(false)
+	desm.SetCleanSession(false) // Ensure subscriptions are active on reconnect
 	desm.SetMaxReconnectInterval(time.Second * 10)
 	desm.OnConnect = func(c phao.Client) {
 		fmt.Printf("\n\nDESMQTTClient: %s connected...\n", desm.MQTTClientID,)

@@ -163,6 +163,7 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 */
 func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleStartJob( )\n")
+
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
 	if role != "admin" {
@@ -244,9 +245,9 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 
 	// /* LOG TO JOB_0: ADM, HDR, CFG, EVT */
 	zero := device.ZeroJob()
-	// zero.Write(&device.ADM)
-	// zero.Write(&device.HDR)
-	// zero.Write(&device.CFG)
+	zero.Write(&device.ADM)
+	zero.Write(&device.HDR)
+	zero.Write(&device.CFG)
 	zero.Write(&device.EVT)
 	// zero.Write(&device.SMP)
 	// // fmt.Printf("\nHandleStartJob( ) -> DB Write to %s complete.\n", zero.DESJobName)
@@ -281,6 +282,7 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 */
 func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleEndtJob( )\n")
+
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
 	if role != "admin" {
@@ -353,7 +355,8 @@ USED TO ALTER THE ADMIN SETTINGS FOR A GIVEN DEVICE
 BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
 */
 func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) { 
-	fmt.Printf("\nHandleSetAdmin( )\n")
+	// fmt.Printf("\nHandleSetAdmin( )\n")
+
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
 	if role != "admin" {
@@ -411,7 +414,8 @@ USED TO ALTER THE HEADER SETTINGS FOR A GIVEN DEVICE
 BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
 */
 func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) { 
-	fmt.Printf("\nHandleSetHeader( )\n")
+	// fmt.Printf("\nHandleSetHeader( )\n")
+
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
 	if role != "admin" {
@@ -470,6 +474,7 @@ BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
 */
 func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleSetConfig( )\n")
+	
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
 	if role != "admin" {

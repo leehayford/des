@@ -121,10 +121,7 @@ func (device *Device) GetDeviceStatus() (err error) {
 	device.DESMQTTClient = d.DESMQTTClient
 	Devices[device.DESDevSerial] = *device
 
-	// pkg.Json("(device *Device) GetDeviceStatus( ) -> device.EVT", device.EVT)
-	// fmt.Printf("\n(device *Device) GetDeviceStatus( ) -> %s: device: %s\n", device.DESDevSerial, device.EVT.EvtTitle)
-	// pkg.Json("(device *Device) GetDeviceStatus( ) -> device:", device)
-	return
+return
 }
 
 func (device *Device) StartJob() {
