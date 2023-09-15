@@ -36,22 +36,23 @@ func main() {
 	defer pkg.ADB.Close()
 
 	/* CLEAN DATABASE - DROP ALL */
-	// pkg.ADB.DropAllDatabases()
+	pkg.ADB.DropAllDatabases()
 
 	/* CREATE / MIGRATE & CONNECT DES DATABASE */
 	exists := pkg.ADB.CheckDatabaseExists(pkg.DES_DB)
 	if !exists {
 		pkg.ADB.CreateDatabase(pkg.DES_DB)
 	}
-
 	pkg.DES.Connect()
 	defer pkg.DES.Close()
+
 	/* IF DES DATABASE DIDN'T ALREADY EXIST, CREATE TABLES, OTHERWISE MIGRATE */
-	if err := pkg.CreateDESDatabase(exists); err != nil {
+	if err := pkg.DES.CreateDESTables(exists); err != nil {
 		pkg.TraceErr(err)
 	}
 
-	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
+	/********************************************************************************************/
+	/* DEMO DEVICES -> NOT FOR PRODUCTION */
 	regs, err := c001v001.GetDemoDeviceList()
 	if err != nil {
 		pkg.TraceErr(err)
@@ -83,9 +84,18 @@ func main() {
 	}
 	time.Sleep(time.Second * 1)
 
-	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERES DEVICES */
-	fmt.Println("\n\nConnecting all C001V001 MQTT Device Clients...")
-	c001v001.MQTTDeviceClient_CreateAndConnectAll()
+	/* END DEMO DEVICES -> NOT FOR PRODUCTION */
+	/********************************************************************************************/
+
+
+	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERED DEVICES */
+	/* DATABASE - C001V001 - CONNECT ALL DEVICES TO JOB DATABASES */
+	fmt.Println("\n\nConnecting all C001V001 Device Clients...")
+	// c001v001.MQTTDeviceClient_CreateAndConnectAll()
+	// defer c001v001.MQTTDeviceClient_DisconnectAll()
+	c001v001.DeviceClient_ConnectAll()
+	defer c001v001.DeviceClient_DisconnectAll()
+
 
 	/* MAIN SER$VER */
 	app := fiber.New()
@@ -116,19 +126,11 @@ func main() {
 		router.Get("/logout", pkg.DesAuth, pkg.LogoutUser)
 	})
 
-	// /* DES DEVICE ROUTES */
-	// api.Route("/device", func(router fiber.Router) {
-	// 	// router.Post("/register", pkg.DesAuth, controllers.RegisterDesDev)
-	// 	router.Get("/list", pkg.DesAuth, pkg.HandleGetDesDevList)
-	// 	router.Post("/serial", pkg.DesAuth, pkg.HandleGetDesDevBySerial)
+	// /* DES JOB ROUTES */
+	// api.Route("/job", func(router fiber.Router) {
+	// 	router.Get("/list", pkg.DesAuth, pkg.GetDesJobList)
+	// 	router.Post("/name", pkg.DesAuth, pkg.GetDesJobByName)
 	// })
-
-	/* DES JOB ROUTES */
-	api.Route("/job", func(router fiber.Router) {
-		// router.Post("/register", pkg.DesAuth, pkg.RegisterDesJob)
-		router.Get("/list", pkg.DesAuth, pkg.GetDesJobList)
-		router.Post("/name", pkg.DesAuth, pkg.GetDesJobByName)
-	})
 
 	/* C001V001 DEVICE ROUTES */
 	api.Route("/001/001/device", func(router fiber.Router) {
@@ -146,16 +148,8 @@ func main() {
 
 	/* C001V001 JOB ROUTES */
 	api.Route("/001/001/job", func(router fiber.Router) {
-		// router.Post("/config", pkg.DesAuth, (&c001v001.Job{}).Configure)
 		router.Get("/event/list", c001v001.HandleGetEventTypeLists)
 	})
-
-	// /* C001V001 DEMO ROUTES */
-	// api.Route("/001/001/demo", func(router fiber.Router) {
-	// 	router.Get("/sim", pkg.DesAuth, websocket.New(
-	// 		(&c001v001.DemoDeviceClient{}).WSDemoDeviceClient_Connect,
-	// 	))
-	// })
 
 	api.All("*", func(c *fiber.Ctx) error {
 		path := c.Path()

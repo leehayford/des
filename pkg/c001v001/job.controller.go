@@ -12,7 +12,16 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
+func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "You are a tolerable person!",
+		"data":    fiber.Map{"event_types": EVENT_TYPES},
+	})
+}
+
 func (job *Job) Write(model interface{}) (err error) {
+
 	// pkg.Json("(job *Job) Write(): -> model", model)
 	db := job.JDB()
 	db.Connect()
@@ -23,7 +32,7 @@ func (job *Job) Write(model interface{}) (err error) {
 	return db.Close()
 }
 
-func (job *Job) WriteMQTT(msg []byte, model interface{}) (err error) {
+func (job Job) WriteMQTT(msg []byte, model interface{}) (err error) {
 
 	if err = json.Unmarshal(msg, model); err != nil {
 		return pkg.TraceErr(err)
@@ -46,15 +55,20 @@ func (job *Job) RegisterJob() (err error) {
 
 	dbName := strings.ToLower(job.DESJobName)
 	/* WE AVOID WRITING IF THE DATABASE WAS PRE-EXISTING */
-	if !pkg.ADB.CheckDatabaseExists(dbName) { 
+	if !pkg.ADB.CheckDatabaseExists(dbName) {
 
 		/* CREATE NEW JOB DATABASE */
 		pkg.ADB.CreateDatabase(dbName)
-		db := job.JDB()
-		db.Connect()
-		defer db.Close()
 
-		if err = db.Migrator().CreateTable(
+		// db := job.JDB()
+		// db.Connect()
+		// defer db.Close()
+		job.JDBX()
+		job.DBClient.Connect()
+		defer job.DBClient.Close()
+
+		// if err = db.Migrator().CreateTable(
+		if err = job.DBClient.Migrator().CreateTable(
 			&Admin{},
 			&Header{},
 			&Config{},
@@ -67,35 +81,42 @@ func (job *Job) RegisterJob() (err error) {
 
 		/* CREATE EVENT TYPES */
 		for _, typ := range EVENT_TYPES {
-			db.Create(&typ)
+			// db.Create(&typ)
+			job.DBClient.Create(&typ)
 		}
 
-		if adm_res := db.Create(&job.Admins[0]); adm_res.Error != nil {
+		// if adm_res := db.Create(&job.Admins[0]); adm_res.Error != nil {
+		if adm_res := job.DBClient.Create(&job.Admins[0]); adm_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobAdmins[0]) -> Error:\n%s\n", adm_res.Error.Error())
 			return adm_res.Error
 		}
 
-		if hdr_res := db.Create(&job.Headers[0]); hdr_res.Error != nil {
+		// if hdr_res := db.Create(&job.Headers[0]); hdr_res.Error != nil {
+		if hdr_res := job.DBClient.Create(&job.Headers[0]); hdr_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobHeaderss[0]) -> Error:\n%s\n", hdr_res.Error.Error())
 			return hdr_res.Error
 		}
 
-		if cfg_res := db.Create(&job.Configs[0]); cfg_res.Error != nil {
+		// if cfg_res := db.Create(&job.Configs[0]); cfg_res.Error != nil {
+		if cfg_res := job.DBClient.Create(&job.Configs[0]); cfg_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Configs[0]) -> Error:\n%s\n", cfg_res.Error.Error())
 			return cfg_res.Error
 		}
 
-		if evt_res := db.Create(&job.Events[0]); evt_res.Error != nil {
+		// if evt_res := db.Create(&job.Events[0]); evt_res.Error != nil {
+		if evt_res := job.DBClient.Create(&job.Events[0]); evt_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Events[0]) -> Error:\n%s\n", evt_res.Error.Error())
 			return evt_res.Error
 		}
 
-		if smp_res := db.Create(&job.Samples[0]); smp_res.Error != nil {
+		// if smp_res := db.Create(&job.Samples[0]); smp_res.Error != nil {
+		if smp_res := job.DBClient.Create(&job.Samples[0]); smp_res.Error != nil {
 			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Samples[0]) -> Error:\n%s\n", smp_res.Error.Error())
 			return smp_res.Error
 		}
 
-		db.Close()
+		// db.Close()
+		job.DBClient.Close()
 	}
 	return
 }
@@ -234,23 +255,3 @@ func (job *Job) GetJobData(limit int) (err error) {
 	return
 }
 
-func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"event_types": EVENT_TYPES},
-	})
-}
-
-func (job *Job) GetLastEvent() (evt Event) {
-	db := job.JDB()
-	db.Connect()
-	defer db.Close()
-	res := db.Last(&evt)
-	if res.Error != nil {
-		pkg.TraceErr(res.Error)
-	}
-	db.Close()
-	pkg.Json("(job *Job) GetLastEvent( ): ", evt)
-	return
-}

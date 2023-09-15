@@ -8,7 +8,7 @@ import (
 CONFIG - AS WRITTEN TO JOB DATABASE
 */
 type Config struct {
-	CfgID int64 `gorm:"unique; primaryKey" json:"cfg_id"`
+	// CfgID int64 `gorm:"unique; primaryKey" json:"cfg_id"`
 
 	CfgTime   int64  `gorm:"not null" json:"cfg_time"`
 	CfgAddr   string `json:"cfg_addr"`
@@ -41,69 +41,69 @@ type Config struct {
 	CfgDiagTrans  int32 `json:"cfg_diag_trans"`
 }
 
-/*
-CONFIG - MQTT MESSAGE STRUCTURE
-*/
-type MQTT_JobConfig struct {
-	CfgTime   int64  `json:"cfg_time"`
-	CfgAddr   string `json:"cfg_addr"`
-	CfgUserID string `json:"cfg_user_id"`
-	CfgApp    string `json:"cfg_app"`
+// /*
+// CONFIG - MQTT MESSAGE STRUCTURE
+// */
+// type MQTT_JobConfig struct {
+// 	CfgTime   int64  `json:"cfg_time"`
+// 	CfgAddr   string `json:"cfg_addr"`
+// 	CfgUserID string `json:"cfg_user_id"`
+// 	CfgApp    string `json:"cfg_app"`
 
-	/*JOB*/
-	CfgSCVD     float32 `json:"cfg_scvd"`
-	CfgSCVDMult float32 `json:"cfg_scvd_mult"`
-	CfgSSPRate  float32 `json:"cfg_ssp_rate"`
-	CfgSSPDur   float32 `json:"cfg_ssp_dur"`
-	CfgHiSCVF   float32 `json:"cfg_hi_scvf"`
-	CfgFlowTog  float32 `json:"cfg_flow_tog"`
+// 	/*JOB*/
+// 	CfgSCVD     float32 `json:"cfg_scvd"`
+// 	CfgSCVDMult float32 `json:"cfg_scvd_mult"`
+// 	CfgSSPRate  float32 `json:"cfg_ssp_rate"`
+// 	CfgSSPDur   float32 `json:"cfg_ssp_dur"`
+// 	CfgHiSCVF   float32 `json:"cfg_hi_scvf"`
+// 	CfgFlowTog  float32 `json:"cfg_flow_tog"`
 
-	/*VALVE*/
-	CfgVlvTgt int32 `json:"cfg_vlv_tgt"`
-	CfgVlvPos int32 `json:"cfg_vlv_pos"`
+// 	/*VALVE*/
+// 	CfgVlvTgt int32 `json:"cfg_vlv_tgt"`
+// 	CfgVlvPos int32 `json:"cfg_vlv_pos"`
 
-	/*OP PERIODS*/
-	CfgOpSample int32 `json:"cfg_op_sample"`
-	CfgOpLog    int32 `json:"cfg_op_log"`
-	CfgOpTrans  int32 `json:"cfg_op_trans"`
+// 	/*OP PERIODS*/
+// 	CfgOpSample int32 `json:"cfg_op_sample"`
+// 	CfgOpLog    int32 `json:"cfg_op_log"`
+// 	CfgOpTrans  int32 `json:"cfg_op_trans"`
 
-	/*DIAG PERIODS*/
-	CfgDiagSample int32 `json:"cfg_diag_sample"`
-	CfgDiagLog    int32 `json:"cfg_diag_log"`
-	CfgDiagTrans  int32 `json:"cfg_diag_trans"`
-}
+// 	/*DIAG PERIODS*/
+// 	CfgDiagSample int32 `json:"cfg_diag_sample"`
+// 	CfgDiagLog    int32 `json:"cfg_diag_log"`
+// 	CfgDiagTrans  int32 `json:"cfg_diag_trans"`
+// }
 
-func (cfg *Config) FilterCfgRecord() MQTT_JobConfig {
-	return MQTT_JobConfig{
-		CfgTime:   cfg.CfgTime,
-		CfgAddr:   cfg.CfgAddr,
-		CfgUserID: cfg.CfgUserID,
-		CfgApp:    cfg.CfgApp,
+// func (cfg *Config) FilterCfgRecord() MQTT_JobConfig {
+// 	return MQTT_JobConfig{
+// 		CfgTime:   cfg.CfgTime,
+// 		CfgAddr:   cfg.CfgAddr,
+// 		CfgUserID: cfg.CfgUserID,
+// 		CfgApp:    cfg.CfgApp,
 
-		CfgSCVD:     cfg.CfgSCVD,
-		CfgSCVDMult: cfg.CfgSCVDMult,
-		CfgSSPRate:  cfg.CfgSSPRate,
-		CfgSSPDur:   cfg.CfgSSPDur,
-		CfgHiSCVF:   cfg.CfgHiSCVF,
-		CfgFlowTog:  cfg.CfgFlowTog,
+// 		CfgSCVD:     cfg.CfgSCVD,
+// 		CfgSCVDMult: cfg.CfgSCVDMult,
+// 		CfgSSPRate:  cfg.CfgSSPRate,
+// 		CfgSSPDur:   cfg.CfgSSPDur,
+// 		CfgHiSCVF:   cfg.CfgHiSCVF,
+// 		CfgFlowTog:  cfg.CfgFlowTog,
 
-		CfgVlvTgt: cfg.CfgVlvTgt,
-		CfgVlvPos: cfg.CfgVlvPos,
+// 		CfgVlvTgt: cfg.CfgVlvTgt,
+// 		CfgVlvPos: cfg.CfgVlvPos,
 
-		CfgOpSample: cfg.CfgOpSample,
-		CfgOpLog:    cfg.CfgOpLog,
-		CfgOpTrans:  cfg.CfgOpTrans,
+// 		CfgOpSample: cfg.CfgOpSample,
+// 		CfgOpLog:    cfg.CfgOpLog,
+// 		CfgOpTrans:  cfg.CfgOpTrans,
 
-		CfgDiagSample: cfg.CfgDiagSample,
-		CfgDiagLog:    cfg.CfgDiagLog,
-		CfgDiagTrans:  cfg.CfgDiagTrans,
-	}
-}
+// 		CfgDiagSample: cfg.CfgDiagSample,
+// 		CfgDiagLog:    cfg.CfgDiagLog,
+// 		CfgDiagTrans:  cfg.CfgDiagTrans,
+// 	}
+// }
 
 /*
 CONFIG - AS STORED IN DEVICE FLASH
 */
-func (cfg *Config) FilterCfgBytes() (out []byte) {
+func (cfg Config) ConfigToBytes() (out []byte) {
 
 	out = append(out, pkg.Int64ToBytes(cfg.CfgTime)...)
 	out = append(out, pkg.StringToNBytes(cfg.CfgAddr, 36)...)
@@ -130,7 +130,7 @@ func (cfg *Config) FilterCfgBytes() (out []byte) {
 
 	return
 }
-func (cfg *Config) MakeCfgFromBytes(b []byte) {
+func (cfg *Config) ConfigFromBytes(b []byte) {
 
 	cfg = &Config{
 

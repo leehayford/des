@@ -1,3 +1,18 @@
+
+/* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
+License:
+
+	[PROPER LEGALESE HERE...]
+
+	INTERIM LICENSE DESCRIPTION:
+	In spirit, this license:
+	1. Allows <Third Party> to use, modify, and / or distributre this software in perpetuity so long as <Third Party> understands:
+		a. The software is porvided as is without guarantee of additional support from DataCan in any form.
+		b. The software is porvided as is without guarantee of exclusivity.
+
+	2. Prohibits <Third Party> from taking any action which might interfere with DataCan's right to use, modify and / or distributre this software in perpetuity.
+*/
+
 package pkg
 
 import (
@@ -19,11 +34,11 @@ type DESMQTTClient struct {
 
 type MQTTClientsMap map[string]DESMQTTClient
 
-var MQTTDevClients = make(MQTTClientsMap)
+// var MQTTDevClients = make(MQTTClientsMap)
 var MQTTUserClients = make(MQTTClientsMap)
-var MQTTDemoClients = make(MQTTClientsMap)
+// var MQTTDemoClients = make(MQTTClientsMap)
 
-func (desm *DESMQTTClient) DESMQTTClient_Connect( ) (err error) {
+func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub bool ) (err error) {
 
 	/*Cerate MQTT Client Options*/
 	desm.ClientOptions = *phao.NewClientOptions()
@@ -34,7 +49,7 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect( ) (err error) {
 	desm.SetPingTimeout(time.Second * 20) // Must be 1.5 x greater than Keep-Alive
 	desm.SetKeepAlive(time.Second * 10)
 	desm.SetAutoReconnect(true)
-	desm.SetCleanSession(false) // Ensure subscriptions are active on reconnect
+	desm.SetCleanSession(falseToResub) // FALSE to ensure subscriptions are active on reconnect
 	desm.SetMaxReconnectInterval(time.Second * 10)
 	desm.OnConnect = func(c phao.Client) {
 		fmt.Printf("\n\nDESMQTTClient: %s connected...\n", desm.MQTTClientID,)
@@ -106,15 +121,6 @@ func (pub MQTTPublication) Pub(client DESMQTTClient) {
 	); token.Wait() && token.Error() != nil {
 		TraceErr(token.Error())
 	}
-
-	// if pub.WaitMS == 0 {
-	// 	// return token.Wait()
-	// 	x := token.Wait()
-	// 	// pkg.Json("DEMO_PublishSIG_MQTTSample(...) ->  des.MQTTPublication -> token.Wait():", x)
-	// 	return x
-	// } else {
-	// 	return token.WaitTimeout(time.Millisecond * 100)
-	// }
 }
 
 func MakeMQTTMessage(mqtt interface{}) (msg string) {

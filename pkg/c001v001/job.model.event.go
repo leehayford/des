@@ -8,7 +8,7 @@ import (
 EVENT - AS WRITTEN TO JOB DATABASE
 */
 type Event struct {
-	EvtID int64 `gorm:"unique; primaryKey" json:"evt_id"`
+	// EvtID int64 `gorm:"unique; primaryKey" json:"evt_id"`
 
 	EvtTime   int64  `gorm:"not null" json:"evt_time"`
 	EvtAddr   string `json:"evt_addr"`
@@ -21,37 +21,37 @@ type Event struct {
 	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:evt_typ_code" json:"-"`
 }
 
+// /*
+// EVENT - MQTT MESSAGE STRUCTURE
+// */
+// type MQTT_Event struct {
+// 	EvtTime   int64  `json:"evt_time"`
+// 	EvtAddr   string `json:"evt_addr"`
+// 	EvtUserID string `json:"evt_user_id"`
+// 	EvtApp    string `json:"evt_app"`
+
+// 	EvtCode  int32  `json:"evt_code"`
+// 	EvtTitle string `json:"evt_title"`
+// 	EvtMsg   string `json:"evt_msg"`
+// }
+
+// func (evt *Event) FilterEvtRecord() MQTT_Event {
+// 	return MQTT_Event{
+// 		EvtTime:   evt.EvtTime,
+// 		EvtAddr:   evt.EvtAddr,
+// 		EvtUserID: evt.EvtUserID,
+// 		EvtApp:    evt.EvtApp,
+
+// 		EvtCode:  evt.EvtCode,
+// 		EvtTitle: evt.EvtTitle,
+// 		EvtMsg:   evt.EvtMsg,
+// 	}
+// }
+
 /*
-EVENT - MQTT MESSAGE STRUCTURE
+EVENT - AS STORED IN DEVICE FLASH
 */
-type MQTT_Event struct {
-	EvtTime   int64  `json:"evt_time"`
-	EvtAddr   string `json:"evt_addr"`
-	EvtUserID string `json:"evt_user_id"`
-	EvtApp    string `json:"evt_app"`
-
-	EvtCode  int32  `json:"evt_code"`
-	EvtTitle string `json:"evt_title"`
-	EvtMsg   string `json:"evt_msg"`
-}
-
-func (evt *Event) FilterEvtRecord() MQTT_Event {
-	return MQTT_Event{
-		EvtTime:   evt.EvtTime,
-		EvtAddr:   evt.EvtAddr,
-		EvtUserID: evt.EvtUserID,
-		EvtApp:    evt.EvtApp,
-
-		EvtCode:  evt.EvtCode,
-		EvtTitle: evt.EvtTitle,
-		EvtMsg:   evt.EvtMsg,
-	}
-}
-
-/*
-ADMIN - AS STORED IN DEVICE FLASH
-*/
-func (evt *Event) FilterEvtBytes() (out []byte) {
+func (evt *Event) EventToBytes() (out []byte) {
 
 	out = append(out, pkg.Int64ToBytes(evt.EvtTime)...)
 	out = append(out, pkg.StringToNBytes(evt.EvtAddr, 36)...)
@@ -64,7 +64,7 @@ func (evt *Event) FilterEvtBytes() (out []byte) {
 
 	return
 }
-func (evt *Event) MakeEvtFromBytes(b []byte) {
+func (evt *Event) EventFromBytes(b []byte) {
 
 	evt = &Event{
 
@@ -123,34 +123,4 @@ var EVENT_TYPES = []EventTyp{
 	{EvtTypCode: 13, EvtTypName: "MODE LOW FLOW"},
 }
 
-// /*ADMIN EVENT TYPES*/
-// var EVT_TYP_REGISTER_DEVICE EventTyp = EventTyp{EvtTypCode: 0, EvtTypName: "DEVICE REGISTRATION"}
 
-// /*OPERATIONAL EVENT TYPES*/
-// var EVT_TYP_JOB_START EventTyp = EventTyp{EvtTypCode: 1, EvtTypName: "JOB STARTED"}
-
-// var EVT_TYP_JOB_END EventTyp = EventTyp{EvtTypCode: 2, EvtTypName: "JOB ENDED"}
-
-// var EVT_TYP_JOB_CONFIG EventTyp = EventTyp{EvtTypCode: 3, EvtTypName: "CONFIGURATION CHANGED"}
-
-// var EVT_TYP_JOB_SSP EventTyp = EventTyp{EvtTypCode: 4, EvtTypName: "SHUT-IN PRESSURE STABILIZED"}
-
-// /*OPERATION ALARM EVENT TYPES*/
-// var EVT_TYP_ALARM_HI_BAT_AMP EventTyp = EventTyp{EvtTypCode: 5, EvtTypName: "ALARM HIGH BATTERY CURRENT"}
-
-// var EVT_TYP_ALARM_LO_BAT_VOLT EventTyp = EventTyp{EvtTypCode: 6, EvtTypName: "ALARM LOW BATTERY VOLTAGE"}
-
-// var EVT_TYP_ALARM_HI_MOT_AMP EventTyp = EventTyp{EvtTypCode: 7, EvtTypName: "ALARM HIGH MOTOR CURRENT"}
-
-// var EVT_TYP_ALARM_HI_PRESS EventTyp = EventTyp{EvtTypCode: 8, EvtTypName: "ALARM HIGH PRESSURE"}
-
-// var EVT_TYP_ALARM_HI_FLOW EventTyp = EventTyp{EvtTypCode: 9, EvtTypName: "ALARM HIGH FLOW"}
-
-// /*OPERATION MODE EVENT TYPES*/
-// var EVT_TYP_MODE_VENT EventTyp = EventTyp{EvtTypCode: 10, EvtTypName: "MODE VENT"}
-
-// var EVT_TYP_MODE_BUILD EventTyp = EventTyp{EvtTypCode: 11, EvtTypName: "MODE BUILD"}
-
-// var EVT_TYP_MODE_HI_FLOW EventTyp = EventTyp{EvtTypCode: 12, EvtTypName: "MODE HIGH FLOW"}
-
-// var EVT_TYP_MODE_LO_FLOW EventTyp = EventTyp{EvtTypCode: 13, EvtTypName: "MODE LOW FLOW"}

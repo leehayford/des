@@ -9,16 +9,21 @@ import (
 
 type Job struct {
 	Admins              []Admin  `json:"admins"`
-	Headers  			[]Header `json:"headers"` 
+	Headers             []Header `json:"headers"`
 	Configs             []Config `json:"configs"`
 	Events              []Event  `json:"events"`
 	Samples             []Sample `json:"samples"`
 	XYPoints            XYPoints `json:"xypoints"`
 	pkg.DESRegistration `json:"reg"`
+	pkg.DBClient        `json:"-"`
 }
 
-func (job *Job) JDB() *pkg.DBI {
-	return &pkg.DBI{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(job.DESJobName))}
+func (job *Job) JDBX() {
+	job.DBClient = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(job.DESJobName))}
+
+}
+func (job *Job) JDB() *pkg.DBClient {
+	return &pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(job.DESJobName))}
 }
 
 type XYPoint struct {
