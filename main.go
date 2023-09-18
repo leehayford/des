@@ -15,6 +15,7 @@ License:
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 
@@ -35,8 +36,14 @@ func main() {
 	pkg.ADB.Connect()
 	defer pkg.ADB.Close()
 
-	/* CLEAN DATABASE - DROP ALL */
-	pkg.ADB.DropAllDatabases()
+	cleanDB := flag.Bool("clean", false, "Drop and recreate databases")
+	flag.Parse()
+
+	if (*cleanDB) {
+		/* CLEAN DATABASE - DROP ALL */
+		pkg.ADB.DropAllDatabases()
+
+	}
 
 	/* CREATE / MIGRATE & CONNECT DES DATABASE */
 	exists := pkg.ADB.CheckDatabaseExists(pkg.DES_DB)

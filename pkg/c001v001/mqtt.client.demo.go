@@ -425,7 +425,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 			/* UPDATE SOURCE ONLY */
 			demo.ADM.AdmAddr = demo.DESDevSerial
 
-			if demo.EVT.EvtCode > 1 {
+			if demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB X */
 				// demo.WriteAdmToFlash(demo.Job.DESJobName, adm)
@@ -469,7 +469,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 			/* UPDATE SOURCE ONLY */
 			demo.HDR.HdrAddr = demo.DESDevSerial
 
-			if demo.EVT.EvtCode > 1 {
+			if demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB X */
 				// demo.WriteHdrToFlash(demo.Job.DESJobName, hdr)
@@ -511,7 +511,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 			/* UPDATE SOURCE ONLY */
 			demo.CFG.CfgAddr = demo.DESDevSerial
 
-			if demo.EVT.EvtCode > 1 {
+			if demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB X */
 				// demo.WriteCfgToFlash(demo.Job.DESJobName, cfg)
@@ -563,17 +563,17 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 				/* REGISTRATION EVENT: USED TO ASSIGN THIS DEVICE TO 
 				A DIFFERENT DATA EXCHANGE SERVER */
 	
-			case 1: // End Job
+			case STATUS_JOB_END_REQ: // End Job
 				demo.EndDemoJob()
 
-			case 2: // Start Job
+			case STATUS_JOB_START_REQ: // Start Job
 				demo.StartDemoJob()
 
 			default:
 
 				/* CHECK THE ORIGINAL DEVICE STATE EVENT CODE 
 				TO SEE IF WE SHOULD WRITE TO THE ACTIVE JOB */
-				if state > 1 {
+				if state > STATUS_JOB_START_REQ {
 
 					// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB X */
 					// demo.WriteEvtToFlash(demo.Job.DESJobName, evt)
@@ -686,7 +686,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts *
 func (demo *DemoDeviceClient) Demo_Simulation(t0 time.Time) {
 
 	// i := 0
-	for demo.EVT.EvtCode > 1 {
+	for demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 		t := time.Now().UTC()
 		demo.Demo_Simulation_Take_Sample(t0, t)
 		demo.WriteSmpToFlash(demo.Job.DESJobName, demo.SMP)
@@ -1220,6 +1220,7 @@ func (demo *DemoDeviceClient) StartDemoJob() {
 
 	demo.EVT.EvtTime = startTime
 	demo.EVT.EvtAddr = demo.DESDevSerial
+	demo.EVT.EvtCode = STATUS_JOB_STARTED
 	demo.EVT.EvtTitle = "JOB STARTED"
 	demo.EVT.EvtMsg = demo.HDR.HdrJobName
 
@@ -1288,6 +1289,7 @@ func (demo *DemoDeviceClient) EndDemoJob() {
 	// demo.EVT = evt
 	demo.EVT.EvtTime = endTime
 	demo.EVT.EvtAddr = demo.DESDevSerial
+	demo.EVT.EvtCode = STATUS_JOB_ENDED
 	demo.EVT.EvtTitle = "JOB ENDED"
 	demo.EVT.EvtMsg = demo.HDR.HdrJobName
 

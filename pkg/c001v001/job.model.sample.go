@@ -10,7 +10,6 @@ import (
 SAMPLE - AS WRITTEN TO JOB DATABASE
 */
 type Sample struct {
-	SmpID      int64   `gorm:"unique; primaryKey" json:"smp_id"`
 	SmpTime    int64   `gorm:"not null" json:"smp_time"`
 	SmpCH4     float32 `json:"smp_ch4"`
 	SmpHiFlow  float32 `json:"smp_hi_flow"`
@@ -68,7 +67,6 @@ func (job *Job) WriteMQTTSample(msg []byte, smp *Sample) (err error) {
 		}
 
 		// Write the Sample to the job database
-		smp.SmpID = 0
 		if err = job.Write(smp); err != nil {
 			return err
 		}

@@ -44,7 +44,7 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 	device.MQTTSubscription_DeviceClient_SIGSample().Sub(device.DESMQTTClient)
 	// device.MQTTSubscription_DeviceClient_SIGDiagSample() //.Sub(device.DESMQTTClient)
 
-	Devices[device.DESDevSerial] = *device
+	// Devices[device.DESDevSerial] = *device
 
 	return err
 }
@@ -114,7 +114,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			device.ZeroDBC.WriteMQTT(msg.Payload(), &device.ADM)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			if device.EVT.EvtCode > 1 {
+			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 				device.JobDBC.WriteMQTT(msg.Payload(), &device.ADM)
 			}
 		},
@@ -133,7 +133,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			device.ZeroDBC.WriteMQTT(msg.Payload(), &device.HDR)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			if device.EVT.EvtCode > 1 {
+			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 				device.JobDBC.WriteMQTT(msg.Payload(), &device.HDR)
 			}
 		},
@@ -152,7 +152,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			device.ZeroDBC.WriteMQTT(msg.Payload(), &device.CFG)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			if device.EVT.EvtCode > 1 {
+			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 				/* PARSE / STORE THE EVENT IN THE ACTIVE JOB */
 				device.JobDBC.WriteMQTT(msg.Payload(), &device.CFG)
 			}
@@ -181,17 +181,17 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			/* REGISTRATION EVENT: USED TO ASSIGN THIS DEVICE TO
 			A DIFFERENT DATA EXCHANGE SERVER */
 
-			case 1:
+			case STATUS_JOB_ENDED:
 				device.EndJob()
 
-			case 2:
+			case STATUS_JOB_STARTED:
 				device.StartJob()
 
 			default:
 
 				/* CHECK THE ORIGINAL DEVICE STATE EVENT CODE
 				TO SEE IF WE SHOULD WRITE TO THE ACTIVE JOB */
-				if state > 1 {
+				if state > STATUS_JOB_START_REQ {
 					/* PARSE / STORE THE EVENT IN THE ACTIVE JOB */
 					device.JobDBC.WriteMQTT(msg.Payload(), &device.EVT)
 				}
@@ -239,10 +239,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDAdmin(): -> cmd", cmd)
 
-	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
-	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
-	*/
-	go cmd.Pub(device.DESMQTTClient)
+	cmd.Pub(device.DESMQTTClient)
 }
 
 /* PUBLICATION -> HEADER */
@@ -257,10 +254,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) {
 		Qos:      0,
 	}
 
-	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
-	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
-	*/
-	go cmd.Pub(device.DESMQTTClient)
+	cmd.Pub(device.DESMQTTClient)
 }
 
 /* PUBLICATION -> CONFIGURATION */
@@ -275,10 +269,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) {
 		Qos:      0,
 	}
 
-	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
-	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
-	*/
-	go cmd.Pub(device.DESMQTTClient)
+	cmd.Pub(device.DESMQTTClient)
 }
 
 /* PUBLICATION -> EVENT */
@@ -292,8 +283,5 @@ func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) {
 		Qos:      0,
 	}
 
-	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
-	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
-	*/
-	go cmd.Pub(device.DESMQTTClient)
+	cmd.Pub(device.DESMQTTClient)
 }

@@ -82,8 +82,10 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}
-	pkg.Json("(dev *Device) HandleStartJob(): -> c.BodyParser(&device) -> dev", device)
+	} // pkg.Json("(dev *Device) HandleStartJob(): -> c.BodyParser(&device) -> dev", device)
+
+	/* SYNC DEVICE WITH DevicesMap */
+	device.GetMappedClients()
 
 	/* START NEW JOB 
 		MAKE ADM, HDR, CFG, EVT ( START JOB )
@@ -119,7 +121,6 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	device.CFG.CfgUserID = device.DESJobRegUserID
 	// pkg.Json("(device *Device) HandleStartJob(): -> device.CFG", device.CFG)
 
-	device.SMP.SmpID = 0
 	device.SMP.SmpTime = startTime
 	device.SMP.SmpJobName = device.HDR.HdrJobName
 
@@ -128,21 +129,12 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 		EvtAddr:   c.IP(),
 		EvtUserID: device.DESJobRegUserID,
 		EvtApp:    device.DESJobRegApp,
+		EvtCode:   STATUS_JOB_START_REQ, 
 		EvtTitle:  "Job Start Request",
 		EvtMsg:    "Job start sequence initiated.",
-		EvtCode:   2,
 	}
 
-	/* GET THE DEVICE CLIENT DATA FROM THE DEVICES CLIENT MAP */
-	d := Devices[device.DESDevSerial] 
-	/**********************************************/
-	/* TODO: VALIDATE CLIENT CONNECTIONS */
-	device.ZeroDBC = d.ZeroDBC
-	device.JobDBC = d.JobDBC
-	device.DESMQTTClient = d.DESMQTTClient
-	/**********************************************/
-
-	/* LOG TO JOB_0: ADM, HDR, CFG, EVT */
+	/* LOG START JOB REQUEST TO ZERO JOB */
 	device.ZeroDBC.Write(&device.ADM)
 	device.ZeroDBC.Write(&device.HDR)
 	device.ZeroDBC.Write(&device.CFG)
@@ -191,34 +183,29 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}
-	pkg.Json("(dev *Device) HandleEndJob(): -> c.BodyParser(&device) -> dev", device)
+	} // pkg.Json("(dev *Device) HandleEndJob(): -> c.BodyParser(&device) -> dev", device)
 
-	time := time.Now().UTC().UnixMilli()
+	/* SYNC DEVICE WITH DevicesMap */
+	device.GetMappedADM()
+	device.GetMappedHDR()
+	device.GetMappedCFG()
+	device.GetMappedSMP()
+	device.GetMappedClients()
 
 	device.EVT = Event{
-		EvtTime:   time,
+		EvtTime:   time.Now().UTC().UnixMilli(),
 		EvtAddr:   c.IP(),
 		EvtUserID: device.DESJobRegUserID,
 		EvtApp:    device.DESJobRegApp,
+		EvtCode:   STATUS_JOB_END_REQ, 
 		EvtTitle:  "Job End Request",
 		EvtMsg:    "Job end sequence initiated.",
-		EvtCode:   1,
 	}
 
-	/* GET THE DEVICE CLIENT DATA FROM THE DEVICES CLIENT MAP */
-	d := Devices[device.DESDevSerial] 
-	/**********************************************/
-	/* TODO: VALIDATE CLIENT CONNECTIONS */
-	device.ZeroDBC = d.ZeroDBC
-	device.JobDBC = d.JobDBC
-	device.DESMQTTClient = d.DESMQTTClient
-	/**********************************************/
-
-	fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.ZeroJobName())
+	/* LOG END JOB REQUEST TO ZERO JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.ZeroJobName())
 	device.ZeroDBC.Write(&device.EVT)
 
-	fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
+	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
 	device.JobDBC.Write(&device.EVT)
 
 	/* MQTT PUB CMD: EVT */
@@ -230,7 +217,7 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
-		"data":    fiber.Map{"device": &d},
+		"data":    fiber.Map{"device": &device},
 		"message": "C001V001 Job End Reqest sent to device.",
 	})
 }
@@ -260,26 +247,24 @@ func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) {
 	}
 	pkg.Json("(devive *Device) HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
 
-	// device.ADM.AdmID = 0
+	/* SYNC DEVICE WITH DevicesMap */
 	device.ADM.AdmTime = time.Now().UTC().UnixMilli()
 	device.ADM.AdmAddr = c.IP()
+	device.GetMappedHDR()
+	device.GetMappedCFG()
+	device.GetMappedEVT()
+	device.GetMappedSMP()
+	device.GetMappedClients()
 
-	/* LOG TO JOB_0: ADM */
-	zero := device.ZeroJob()
-	zero.Write(&device.ADM)
-	// device.ADM.AdmID = 0
-	// fmt.Printf("\nHandleSetAdmin( ) -> DB Write to %s complete.\n", zero.DESJobName)
-
-	d := Devices[device.DESDevSerial]
-	if d.DESMQTTClient.Client == nil {
-		d.MQTTDeviceClient_Connect()
-	}
-	d.ADM = device.ADM
-	Devices[device.DESDevSerial] = d
+	/* LOG ADM CHANGE REQUEST TO ZERO JOB */
+	device.ZeroDBC.Write(device.ADM)
 
 	/* MQTT PUB CMD: ADM */
-	fmt.Printf("\nHandleSetAdmin( ) -> Publishing to %s with MQTT device client: %s\n\n", d.DESDevSerial, d.MQTTClientID)
-	d.MQTTPublication_DeviceClient_CMDAdmin(d.ADM)
+	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
+
+	/* UPDATE DevicesMap */
+	Devices[device.DESDevSerial] = *device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -313,26 +298,24 @@ func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) {
 	}
 	pkg.Json("(devive *Device) HandleSetHeader(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
 
-	// device.HDR.HdrID = 0
+	/* SYNC DEVICE WITH DevicesMap */
+	device.GetMappedADM()
 	device.HDR.HdrTime = time.Now().UTC().UnixMilli()
 	device.HDR.HdrAddr = c.IP()
+	device.GetMappedCFG()
+	device.GetMappedEVT()
+	device.GetMappedSMP()
+	device.GetMappedClients()
 
-	/* LOG TO JOB_0: HDR */
-	zero := device.ZeroJob()
-	zero.Write(&device.HDR)
-	// device.HDR.HdrID = 0
-	// fmt.Printf("\nHandleSetHeader( ) -> DB Write to %s complete.\n", zero.DESJobName)
-
-	d := Devices[device.DESDevSerial]
-	if d.DESMQTTClient.Client == nil {
-		d.MQTTDeviceClient_Connect()
-	}
-	d.HDR = device.HDR
-	Devices[device.DESDevSerial] = d
+	/* LOG HDR CHANGE REQUEST TO ZERO JOB */
+	device.ZeroDBC.Write(device.HDR)
 
 	/* MQTT PUB CMD: HDR */
-	fmt.Printf("\nHandleSetHeader( ) -> Publishing to %s with MQTT device client: %s\n\n", d.DESDevSerial, d.MQTTClientID)
-	d.MQTTPublication_DeviceClient_CMDHeader(d.HDR)
+	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
+
+	/* UPDATE DevicesMap */
+	Devices[device.DESDevSerial] = *device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -366,26 +349,24 @@ func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
 	}
 	pkg.Json("(devive *Device) HandleSetConfig(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
 
-	// device.CFG.CfgID = 0
+	/* SYNC DEVICE WITH DevicesMap */
+	device.GetMappedADM()
+	device.GetMappedHDR()
 	device.CFG.CfgTime = time.Now().UTC().UnixMilli()
 	device.CFG.CfgAddr = c.IP()
+	device.GetMappedEVT()
+	device.GetMappedSMP()
+	device.GetMappedClients()
 
-	/* LOG TO JOB_0: CFG */
-	zero := device.ZeroJob()
-	zero.Write(&device.CFG)
-	// device.CFG.CfgID = 0
-	// fmt.Printf("\nHandleSetConfig( ) -> DB Write to %s complete.\n", zero.DESJobName)
-
-	d := Devices[device.DESDevSerial]
-	if d.DESMQTTClient.Client == nil {
-		d.MQTTDeviceClient_Connect()
-	}
-	d.CFG = device.CFG
-	Devices[device.DESDevSerial] = d
+	/* LOG CFG CHANGE REQUEST TO ZERO JOB */
+	device.ZeroDBC.Write(device.CFG)
 
 	/* MQTT PUB CMD: CFG */
-	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", d.DESDevSerial, d.MQTTClientID)
-	d.MQTTPublication_DeviceClient_CMDConfig(d.CFG)
+	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
+
+	/* UPDATE DevicesMap */
+	Devices[device.DESDevSerial] = *device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",

@@ -8,7 +8,6 @@ import (
 EVENT - AS WRITTEN TO JOB DATABASE
 */
 type Event struct {
-	// EvtID int64 `gorm:"unique; primaryKey" json:"evt_id"`
 
 	EvtTime   int64  `gorm:"not null" json:"evt_time"`
 	EvtAddr   string `json:"evt_addr"`
@@ -20,33 +19,6 @@ type Event struct {
 	EvtMsg   string   `json:"evt_msg"`
 	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:evt_typ_code" json:"-"`
 }
-
-// /*
-// EVENT - MQTT MESSAGE STRUCTURE
-// */
-// type MQTT_Event struct {
-// 	EvtTime   int64  `json:"evt_time"`
-// 	EvtAddr   string `json:"evt_addr"`
-// 	EvtUserID string `json:"evt_user_id"`
-// 	EvtApp    string `json:"evt_app"`
-
-// 	EvtCode  int32  `json:"evt_code"`
-// 	EvtTitle string `json:"evt_title"`
-// 	EvtMsg   string `json:"evt_msg"`
-// }
-
-// func (evt *Event) FilterEvtRecord() MQTT_Event {
-// 	return MQTT_Event{
-// 		EvtTime:   evt.EvtTime,
-// 		EvtAddr:   evt.EvtAddr,
-// 		EvtUserID: evt.EvtUserID,
-// 		EvtApp:    evt.EvtApp,
-
-// 		EvtCode:  evt.EvtCode,
-// 		EvtTitle: evt.EvtTitle,
-// 		EvtMsg:   evt.EvtMsg,
-// 	}
-// }
 
 /*
 EVENT - AS STORED IN DEVICE FLASH
@@ -90,37 +62,54 @@ type EventTyp struct {
 
 var EVENT_TYPES = []EventTyp{
 
-	/*ADMIN EVENT TYPES*/
-	{EvtTypCode: 0, EvtTypName: "DEVICE REGISTRATION"},
+	// 0 DEVICE REGISTRATION REQUESTED
+	{EvtTypCode: 0, EvtTypName: "DEVICE REGISTRATION REQUESTED"},
+	// 1 DEVICE REGISTERED
+	{EvtTypCode: 1, EvtTypName: "DEVICE REGISTERED"},
 
-	/*OPERATIONAL EVENT TYPES*/
-	{EvtTypCode: 1, EvtTypName: "JOB END"},
+	// 2 END JOB REQUESTED
+	{EvtTypCode: 2, EvtTypName: "END JOB REQUESTED"},
+	// 3 JOB ENDED
+	{EvtTypCode: 3, EvtTypName: "JOB ENDED"},
 
-	{EvtTypCode: 2, EvtTypName: "JOB START"},
+	// 4 START JOB REQUESTED
+	{EvtTypCode: 4, EvtTypName: "START JOB REQUESTED"},
+	// 5 JOB STARTED
+	{EvtTypCode: 5, EvtTypName: "JOB STARTED"},
 
-	{EvtTypCode: 3, EvtTypName: "CONFIGURATION CHANGED"},
 
-	{EvtTypCode: 4, EvtTypName: "SHUT-IN PRESSURE STABILIZED"},
+// 	/*ADMIN EVENT TYPES*/
+// 	{EvtTypCode: 0, EvtTypName: "DEVICE REGISTRATION"},
 
-	/*OPERATION ALARM EVENT TYPES*/
-	{EvtTypCode: 5, EvtTypName: "ALARM HIGH BATTERY CURRENT"},
+// 	/*OPERATIONAL EVENT TYPES*/
+// 	{EvtTypCode: 1, EvtTypName: "JOB END"},
 
-	{EvtTypCode: 6, EvtTypName: "ALARM LOW BATTERY VOLTAGE"},
+// 	{EvtTypCode: 2, EvtTypName: "JOB START"},
 
-	{EvtTypCode: 7, EvtTypName: "ALARM HIGH MOTOR CURRENT"},
+// 	{EvtTypCode: 3, EvtTypName: "CONFIGURATION CHANGED"},
 
-	{EvtTypCode: 8, EvtTypName: "ALARM HIGH PRESSURE"},
+// 	{EvtTypCode: 4, EvtTypName: "SHUT-IN PRESSURE STABILIZED"},
 
-	{EvtTypCode: 9, EvtTypName: "ALARM HIGH FLOW"},
+// 	/*OPERATION ALARM EVENT TYPES*/
+// 	{EvtTypCode: 5, EvtTypName: "ALARM HIGH BATTERY CURRENT"},
 
-	/*OPERATION MODE EVENT TYPES*/
-	{EvtTypCode: 10, EvtTypName: "MODE VENT"},
+// 	{EvtTypCode: 6, EvtTypName: "ALARM LOW BATTERY VOLTAGE"},
 
-	{EvtTypCode: 11, EvtTypName: "MODE BUILD"},
+// 	{EvtTypCode: 7, EvtTypName: "ALARM HIGH MOTOR CURRENT"},
 
-	{EvtTypCode: 12, EvtTypName: "MODE HIGH FLOW"},
+// 	{EvtTypCode: 8, EvtTypName: "ALARM HIGH PRESSURE"},
 
-	{EvtTypCode: 13, EvtTypName: "MODE LOW FLOW"},
+// 	{EvtTypCode: 9, EvtTypName: "ALARM HIGH FLOW"},
+
+// 	/*OPERATION MODE EVENT TYPES*/
+// 	{EvtTypCode: 10, EvtTypName: "MODE VENT"},
+
+// 	{EvtTypCode: 11, EvtTypName: "MODE BUILD"},
+
+// 	{EvtTypCode: 12, EvtTypName: "MODE HIGH FLOW"},
+
+// 	{EvtTypCode: 13, EvtTypName: "MODE LOW FLOW"},
+
 }
 
 
