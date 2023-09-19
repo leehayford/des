@@ -32,12 +32,6 @@ type DESMQTTClient struct {
 	Subs []MQTTSubscription
 }
 
-type MQTTClientsMap map[string]DESMQTTClient
-
-// var MQTTDevClients = make(MQTTClientsMap)
-var MQTTUserClients = make(MQTTClientsMap)
-// var MQTTDemoClients = make(MQTTClientsMap)
-
 func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub bool ) (err error) {
 
 	/*Cerate MQTT Client Options*/

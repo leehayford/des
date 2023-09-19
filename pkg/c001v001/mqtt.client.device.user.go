@@ -15,6 +15,11 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
+/* MQTT DEVICE USER CLIENT
+
+SUBSCRIBES TO ALL SIGNALS FOR A SINGLE DEVICE
+  - SENDS LIVE DATA TO A SINGLE USER UI WSMessage
+*/
 type DeviceUserClient struct {
 	Device
 	outChan chan string
@@ -22,6 +27,11 @@ type DeviceUserClient struct {
 	CTX        context.Context
 	Cancel     context.CancelFunc
 	pkg.DESMQTTClient
+}
+
+type WSMessage struct {
+	Type string      `json:"type"`
+	Data interface{} `json:"data"`
 }
 
 func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
@@ -102,13 +112,6 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	return
 }
 
-
-/*
-	MQTT DEVICE USER CLIENT
-
-SUBSCRIBES TO ALL SIGNALS FOR A SINGLE DEVICE
-  - SENDS LIVE DATA TO A SINGLE USER UI VIA SSE
-*/
 func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ ) (err error) {
 
 	/* TODO: replace with user specific credentials */
@@ -118,6 +121,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 	duc.MQTTUser = user
 	duc.MQTTPW = pw
 	duc.MQTTClientID = duc.WSClientID
+	/* DEVICE USER CLIENTS ***DO NOT*** AUTOMATICALLY RESUBSCRIBE */
 	if err = duc.DESMQTTClient.DESMQTTClient_Connect(true); err != nil {
 		return err
 	}
@@ -131,10 +135,6 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGSample().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().Sub(duc.DESMQTTClient)
-
-	pkg.MQTTUserClients[duc.WSClientID] = duc.DESMQTTClient
-	// userClient := pkg.MQTTUserClients[duc.WSClientID]
-	// fmt.Printf("\n%s client ID: %s\n", duc.WSClientID, userClient.MQTTClientID)
 
 	fmt.Printf("\n(duc) MQTTDeviceUserClient_Connect( ) -> ClientID: %s\n", duc.ClientID)
 	return err
@@ -152,19 +152,11 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 	/* DISCONNECT THE DESMQTTCLient */
 	duc.DESMQTTClient_Disconnect()
 
-	delete(pkg.MQTTUserClients, duc.WSClientID)
-
 	fmt.Printf("\n(duc) MQTTDeviceUserClient_Disconnect( ): Complete -> ClientID: %s\n", duc.ClientID)
 }
 
-/*
-SUBSCRIPTIONS
-*/
 
-type WSMessage struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
-}
+/* SUBSCRIPTIONS ****************************************************************************************/
 
 /* SUBSCRIPTIONS -> ADMINISTRATION   */
 func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQTTSubscription {
@@ -323,3 +315,9 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGDiagSample() p
 		},
 	}
 }
+
+
+/* PUBLICATIONS ******************************************************************************************/
+/* NONE; WE DON'T DO THAT; 
+ALL COMMANDS SENT TO THE DEVICE GO THROUGH HTTP HANDLERS 
+*/

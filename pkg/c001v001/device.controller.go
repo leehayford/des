@@ -11,7 +11,8 @@ import (
 )
 
 /*
-RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
+	RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
+
 ALOZNG WITH THE ACTIVE JOB FOR EACH DEVICE
 IN THE FORM OF A DESRegistration
 */
@@ -58,7 +59,8 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 }
 
 /*
-USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO START A NEW JOB ON THIS DEVICE
+	USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO START A NEW JOB ON THIS DEVICE
+
 SEND AN MQTT JOB ADMIN, HEADER, CONFIG, & EVENT TO THE DEVICE
 UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 
@@ -87,9 +89,9 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
 
-	/* START NEW JOB 
-		MAKE ADM, HDR, CFG, EVT ( START JOB )
-		ENSURE ADM, HDR, CFG, & EVT HAVE THE SAME TIME STAMP / SIGNATURE
+	/* START NEW JOB
+	MAKE ADM, HDR, CFG, EVT ( START JOB )
+	ENSURE ADM, HDR, CFG, & EVT HAVE THE SAME TIME STAMP / SIGNATURE
 	*/
 	startTime := time.Now().UTC().UnixMilli()
 
@@ -111,7 +113,7 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	device.HDR.HdrUserID = device.DESJobRegUserID
 	device.HDR.HdrJobName = fmt.Sprintf("%s_0000000000000", device.DESDevSerial)
 	device.HDR.HdrJobStart = startTime // This is displays the time/date of the request while pending
-	device.HDR.HdrJobEnd = -1     // This means there is a pending request for the device to start a new job
+	device.HDR.HdrJobEnd = -1          // This means there is a pending request for the device to start a new job
 	device.HDR.HdrGeoLng = -180
 	device.HDR.HdrGeoLat = 90
 	// pkg.Json("(device *Device) HandleStartJob(): -> device.HDR", device.HDR)
@@ -129,7 +131,7 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 		EvtAddr:   c.IP(),
 		EvtUserID: device.DESJobRegUserID,
 		EvtApp:    device.DESJobRegApp,
-		EvtCode:   STATUS_JOB_START_REQ, 
+		EvtCode:   STATUS_JOB_START_REQ,
 		EvtTitle:  "Job Start Request",
 		EvtMsg:    "Job start sequence initiated.",
 	}
@@ -158,7 +160,8 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 }
 
 /*
-USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO END A JOB ON THIS DEVICE
+	USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO END A JOB ON THIS DEVICE
+
 SEND AN MQTT END JOB EVENT TO THE DEVICE
 UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 
@@ -197,7 +200,7 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 		EvtAddr:   c.IP(),
 		EvtUserID: device.DESJobRegUserID,
 		EvtApp:    device.DESJobRegApp,
-		EvtCode:   STATUS_JOB_END_REQ, 
+		EvtCode:   STATUS_JOB_END_REQ,
 		EvtTitle:  "Job End Request",
 		EvtMsg:    "Job end sequence initiated.",
 	}
@@ -223,7 +226,8 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 }
 
 /*
-USED TO ALTER THE ADMIN SETTINGS FOR A GIVEN DEVICE
+	USED TO ALTER THE ADMIN SETTINGS FOR A GIVEN DEVICE
+
 BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
 */
 func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) {
@@ -244,8 +248,7 @@ func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}
-	pkg.Json("(devive *Device) HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
+	} // pkg.Json("(devive *Device) HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.ADM.AdmTime = time.Now().UTC().UnixMilli()
@@ -274,7 +277,8 @@ func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) {
 }
 
 /*
-USED TO ALTER THE HEADER SETTINGS FOR A GIVEN DEVICE
+	USED TO ALTER THE HEADER SETTINGS FOR A GIVEN DEVICE
+
 BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
 */
 func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) {
@@ -295,8 +299,7 @@ func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}
-	pkg.Json("(devive *Device) HandleSetHeader(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
+	} // pkg.Json("(devive *Device) HandleSetHeader(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedADM()
@@ -325,7 +328,8 @@ func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) {
 }
 
 /*
-USED TO ALTER THE CONFIG SETTINGS FOR A GIVEN DEVICE
+	USED TO ALTER THE CONFIG SETTINGS FOR A GIVEN DEVICE
+
 BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
 */
 func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
@@ -346,8 +350,7 @@ func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}
-	pkg.Json("(devive *Device) HandleSetConfig(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
+	} // pkg.Json("(devive *Device) HandleSetConfig(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedADM()
@@ -376,7 +379,8 @@ func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
 }
 
 /*
-USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
+	USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
+
 PERFORMS DES DEVICE REGISTRATION
 PERFORMS CLASS/VERSION SPECIFIC REGISTRATION ACTIONS
 */

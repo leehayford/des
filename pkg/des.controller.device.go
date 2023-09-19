@@ -36,14 +36,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-/*
-USED WHEN:
-  - DATACAN ADMIN WEB CLIENTS REGISTER NEW DEVICES ON THIS DES
-  - WEB CLIENTS REQUEST ACCESS TO DEVICES/JOBS REGISTERED ON THIS DES
 
-CLASS & VERSION AGNOSTIC
-*/
-
+/* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */
 func HandleRegisterDesDev(c *fiber.Ctx) (err error) {
 
 	role := c.Locals("role")
@@ -114,6 +108,7 @@ func HandleRegisterDesDev(c *fiber.Ctx) (err error) {
 	})
 }
 
+/* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */
 func HandleGetDesDevList(c *fiber.Ctx) (err error) {
 
 	devices := []DESDev{}
@@ -133,6 +128,7 @@ func HandleGetDesDevList(c *fiber.Ctx) (err error) {
 	})
 }
 
+/* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */
 func HandleGetDesDevBySerial(c *fiber.Ctx) (err error) {
 
 	reg := DESRegistration{}

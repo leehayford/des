@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"log"
 
-	"time"
-
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -42,10 +40,9 @@ func main() {
 	if (*cleanDB) {
 		/* CLEAN DATABASE - DROP ALL */
 		pkg.ADB.DropAllDatabases()
-
 	}
 
-	/* CREATE / MIGRATE & CONNECT DES DATABASE */
+	/* CREATE OR MIGRATE DES DATABASE & CONNECT */
 	exists := pkg.ADB.CheckDatabaseExists(pkg.DES_DB)
 	if !exists {
 		pkg.ADB.CreateDatabase(pkg.DES_DB)
@@ -58,48 +55,18 @@ func main() {
 		pkg.TraceErr(err)
 	}
 
+	
 	/********************************************************************************************/
 	/* DEMO DEVICES -> NOT FOR PRODUCTION */
-	regs, err := c001v001.GetDemoDeviceList()
-	if err != nil {
-		pkg.TraceErr(err)
-	}
-
-	if len(regs) == 0 {
-		user := pkg.User{}
-		pkg.DES.DB.Last(&user)
-		regs = append(regs, c001v001.MakeDemoC001V001("DEMO000000", user.ID.String()))
-		regs = append(regs, c001v001.MakeDemoC001V001("DEMO000001", user.ID.String()))
-		regs = append(regs, c001v001.MakeDemoC001V001("DEMO000002", user.ID.String()))
-		c001v001.MakeDemoC001V001("RENE123456", user.ID.String())
-	}
-
 	fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
-	for _, reg := range regs {
-		demo := c001v001.DemoDeviceClient{
-			Device: c001v001.Device{
-				DESRegistration: reg,
-				Job:             c001v001.Job{DESRegistration: reg},
-			},
-		}
-
-		demo.MQTTDemoDeviceClient_Connect()
-		defer demo.MQTTDemoDeviceClient_Disconnect()
-
-		demo.GetDemoDeviceStatus()
-		go demo.Demo_Simulation(time.Now().UTC())
-	}
-	time.Sleep(time.Second * 1)
-
-	/* END DEMO DEVICES -> NOT FOR PRODUCTION */
+	c001v001.DemoDeviceClient_ConnectAll()
+	defer c001v001.DemoDeviceClient_DisconnectAll()
 	/********************************************************************************************/
 
 
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERED DEVICES */
 	/* DATABASE - C001V001 - CONNECT ALL DEVICES TO JOB DATABASES */
 	fmt.Println("\n\nConnecting all C001V001 Device Clients...")
-	// c001v001.MQTTDeviceClient_CreateAndConnectAll()
-	// defer c001v001.MQTTDeviceClient_DisconnectAll()
 	c001v001.DeviceClient_ConnectAll()
 	defer c001v001.DeviceClient_DisconnectAll()
 
@@ -108,17 +75,12 @@ func main() {
 	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
+		/* TODO: LIMIT ALLOWED ORIGINS FOR PRODUCTION DEPLOYMENT */
 		AllowOrigins:     "http://localhost:8080, http://localhost:4173, http://localhost:5173, http://localhost:58714",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Cache-Control",
 		AllowMethods:     "GET, POST",
 		AllowCredentials: true,
 	}))
-	app.Get("app/healthchecker", func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"status":  "success",
-			"message": "Data Exchange Server",
-		})
-	})
 
 	/* API ROUTES */
 	api := fiber.New()
@@ -132,12 +94,6 @@ func main() {
 		router.Post("/login", pkg.SignInUser)
 		router.Get("/logout", pkg.DesAuth, pkg.LogoutUser)
 	})
-
-	// /* DES JOB ROUTES */
-	// api.Route("/job", func(router fiber.Router) {
-	// 	router.Get("/list", pkg.DesAuth, pkg.GetDesJobList)
-	// 	router.Post("/name", pkg.DesAuth, pkg.GetDesJobByName)
-	// })
 
 	/* C001V001 DEVICE ROUTES */
 	api.Route("/001/001/device", func(router fiber.Router) {

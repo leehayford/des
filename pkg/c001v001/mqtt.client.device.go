@@ -8,8 +8,7 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
-/*
-	MQTT DEVICE CLIENT
+/* MQTT DEVICE CLIENT
 
 PUBLISHES ALL COMMANDS TO A SINGLE DEVICE
 SUBSCRIBES TO ALL SIGNALS FOR A SINGLE DEVICE
@@ -44,8 +43,6 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 	device.MQTTSubscription_DeviceClient_SIGSample().Sub(device.DESMQTTClient)
 	// device.MQTTSubscription_DeviceClient_SIGDiagSample() //.Sub(device.DESMQTTClient)
 
-	// Devices[device.DESDevSerial] = *device
-
 	return err
 }
 func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
@@ -66,42 +63,8 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 	return err
 }
 
-// /* CREATE A DEVICE CLIENT FOR EACH REGISTERED DEVICE */
-// func MQTTDeviceClient_CreateAndConnectAll() (err error) {
+/* SUBSCRIPTIONS ****************************************************************************************/
 
-// 	drs, err := GetDeviceList()
-// 	if err != nil {
-// 		return pkg.TraceErr(err)
-// 	} // pkg.Json("GetDeviceList():", drs)
-
-// 	for _, dr := range drs {
-// 		device := Device{
-// 			DESRegistration: dr,
-// 			Job:             Job{DESRegistration: dr},
-// 			DESMQTTClient:   pkg.DESMQTTClient{},
-// 		}
-// 		if err = device.MQTTDeviceClient_Connect(); err != nil {
-// 			return pkg.TraceErr(err)
-// 		}
-// 	}
-
-// 	return err
-// }
-
-// func MQTTDeviceClient_DisconnectAll() (err error) {
-
-// 	for _, d := range Devices {
-// 		if err = d.MQTTDeviceClient_Disconnect(); err != nil {
-// 			pkg.TraceErr(err)
-// 		}
-// 	}
-
-// 	return err
-// }
-
-/*
-SUBSCRIPTIONS
-*/
 /* SUBSCRIPTION -> ADMINISTRATION  -> UPON RECEIPT, WRITE TO JOB DATABASE */
 func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
@@ -224,9 +187,9 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 	}
 }
 
-/*
-PUBLICATIONS
-*/
+
+/* PUBLICATIONS ******************************************************************************************/
+
 /* PUBLICATION -> ADMINISTRATION */
 func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 

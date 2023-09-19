@@ -39,12 +39,10 @@ type DevicesMap map[string]Device
 
 var Devices = make(DevicesMap)
 
+/* GET THE CURRENT DES REGISTRATION INFO FOR ALL DEVICES */
 func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 
-	/*
-		WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 )
-		WE WANT THE LATEST
-	*/
+	/* WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 ) WE WANT THE LATEST */
 	subQryLatestJob := pkg.DES.DB.
 		Table("des_jobs").
 		Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
@@ -62,57 +60,36 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 	err = res.Error
 	return
 }
+func DeviceClient_ConnectAll() {
 
-func DeviceClient_ConnectAll() (err error) {
 	ds, err := GetDeviceList()
 	if err != nil {
-		return pkg.TraceErr(err)
+		pkg.TraceErr(err)
 	}
+
 	for _, r := range ds {
-		d := Device{
-			DESRegistration: r,
-			Job:             Job{DESRegistration: r},
-			DESMQTTClient:   pkg.DESMQTTClient{},
-		}
-		if err = d.ConnectZeroDBC(); err != nil {
-			pkg.TraceErr(err)
-		}
-		if err = d.ConnectJobDBC(); err != nil {
-			pkg.TraceErr(err)
-		}
-		if err = d.MQTTDeviceClient_Connect(); err != nil {
-			pkg.TraceErr(err)
-		}
-		
-		Devices[d.DESDevSerial] = d
+		(&Device{}).DeviceClient_Connect(r)
 	}
-
-	return
 }
-func DeviceClient_DisconnectAll() (err error) {
-
+func DeviceClient_DisconnectAll() {
+	/* TODO: TEST WHEN IMPLEMENTING GRACEFUL SHUTDOWN */
 	for _, d := range Devices {
-		if err = d.DisconnectZeroDBC(); err != nil {
-			pkg.TraceErr(err)
-		}
-		if err = d.DisconnectJobDBC(); err != nil {
-			pkg.TraceErr(err)
-		}
-		if err = d.MQTTDeviceClient_Disconnect(); err != nil {
-			pkg.TraceErr(err)
-		}
+		d.DeviceClient_Disconnect()
 	}
 
 	return
 }
 
-/* CONNECT DEVICE DATABASE AND MQTT CLIENTS 
-ADD CONNECTED DEVICE TO DevicesMap */
-func (device *Device) DevieClient_Connect(reg pkg.DESRegistration) {
+/*
+	CONNECT DEVICE DATABASE AND MQTT CLIENTS
+
+ADD CONNECTED DEVICE TO DevicesMap
+*/
+func (device *Device) DeviceClient_Connect(reg pkg.DESRegistration) {
 	device.DESRegistration = reg
 	device.Job = Job{DESRegistration: reg}
 	device.DESMQTTClient = pkg.DESMQTTClient{}
-	
+
 	if err := device.ConnectZeroDBC(); err != nil {
 		pkg.TraceErr(err)
 	}
@@ -122,44 +99,76 @@ func (device *Device) DevieClient_Connect(reg pkg.DESRegistration) {
 	if err := device.MQTTDeviceClient_Connect(); err != nil {
 		pkg.TraceErr(err)
 	}
-	
+
 	Devices[device.DESDevSerial] = *device
 }
 
-/* HYDRATES THE DB & MQTT CLIENT OBJECTS OF THE DEVICE FROM DevicesMap */
+/*
+	DISCONNECT DEVICE DATABASE AND MQTT CLIENTS
+
+REMOVE CONNECTED DEVICE FROM DevicesMap
+*/
+func (device *Device) DeviceClient_Disconnect() {
+	/* TODO: TEST WHEN IMPLEMENTING
+	UNREGISTER DEVICE
+	GRACEFUL SHUTDOWN
+	*/
+	if err := device.DisconnectZeroDBC(); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := device.DisconnectJobDBC(); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := device.MQTTDeviceClient_Disconnect(); err != nil {
+		pkg.TraceErr(err)
+	}
+	delete(Devices, device.DESDevSerial)
+}
+
+/* HYDRATES THE DEVICE'S DB & MQTT CLIENT OBJECTS OF THE DEVICE FROM DevicesMap */
 func (device *Device) GetMappedClients() {
 
 	/* GET THE DEVICE CLIENT DATA FROM THE DEVICES CLIENT MAP */
-	d := Devices[device.DESDevSerial] 
+	d := Devices[device.DESDevSerial]
 	device.ZeroDBC = d.ZeroDBC
 	device.JobDBC = d.JobDBC
 	device.DESMQTTClient = d.DESMQTTClient
-	
 }
+
+/* HYDRATES THE DEVICE'S Admin STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedADM() {
 	d := Devices[device.DESDevSerial]
 	device.ADM = d.ADM
 }
+
+/* HYDRATES THE DEVICE'S HEader STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedHDR() {
 	d := Devices[device.DESDevSerial]
 	device.HDR = d.HDR
 }
+
+/* HYDRATES THE DEVICE'S Config STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedCFG() {
 	d := Devices[device.DESDevSerial]
 	device.CFG = d.CFG
 }
+
+/* HYDRATES THE DEVICE'S Event STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedEVT() {
 	d := Devices[device.DESDevSerial]
 	device.EVT = d.EVT
 }
+
+/* HYDRATES THE DEVICE'S Sample STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedSMP() {
 	d := Devices[device.DESDevSerial]
 	device.SMP = d.SMP
 }
 
-/* RETURNS THE ZERO JOB NAME  */
+/* RETURNS THE CMDArchive NAME  */
 func (device Device) ZeroJobName() string {
 	return fmt.Sprintf("%s_0000000000000", device.DESDevSerial)
+	// return fmt.Sprintf("%s_CMDARCHIVE_DB", device.DESDevSerial)
 }
 
 /* RETURNS THE ZERO JOB DESRegistration FROM THE DES DATABASE */
@@ -179,6 +188,7 @@ func (device Device) GetZeroJob() (zero Job) {
 	// pkg.Json("(device *Device) GetZeroJob( )", zero)
 	return
 }
+
 /* RETURNS THE ZERO JOB DESRegistration NAME ONLY ***NOT*** FROM DATABASE */
 func (device Device) ZeroJob() Job {
 	return Job{DESRegistration: pkg.DESRegistration{DESJob: pkg.DESJob{DESJobName: device.ZeroJobName()}}}
@@ -210,6 +220,7 @@ func (device *Device) DisconnectJobDBC() (err error) {
 	return err
 }
 
+/* RETURNS THE DESRegistration FOR THE DEVICE AND ITS ACTIVE JOB FROM THE DES DATABASE */
 func (device *Device) GetCurrentJob() {
 	// fmt.Printf("\n(device) GetCurrentJob() for: %s\n", device.DESDevSerial)
 
@@ -234,7 +245,10 @@ func (device *Device) GetCurrentJob() {
 	// pkg.Json("(device *Device) GetCurrentJob( )", device.Job)
 	return
 }
+
+/* HYDRATES THE DEVICE'S DevicesMap WITH THE MOST RECENT RECORDS FROM THE ACTIVE JOB DATABASE  */
 func (device *Device) GetDeviceStatus() (err error) {
+
 	device.GetCurrentJob()
 	// fmt.Printf("\n(device *Device) GetDeviceStatus() -> device.DESJobName: %v\n", device.DESJobName)
 
@@ -383,7 +397,7 @@ func (device *Device) EndJob() {
 	pkg.DES.DB.Save(zero.DESJob)
 
 	/* SET DEVICE JOB TO JOB 0 - > AVEC DEFAULT ADMIN, HEADER, & CONFIG */
-	device.Job = zero      
+	device.Job = zero
 	device.ConnectJobDBC() // ENSURE WE CATCH STRAY SAMPLES IN THE ZERO JOB
 	fmt.Printf("\n(device *Device) EndJob( ) ENDING -> JOB ZERO ACTIVE: %s\n", device.JobDBC.ConnStr)
 
@@ -413,9 +427,12 @@ func (device *Device) EndJob() {
 	// pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", device)
 
 	Devices[device.DESDevSerial] = *device
-	
+
 	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", device.HDR.HdrJobName)
 }
+
+/* MQTT TOPICS ************************************************************************
+THESE ARE HERE BECAUSE THEY ARE USED BY MORE THAN ONE TYPE OF CLIENT */
 
 /* MQTT TOPICS - SIGNAL */
 func (device *Device) MQTTTopic_SIGAdmin() (topic string) {

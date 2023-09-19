@@ -22,9 +22,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-/*
-USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 JOBS ON THIS DES
-*/
+/* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */
 func RegisterDesJob(c *fiber.Ctx) (err error) {
 	
 	role := c.Locals("role")
@@ -55,6 +53,7 @@ func RegisterDesJob(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": fiber.Map{"job": &job}})
 }
 
+/* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */
 func GetDesJobList(c *fiber.Ctx) (err error) {
 
 	jobs := []DESJob{}
@@ -77,6 +76,7 @@ func GetDesJobList(c *fiber.Ctx) (err error) {
 	})
 }
 
+/* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */
 func GetDesJobByName(c *fiber.Ctx) (err error) {
 
 	reg := DESRegistration{}
