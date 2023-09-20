@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -16,11 +15,13 @@ License:
 package pkg
 
 import (
-	"encoding/json"
+	// "encoding/json"
 	"fmt"
 	// "log"
 	"os"
 	"strings"
+	"sync"
+
 	// "time"
 
 	/* https://gorm.io/docs/ */
@@ -40,34 +41,70 @@ ALL DATABASES IN THE DES ARE ACCESSED VIA A DBClient
 type DBClient struct {
 	ConnStr string
 	*gorm.DB
+
+	/* WAIT GROUP USED TO ENSURE ALL PENDING WRITES HAVE COMPLETED BEFORE DISCONNECT */
+	WG *sync.WaitGroup
 }
 
-func (dbc *DBClient) Connect() (err error) {
+
+func (dbc *DBClient) Connect( /* TODO: CONNECTION POOL OPTIONS */ ) (err error) {
+	/* TODO: SETUP CONNECTION POOLING FOR DIFERENT TYPES OF CONNECTIONS
+			? "gorm.io/plugin/dbresolver" ?
+
+			INITIALLY AIMING FOR 100 ACTIVE DEVICES / DES
+			
+			ADMIN DB POOL: USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
+					MAX OPEN CONNECTIONS = 50
+					MAX IDLE CONNECTIONS = 100
+
+			DES DB: USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
+					MAX OPEN CONNECTIONS = 50
+					MAX IDLE CONNECTIONS = 100
+			
+			DEVICE DB(s): 
+				CMDARCHIVE: USED BY DEVICE CLIENT -> A FEW TRANSACTIONS / PER DAY
+					MAX OPEN CONNECTIONS < 5
+					MAX IDLE CONNECTIONS < 5
+				ACTIVE JOB: USED BY DEVICE CLIENT -> ~ ONE TRANSACTION / SECOND
+					MAX OPEN CONNECTIONS < 5
+					MAX IDLE CONNECTIONS < 5
+
+			JOB DB: USED WHEN USERS ARE CREATING / VIEWING REPORTS/JOB DATA -> A FEW TRANSACTIONS / PER MINUTE
+				MAX OPEN CONNECTIONS = 50
+				MAX IDLE CONNECTIONS = 100
+	*/
 	if dbc.DB, err = gorm.Open(postgres.Open(dbc.ConnStr), &gorm.Config{}); err != nil {
 		return err
 	}
 	dbc.DB.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
 	dbc.DB.Logger = logger.Default.LogMode(logger.Error)
+	dbc.WG = &sync.WaitGroup{}
 	return err
 }
-func (dbc DBClient) Close() (err error) {
+func (dbc DBClient) Disconnect() (err error) {
+
+	/* ENSURE ALL PENDING WRITES TO JOB DB ARE COMPLETE BEFORE DISCONNECTION */
+	dbc.WG.Wait()
+
 	db, err := dbc.DB.DB()
 	if err != nil {
-		return err
+		return TraceErr(err)
 	}
-	return db.Close()
+	if err = db.Close(); err != nil {
+		return TraceErr(err)
+	}
+	dbc.ConnStr = ""
+	dbc.DB = nil
+	fmt.Printf("\n (dbc DBClient) Disconnect() -> Connection closed. \n")
+	return
 }
 func (dbc *DBClient) Write(model interface{}) (err error) {
+	dbc.WG.Add(1)
+	defer dbc.WG.Done()
 	res := dbc.Create(model)
 	return res.Error
 }
-func (dbc *DBClient) WriteMQTT(msg []byte, model interface{}) (err error) {
 
-	if err = json.Unmarshal(msg, model); err != nil {
-		return TraceErr(err)
-	}
-	return dbc.Write(model)
-}
 
 /*
 	ADMIN DATABASE
@@ -118,7 +155,7 @@ var DES DESDatabase = DESDatabase{DBClient: DBClient{ConnStr: DES_DB_CONNECTION_
 
 type DESDatabase struct{ DBClient }
 
-func (des DESDatabase)CreateDESTables(exists bool) (err error) {
+func (des DESDatabase) CreateDESTables(exists bool) (err error) {
 
 	if exists {
 		// fmt.Printf("\nMigrating DES: %s\n", DES.ConnStr)
@@ -153,3 +190,42 @@ func (des DESDatabase)CreateDESTables(exists bool) (err error) {
 
 	return err
 }
+
+
+
+// type WGTestThing struct {
+// 	Name string
+// 	WG *sync.WaitGroup
+// }
+
+// func (wgt *WGTestThing) whatever(n int) {
+// 	wgt.WG.Add(1)
+// 	defer wgt.WG.Done()
+// 	time.Sleep(time.Duration(time.Second * 5))
+// 	fmt.Printf("\n%s func# %d: done.",wgt.Name , n)
+// }
+
+// func (wgt *WGTestThing) waitGroupTest() {
+
+// 	go wgt.whatever(1)
+// 	go wgt.whatever(2)
+// 	go wgt.whatever(3)
+
+// 	fmt.Printf("\n%s Waiting...", wgt.Name)
+// 	wgt.WG.Wait()
+// 	fmt.Printf("\n%s Done.\n", wgt.Name)
+// }
+
+// type WGTestThingMap map[string]WGTestThing
+// var WGTs = make(WGTestThingMap)
+
+// func mappedWaitGroupThingTest() {
+
+// 	WGTs["Jeff"] = *&WGTestThing{Name: "Jeff", WG: &sync.WaitGroup{}}
+// 	WGTs["Mia"] = *&WGTestThing{Name: "Mia", WG: &sync.WaitGroup{}}
+// 	WGTs["Pat"] = *&WGTestThing{Name: "Pat", WG: &sync.WaitGroup{}}
+// 	for name := range WGTs {
+// 		wgt := WGTs[name]
+// 		go wgt.waitGroupTest()
+// 	}
+// }

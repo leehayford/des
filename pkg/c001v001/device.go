@@ -11,11 +11,12 @@ import (
 const DEVICE_CLASS = "001"
 const DEVICE_VERSION = "001"
 
-const STATUS_JOB_END_REQ int32 = 2
-const STATUS_JOB_ENDED int32 = 3
+const STATUS_JOB_ENDED int32 = 2
 
-const STATUS_JOB_START_REQ int32 = 4
-const STATUS_JOB_STARTED int32 = 5
+const STATUS_JOB_START_REQ int32 = 3
+const STATUS_JOB_STARTED int32 = 4
+
+const STATUS_JOB_END_REQ int32 = 5
 
 const MODE_BUILD int32 = 0
 const MODE_VENT int32 = 2
@@ -72,7 +73,10 @@ func DeviceClient_ConnectAll() {
 	}
 }
 func DeviceClient_DisconnectAll() {
-	/* TODO: TEST WHEN IMPLEMENTING GRACEFUL SHUTDOWN */
+	/* TODO: TEST WHEN IMPLEMENTING
+	- UNREGISTER DEVICE
+	- GRACEFUL SHUTDOWN
+	*/
 	for _, d := range Devices {
 		d.DeviceClient_Disconnect()
 	}
@@ -80,11 +84,7 @@ func DeviceClient_DisconnectAll() {
 	return
 }
 
-/*
-	CONNECT DEVICE DATABASE AND MQTT CLIENTS
-
-ADD CONNECTED DEVICE TO DevicesMap
-*/
+/* CONNECT DEVICE DATABASE AND MQTT CLIENTS ADD CONNECTED DEVICE TO DevicesMap */
 func (device *Device) DeviceClient_Connect(reg pkg.DESRegistration) {
 	device.DESRegistration = reg
 	device.Job = Job{DESRegistration: reg}
@@ -96,6 +96,13 @@ func (device *Device) DeviceClient_Connect(reg pkg.DESRegistration) {
 	if err := device.ConnectJobDBC(); err != nil {
 		pkg.TraceErr(err)
 	}
+
+	device.JobDBC.Last(&device.ADM)
+	device.JobDBC.Last(&device.HDR)
+	device.JobDBC.Last(&device.CFG)
+	device.JobDBC.Last(&device.EVT)
+	device.JobDBC.Last(&device.SMP)
+
 	if err := device.MQTTDeviceClient_Connect(); err != nil {
 		pkg.TraceErr(err)
 	}
@@ -103,20 +110,16 @@ func (device *Device) DeviceClient_Connect(reg pkg.DESRegistration) {
 	Devices[device.DESDevSerial] = *device
 }
 
-/*
-	DISCONNECT DEVICE DATABASE AND MQTT CLIENTS
-
-REMOVE CONNECTED DEVICE FROM DevicesMap
-*/
+/* DISCONNECT DEVICE DATABASE AND MQTT CLIENTS; REMOVE CONNECTED DEVICE FROM DevicesMap */
 func (device *Device) DeviceClient_Disconnect() {
 	/* TODO: TEST WHEN IMPLEMENTING
-	UNREGISTER DEVICE
-	GRACEFUL SHUTDOWN
+	- UNREGISTER DEVICE
+	- GRACEFUL SHUTDOWN
 	*/
-	if err := device.DisconnectZeroDBC(); err != nil {
+	if err := device.ZeroDBC.Disconnect(); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := device.DisconnectJobDBC(); err != nil {
+	if err := device.JobDBC.Disconnect(); err != nil {
 		pkg.TraceErr(err)
 	}
 	if err := device.MQTTDeviceClient_Disconnect(); err != nil {
@@ -165,14 +168,18 @@ func (device *Device) GetMappedSMP() {
 	device.SMP = d.SMP
 }
 
-/* RETURNS THE CMDArchive NAME  */
+/******************************************************************************************************************/
+/******************************************************************************************************************/
+/* TODO: RENAME ZERO JOB TO CMDARCHIVE ****************************************************************/
+
+/* RETURNS THE CMDARCHIVE NAME  */
 func (device Device) ZeroJobName() string {
 	return fmt.Sprintf("%s_0000000000000", device.DESDevSerial)
-	// return fmt.Sprintf("%s_CMDARCHIVE_DB", device.DESDevSerial)
+	// return fmt.Sprintf("%_CMDARCHIVE", device.DESDevSerial)
 }
 
 /* RETURNS THE ZERO JOB DESRegistration FROM THE DES DATABASE */
-func (device Device) GetZeroJob() (zero Job) {
+func (device Device) GetZeroJobDESRegistration() (zero Job) {
 	// fmt.Printf("\n(device) GetZeroJob() for: %s\n", device.DESDevSerial)
 	qry := pkg.DES.DB.
 		Table("des_devs AS d").
@@ -185,13 +192,8 @@ func (device Device) GetZeroJob() (zero Job) {
 	if res.Error != nil {
 		pkg.TraceErr(res.Error)
 	}
-	// pkg.Json("(device *Device) GetZeroJob( )", zero)
+	// pkg.Json("(device *Device) GetZeroJobDESRegistration( )", zero)
 	return
-}
-
-/* RETURNS THE ZERO JOB DESRegistration NAME ONLY ***NOT*** FROM DATABASE */
-func (device Device) ZeroJob() Job {
-	return Job{DESRegistration: pkg.DESRegistration{DESJob: pkg.DESJob{DESJobName: device.ZeroJobName()}}}
 }
 
 /* CONNECTS THE ZERO JOB DBClient TO THE ZERO JOB DATABASE */
@@ -200,25 +202,9 @@ func (device *Device) ConnectZeroDBC() (err error) {
 	return device.ZeroDBC.Connect()
 }
 
-/* CLOSES ZERO JOB DATABASE CONNECTION */
-func (device *Device) DisconnectZeroDBC() (err error) {
-	err = device.ZeroDBC.Close()
-	device.ZeroDBC.DB = nil
-	return err
-}
-
-/* CONNECTS THE ACTIVE JOB DBClient TO THE ACTIVE JOB DATABASE */
-func (device *Device) ConnectJobDBC() (err error) {
-	device.JobDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.Job.DESJobName))}
-	return device.JobDBC.Connect()
-}
-
-/* CLOSES ACTIVE JOB DATABASE CONNECTION */
-func (device *Device) DisconnectJobDBC() (err error) {
-	err = device.JobDBC.Close()
-	device.JobDBC.DB = nil
-	return err
-}
+/* TODO: RENAME ZERO JOB TO CMDARCHIVE ****************************************************************/
+/******************************************************************************************************************/
+/******************************************************************************************************************/
 
 /* RETURNS THE DESRegistration FOR THE DEVICE AND ITS ACTIVE JOB FROM THE DES DATABASE */
 func (device *Device) GetCurrentJob() {
@@ -246,41 +232,20 @@ func (device *Device) GetCurrentJob() {
 	return
 }
 
-/* HYDRATES THE DEVICE'S DevicesMap WITH THE MOST RECENT RECORDS FROM THE ACTIVE JOB DATABASE  */
-func (device *Device) GetDeviceStatus() (err error) {
-
-	device.GetCurrentJob()
-	// fmt.Printf("\n(device *Device) GetDeviceStatus() -> device.DESJobName: %v\n", device.DESJobName)
-
-	d := Devices[device.DESDevSerial]
-	// fmt.Printf("\n(device *Device) GetDeviceStatus() -> d.DESJobName: %v\n", d.DESJobName)
-
-	if d.ZeroDBC.DB == nil {
-		d.ConnectZeroDBC() // fmt.Printf("\n(device *Device) GetDeviceStatus() -> d.ZeroDBC.DB: %v\n", d.ZeroDBC.DB)
-	}
-
-	if d.JobDBC.DB == nil {
-		d.ConnectJobDBC() // fmt.Printf("\n(device *Device) GetDeviceStatus() -> d.JobDBC.DB: %v\n", d.JobDBC.DB)
-	}
-
-	d.JobDBC.Last(&d.ADM)
-	d.JobDBC.Last(&d.HDR)
-	d.JobDBC.Last(&d.CFG)
-	d.JobDBC.Last(&d.EVT)
-	d.JobDBC.Last(&d.SMP)
-	Devices[device.DESDevSerial] = d
-
-	return
+/* CONNECTS THE ACTIVE JOB DBClient TO THE ACTIVE JOB DATABASE */
+func (device *Device) ConnectJobDBC() (err error) {
+	device.JobDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.Job.DESJobName))}
+	return device.JobDBC.Connect()
 }
 
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB STARTED' EVENT FROM THE DEVICE */
-func (device *Device) StartJob() {
+func (device *Device) StartJob(evt Event) {
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
 
-	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
-	device.DisconnectJobDBC()
+	// /* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
+	// device.JobDBC.Disconnect()
 
 	device.Job = Job{
 		DESRegistration: pkg.DESRegistration{
@@ -302,7 +267,7 @@ func (device *Device) StartJob() {
 		Admins:  []Admin{device.ADM},
 		Headers: []Header{device.HDR},
 		Configs: []Config{device.CFG},
-		Events:  []Event{device.EVT},
+		Events:  []Event{evt},
 		Samples: []Sample{device.SMP},
 	}
 
@@ -362,70 +327,73 @@ func (device *Device) StartJob() {
 	}
 
 	/* UPDATE THE DEVICES CLIENT MAP */
+	device.EVT = evt
 	Devices[device.DESDevSerial] = *device
 
 	fmt.Printf("\n(device *Device) StartJob( ) COMPLETE: %s\n", device.HDR.HdrJobName)
 }
 
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
-func (device *Device) EndJob() {
+func (device *Device) EndJob(evt Event) {
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
 
 	/* WRITE END JOB REQUEST EVENT AS RECEIVED TO JOB X */
-	device.JobDBC.Write(&device.EVT)
-
-	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
-	device.DisconnectJobDBC()
+	device.JobDBC.Write(evt)
 
 	/* CLOSE DES JOB X */
-	device.Job.DESJob.DESJobRegTime = device.EVT.EvtTime
-	device.Job.DESJob.DESJobRegAddr = device.EVT.EvtAddr
-	device.Job.DESJob.DESJobRegUserID = device.EVT.EvtUserID
-	device.Job.DESJob.DESJobRegApp = device.EVT.EvtApp
-	device.Job.DESJob.DESJobEnd = device.EVT.EvtTime
+	device.Job.DESJob.DESJobRegTime = evt.EvtTime
+	device.Job.DESJob.DESJobRegAddr = evt.EvtAddr
+	device.Job.DESJob.DESJobRegUserID = evt.EvtUserID
+	device.Job.DESJob.DESJobRegApp = evt.EvtApp
+	device.Job.DESJob.DESJobEnd = evt.EvtTime
 	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", device.HDR.HdrJobName)
 	pkg.DES.DB.Save(device.Job.DESJob)
 
 	/* UPDATE DES JOB 0 */
-	zero := device.GetZeroJob()
+	zero := device.GetZeroJobDESRegistration()
 	zero.DESJobRegTime = time.Now().UTC().UnixMilli() // WE WANT THIS TO BE THE LATEST
-	zero.DESJobRegAddr = device.EVT.EvtAddr
-	zero.DESJobRegUserID = device.EVT.EvtUserID
-	zero.DESJobRegApp = device.EVT.EvtApp
+	zero.DESJobRegAddr = evt.EvtAddr
+	zero.DESJobRegUserID = evt.EvtUserID
+	zero.DESJobRegApp = evt.EvtApp
 	pkg.DES.DB.Save(zero.DESJob)
 
-	/* SET DEVICE JOB TO JOB 0 - > AVEC DEFAULT ADMIN, HEADER, & CONFIG */
+	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
+	device.JobDBC.Disconnect()
+
+	/* ENSURE WE CATCH STRAY SAMPLES IN THE CMDARCHIVE */
 	device.Job = zero
-	device.ConnectJobDBC() // ENSURE WE CATCH STRAY SAMPLES IN THE ZERO JOB
-	fmt.Printf("\n(device *Device) EndJob( ) ENDING -> JOB ZERO ACTIVE: %s\n", device.JobDBC.ConnStr)
+	device.ConnectJobDBC() 
 
 	/* RETURN DEVICE CLIENT DATA TO DEFAULT STATE */
 	device.ADM = device.Job.RegisterJob_Default_JobAdmin()
 	device.ADM.AdmTime = zero.DESJobRegTime
-	device.ADM.AdmAddr = device.EVT.EvtAddr
-	device.ADM.AdmUserID = device.EVT.EvtUserID
-	device.ADM.AdmApp = device.EVT.EvtApp
+	device.ADM.AdmAddr = evt.EvtAddr
+	device.ADM.AdmUserID = evt.EvtUserID
+	device.ADM.AdmApp = evt.EvtApp
 
 	device.HDR = device.Job.RegisterJob_Default_JobHeader()
 	device.HDR.HdrTime = zero.DESJobRegTime
-	device.HDR.HdrAddr = device.EVT.EvtAddr
-	device.HDR.HdrUserID = device.EVT.EvtUserID
-	device.HDR.HdrApp = device.EVT.EvtApp
+	device.HDR.HdrAddr = evt.EvtAddr
+	device.HDR.HdrUserID = evt.EvtUserID
+	device.HDR.HdrApp = evt.EvtApp
 
 	device.CFG = device.Job.RegisterJob_Default_JobConfig()
 	device.CFG.CfgTime = zero.DESJobRegTime
-	device.CFG.CfgAddr = device.EVT.EvtAddr
-	device.CFG.CfgUserID = device.EVT.EvtUserID
-	device.CFG.CfgApp = device.EVT.EvtApp
+	device.CFG.CfgAddr = evt.EvtAddr
+	device.CFG.CfgUserID = evt.EvtUserID
+	device.CFG.CfgApp = evt.EvtApp
 
+	
 	/* RETURN DEVICE (PHYSICAL) DATA TO DEFAULT STATE */
 	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
 	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
 	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
 	// pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", device)
 
+	/* UPDATE THE DEVICES CLIENT MAP */
+	device.EVT = evt
 	Devices[device.DESDevSerial] = *device
 
 	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", device.HDR.HdrJobName)

@@ -137,7 +137,8 @@ func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 
 	t := time.Now().UTC().UnixMilli()
-	/* CREATE DEMO DEVICES */
+	/* CREATE DEMO DEVICE */
+	
 	des_dev := pkg.DESDev{
 		DESDevRegTime:   t,
 		DESDevRegAddr:   "DEMO",
@@ -149,55 +150,114 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 	}
 	pkg.DES.DB.Create(&des_dev)
 
-	job := &Job{
-		DESRegistration: pkg.DESRegistration{
-			DESDev: des_dev,
-			DESJob: pkg.DESJob{
-				DESJobRegTime:   t,
-				DESJobRegAddr:   "DEMO",
-				DESJobRegUserID: userID,
-				DESJobRegApp:    "DEMO",
+	des_job := pkg.DESJob{
+		DESJobRegTime:   t,
+		DESJobRegAddr:   des_dev.DESDevRegAddr,
+		DESJobRegUserID: userID,
+		DESJobRegApp:    des_dev.DESDevRegApp,
 
-				DESJobName:  fmt.Sprintf("%s_0000000000000", serial),
-				DESJobStart: 0,
-				DESJobEnd:   0,
-				DESJobLng:   -180, // -114.75 + rand.Float32() * ( -110.15 + 114.75 ),
-				DESJobLat:   90,   // 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
-				DESJobDevID: des_dev.DESDevID,
-			},
-		},
+		DESJobName:  fmt.Sprintf("%s_0000000000000", serial),
+		DESJobStart: 0,
+		DESJobEnd:   0,
+		DESJobLng:   -180, // -114.75 + rand.Float32() * ( -110.15 + 114.75 ),
+		DESJobLat:   90,   // 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
+		DESJobDevID: des_dev.DESDevID,
 	}
-	job.Admins = []Admin{(job).RegisterJob_Default_JobAdmin()}
-	job.Headers = []Header{(job).RegisterJob_Default_JobHeader()}
-	job.Configs = []Config{(job).RegisterJob_Default_JobConfig()}
-	job.Events = []Event{(job).RegisterJob_Default_JobEvent()}
-	job.Samples = []Sample{{SmpTime: t, SmpJobName: job.DESJobName}}
-	job.RegisterJob()
+	pkg.DES.DB.Create(&des_job)
+
+	reg := pkg.DESRegistration{
+		DESDev: des_dev,
+		DESJob: des_job,
+	} 
+
+	adm := (&Job{}).RegisterJob_Default_JobAdmin()
+	adm.AdmTime = t
+	adm.AdmAddr = des_dev.DESDevRegAddr
+	adm.AdmUserID = userID
+	adm.AdmApp = des_dev.DESDevRegApp
+
+	hdr := (&Job{}).RegisterJob_Default_JobHeader()
+	hdr.HdrTime = t
+	hdr.HdrAddr = des_dev.DESDevRegAddr
+	hdr.HdrUserID = userID
+	hdr.HdrApp = des_dev.DESDevRegApp
+
+	cfg := (&Job{}).RegisterJob_Default_JobConfig()
+	cfg.CfgTime = t
+	cfg.CfgAddr = des_dev.DESDevRegAddr
+	cfg.CfgUserID = userID
+	cfg.CfgApp = des_dev.DESDevRegApp
 
 	demo := DemoDeviceClient{
 		Device: Device{
-			DESRegistration: job.DESRegistration,
-			Job:             Job{DESRegistration: job.DESRegistration},
+			DESRegistration: reg,
+			ADM: adm,
+			HDR: hdr,
+			CFG: cfg,
+			EVT: Event{
+				EvtTime:   t,
+				EvtAddr:  des_dev.DESDevRegAddr,
+				EvtUserID: userID,
+				EvtApp:   des_dev.DESDevRegApp,
+
+				EvtCode:  STATUS_JOB_ENDED,
+				EvtTitle: "Intitial State",
+				EvtMsg:   "End Job event to ensure this newly registered demo device is ready to start a new demo job.",
+			},
+			SMP: Sample{SmpTime: t, SmpJobName: des_job.DESJobName},
+			Job: Job{DESRegistration: reg},
 		},
 	}
+	/* CREATE CMDARCHIVE DATABASE */
+	pkg.ADB.CreateDatabase( strings.ToLower(demo.Job.DESJobName))
+
+	demo.ConnectJobDBC()
+	// fmt.Printf("\nMakeDemoC001V001(): CONNECTED TO DATABASE: %s\n", demo.JobDBC.ConnStr)
+
+	/* CREATE JOB DB TABLES */
+	if err := demo.JobDBC.Migrator().CreateTable(
+		&Admin{},
+		&Header{},
+		&Config{},
+		&EventTyp{},
+		&Event{},
+		&Sample{},
+	); err != nil {
+		pkg.TraceErr(err)
+	}
+
+	/* WRITE INITIAL JOB RECORDS */
+	for _, typ := range EVENT_TYPES {
+		demo.JobDBC.Write(&typ)
+	}
+	if err := demo.JobDBC.Write(&demo.ADM); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := demo.JobDBC.Write(&demo.HDR); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := demo.JobDBC.Write(&demo.CFG); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := demo.JobDBC.Write(&demo.EVT); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := demo.JobDBC.Write(&demo.SMP); err != nil {
+		pkg.TraceErr(err)
+	}
+
+	demo.JobDBC.Disconnect()
 
 	/* WRITE TO FLASH - JOB_0 */
-	demo.WriteAdmToFlash(job.DESJobName, job.Admins[0])
-	demo.WriteHdrToFlash(job.DESJobName, job.Headers[0])
-	demo.WriteCfgToFlash(job.DESJobName, job.Configs[0])
-	demo.WriteEvtToFlash(job.DESJobName, job.Events[0])
-	demo.WriteEvtToFlash(job.DESJobName, Event{
-		EvtTime:   time.Now().UTC().UnixMilli(),
-		EvtAddr:   "DEMO",
-		EvtUserID: userID,
-		EvtApp:    "DEMO",
+	
+	fmt.Printf("\nMakeDemoC001V001(): WRITE TO FLASH: %s/\n", demo.Job.DESJobName)
+	demo.WriteAdmToFlash(demo.DESJobName, demo.ADM)
+	demo.WriteHdrToFlash(demo.DESJobName, demo.HDR)
+	demo.WriteCfgToFlash(demo.DESJobName, demo.CFG)
+	demo.WriteSmpToFlash(demo.DESJobName, demo.SMP)
+	demo.WriteEvtToFlash(demo.DESJobName, demo.EVT)
 
-		EvtCode:  1,
-		EvtTitle: "Intitial State",
-		EvtMsg:   "End Job event to ensure this newly registered demo device is ready to start a new demo job.",
-	})
-
-	return job.DESRegistration
+	return reg
 }
 func (demo *DemoDeviceClient) GetDemoDeviceStatus() (err error) {
 
@@ -208,7 +268,8 @@ func (demo *DemoDeviceClient) GetDemoDeviceStatus() (err error) {
 	// fmt.Printf("\n(demo *DemoDeviceClient) GetDemoDeviceStatus() -> d.DESJobName: %v\n", d.DESJobName)
 
 	if d.JobDBC.DB == nil {
-		d.ConnectJobDBC() // fmt.Printf("\n(demo *DemoDeviceClient) GetDeviceStatus() -> d.JobDBC.DB: %v\n", d.JobDBC.DB)
+		d.ConnectJobDBC() 
+		fmt.Printf("\n(demo *DemoDeviceClient) GetDeviceStatus() -> d.JobDBC.DB: %v\n", d.JobDBC.DB)
 	}
 
 	d.JobDBC.Last(&d.ADM)
@@ -217,7 +278,7 @@ func (demo *DemoDeviceClient) GetDemoDeviceStatus() (err error) {
 	d.JobDBC.Last(&d.EVT)
 	d.JobDBC.Last(&d.SMP)
 
-	d.DisconnectJobDBC() // we don't want to maintain this connection
+	d.JobDBC.Disconnect() // we don't want to maintain this connection
 
 	DemoDeviceClients[demo.DESDevSerial] = d
 
@@ -658,6 +719,7 @@ func (demo *DemoDeviceClient) StartDemoJob(/*state*/) {
 	demo.MQTTPublication_DemoDeviceClient_SIGSample(&smp)
 	demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
 
+	// time.Sleep(time.Second * 10)
 	/* RUN JOB... */
 	go demo.Demo_Simulation(t0)
 	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( ) -> RUNNING %s...\n", demo.HDR.HdrJobName)

@@ -1,6 +1,7 @@
 package c001v001
 
 import (
+	"encoding/json"
 	"fmt"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
@@ -74,11 +75,16 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* PARSE / STORE THE ADMIN IN ZERO JOB */
-			device.ZeroDBC.WriteMQTT(msg.Payload(), &device.ADM)
+			if err := json.Unmarshal(msg.Payload(), &device.ADM); err != nil {
+				pkg.TraceErr(err)
+			}
+			go device.ZeroDBC.Write(device.ADM)
+			// device.ZeroDBC.WriteMQTT(msg.Payload(), &device.ADM)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
-				device.JobDBC.WriteMQTT(msg.Payload(), &device.ADM)
+				go device.JobDBC.Write(device.ADM)
+				// device.JobDBC.WriteMQTT(msg.Payload(), &device.ADM)
 			}
 		},
 	}
@@ -93,11 +99,16 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* PARSE / STORE THE HEADER IN ZERO JOB */
-			device.ZeroDBC.WriteMQTT(msg.Payload(), &device.HDR)
+			if err := json.Unmarshal(msg.Payload(), &device.HDR); err != nil {
+				pkg.TraceErr(err)
+			}
+			go device.ZeroDBC.Write(device.HDR)
+			// device.ZeroDBC.WriteMQTT(msg.Payload(), &device.HDR)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
-				device.JobDBC.WriteMQTT(msg.Payload(), &device.HDR)
+				go device.JobDBC.Write(device.HDR)
+				// device.JobDBC.WriteMQTT(msg.Payload(), &device.HDR)
 			}
 		},
 	}
@@ -112,12 +123,17 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* PARSE / STORE THE CONFIG IN ZERO JOB */
-			device.ZeroDBC.WriteMQTT(msg.Payload(), &device.CFG)
+			if err := json.Unmarshal(msg.Payload(), &device.CFG); err != nil {
+				pkg.TraceErr(err)
+			}
+			go device.ZeroDBC.Write(device.CFG)
+			// device.ZeroDBC.WriteMQTT(msg.Payload(), &device.CFG)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 				/* PARSE / STORE THE EVENT IN THE ACTIVE JOB */
-				device.JobDBC.WriteMQTT(msg.Payload(), &device.CFG)
+				go device.JobDBC.Write(device.CFG)
+				// device.JobDBC.WriteMQTT(msg.Payload(), &device.CFG)
 			}
 		},
 	}
@@ -132,31 +148,36 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* CAPTURE THE ORIGINAL DEVICE STATE EVENT CODE */
-			state := device.EVT.EvtCode
+			// state := device.EVT.EvtCode
 
+			evt := Event{}
 			/* PARSE / STORE THE EVENT IN ZERO JOB */
-			device.ZeroDBC.WriteMQTT(msg.Payload(), &device.EVT)
+			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
+				pkg.TraceErr(err)
+			}
+			go device.ZeroDBC.Write(evt)
 
 			/* CHECK THE RECEIVED EVENT CODE */
-			switch device.EVT.EvtCode {
+			switch evt.EvtCode {
 
 			// case 0:
 			/* REGISTRATION EVENT: USED TO ASSIGN THIS DEVICE TO
 			A DIFFERENT DATA EXCHANGE SERVER */
 
 			case STATUS_JOB_ENDED:
-				device.EndJob()
+				go device.EndJob(evt)
 
 			case STATUS_JOB_STARTED:
-				device.StartJob()
+				go device.StartJob(evt)
 
 			default:
 
 				/* CHECK THE ORIGINAL DEVICE STATE EVENT CODE
 				TO SEE IF WE SHOULD WRITE TO THE ACTIVE JOB */
-				if state > STATUS_JOB_START_REQ {
-					/* PARSE / STORE THE EVENT IN THE ACTIVE JOB */
-					device.JobDBC.WriteMQTT(msg.Payload(), &device.EVT)
+				if device.EVT.EvtCode > STATUS_JOB_START_REQ {
+					/* STORE THE EVENT IN THE ACTIVE JOB */
+					go device.JobDBC.Write(evt)
+					// device.JobDBC.WriteMQTT(msg.Payload(), &device.EVT)
 				}
 			}
 		},
@@ -170,7 +191,29 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			device.Job.WriteMQTTSample(msg.Payload(), &device.SMP)
+			/* TODO: MOVE WRITE SAMPLE FUCTION TO Device */
+			// go device.Job.WriteMQTTSample(msg.Payload(), &device.SMP)
+			// fmt.Printf("\n(device *Device) MQTTSubscription_DeviceClient_SIGSample() -> device.JobDBC: \n%s \n", device.JobDBC.ConnStr)
+			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
+				// Decode the payload into an MQTTSampleMessage
+				mqtts := &MQTT_Sample{}
+				if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
+					pkg.TraceErr(err)
+				} // pkg.Json("DecodeMQTTSampleMessage(...) ->  msg :", msg)
+
+				for _, b64 := range mqtts.Data {
+
+					// Decode base64 string
+					device.SMP.SmpJobName = mqtts.DesJobName
+					if err := device.Job.DecodeMQTTSample(b64, &device.SMP); err != nil {
+						pkg.TraceErr(err)
+					}
+
+					// Write the Sample to the job database
+					go device.JobDBC.Write(device.SMP)
+					
+				}
+			}
 		},
 	}
 }

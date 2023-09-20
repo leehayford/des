@@ -28,16 +28,17 @@ import (
 	"github.com/leehayford/des/pkg/c001v001"
 )
 
+
 func main() {
 
 	/* ADMIN DB - CONNECT TO THE ADMIN DATABASE */
 	pkg.ADB.Connect()
-	defer pkg.ADB.Close()
+	defer pkg.ADB.Disconnect()
 
 	cleanDB := flag.Bool("clean", false, "Drop and recreate databases")
 	flag.Parse()
 
-	if (*cleanDB) {
+	if *cleanDB {
 		/* CLEAN DATABASE - DROP ALL */
 		pkg.ADB.DropAllDatabases()
 	}
@@ -48,14 +49,13 @@ func main() {
 		pkg.ADB.CreateDatabase(pkg.DES_DB)
 	}
 	pkg.DES.Connect()
-	defer pkg.DES.Close()
+	defer pkg.DES.Disconnect()
 
 	/* IF DES DATABASE DIDN'T ALREADY EXIST, CREATE TABLES, OTHERWISE MIGRATE */
 	if err := pkg.DES.CreateDESTables(exists); err != nil {
 		pkg.TraceErr(err)
 	}
 
-	
 	/********************************************************************************************/
 	/* DEMO DEVICES -> NOT FOR PRODUCTION */
 	fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
@@ -63,13 +63,11 @@ func main() {
 	defer c001v001.DemoDeviceClient_DisconnectAll()
 	/********************************************************************************************/
 
-
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERED DEVICES */
 	/* DATABASE - C001V001 - CONNECT ALL DEVICES TO JOB DATABASES */
 	fmt.Println("\n\nConnecting all C001V001 Device Clients...")
 	c001v001.DeviceClient_ConnectAll()
 	defer c001v001.DeviceClient_DisconnectAll()
-
 
 	/* MAIN SER$VER */
 	app := fiber.New()
@@ -97,7 +95,7 @@ func main() {
 
 	/* C001V001 DEVICE ROUTES */
 	api.Route("/001/001/device", func(router fiber.Router) {
-		router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
+		// router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
 		router.Post("/start", pkg.DesAuth, (&c001v001.Device{}).HandleStartJob)
 		router.Post("/end", pkg.DesAuth, (&c001v001.Device{}).HandleEndJob)
 		router.Post("/admin", pkg.DesAuth, (&c001v001.Device{}).HandleSetAdmin)

@@ -34,19 +34,21 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	devices := []Device{}
 	for _, reg := range regs {
 
-		// pkg.Json("HandleGetDeviceList( ) -> reg", reg)
+		pkg.Json("HandleGetDeviceList( ) -> reg", reg)
 		go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
 
 			defer wg.Done()
 
-			device := Device{
-				DESRegistration: r,
-				Job:             Job{DESRegistration: r},
-			}
+			device := Devices[r.DESDevSerial]
+			device.DESRegistration = r
+			device.GetCurrentJob() 
+			// device.GetMappedADM()
+			// device.GetMappedHDR()
+			// device.GetMappedCFG()
+			// device.GetMappedEVT()
+			// device.GetMappedSMP()
+			devices = append(devices, device)
 
-			// pkg.TraceFunc("Call -> device.GetDeviceStatus( )")
-			device.GetDeviceStatus()
-			devices = append(devices, Devices[device.DESDevSerial])
 		}(reg, &wg)
 	}
 	wg.Wait() // pkg.Json("HandleGetDeviceList( ) -> []Device{}:\n", devices)
@@ -137,10 +139,10 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	}
 
 	/* LOG START JOB REQUEST TO ZERO JOB */
-	device.ZeroDBC.Write(&device.ADM)
-	device.ZeroDBC.Write(&device.HDR)
-	device.ZeroDBC.Write(&device.CFG)
-	device.ZeroDBC.Write(&device.EVT)
+	device.ZeroDBC.Create(&device.ADM)
+	device.ZeroDBC.Create(&device.HDR)
+	device.ZeroDBC.Create(&device.CFG)
+	device.ZeroDBC.Create(&device.EVT)
 
 	// /* MQTT PUB CMD: ADM, HDR, CFG, EVT */
 	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -206,10 +208,10 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	}
 
 	/* LOG END JOB REQUEST TO ZERO JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.ZeroJobName())
-	device.ZeroDBC.Write(&device.EVT)
+	device.ZeroDBC.Create(&device.EVT)
 
 	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
-	device.JobDBC.Write(&device.EVT)
+	device.JobDBC.Create(&device.EVT)
 
 	/* MQTT PUB CMD: EVT */
 	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -260,7 +262,7 @@ func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) {
 	device.GetMappedClients()
 
 	/* LOG ADM CHANGE REQUEST TO ZERO JOB */
-	device.ZeroDBC.Write(device.ADM)
+	device.ZeroDBC.Create(device.ADM)
 
 	/* MQTT PUB CMD: ADM */
 	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -311,7 +313,7 @@ func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) {
 	device.GetMappedClients()
 
 	/* LOG HDR CHANGE REQUEST TO ZERO JOB */
-	device.ZeroDBC.Write(device.HDR)
+	device.ZeroDBC.Create(device.HDR)
 
 	/* MQTT PUB CMD: HDR */
 	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -362,7 +364,7 @@ func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
 	device.GetMappedClients()
 
 	/* LOG CFG CHANGE REQUEST TO ZERO JOB */
-	device.ZeroDBC.Write(device.CFG)
+	device.ZeroDBC.Create(device.CFG)
 
 	/* MQTT PUB CMD: CFG */
 	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -378,93 +380,93 @@ func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
 	})
 }
 
-/*
+/* TODO: TEST *** DO NOT USE ***
 	USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
 
 PERFORMS DES DEVICE REGISTRATION
 PERFORMS CLASS/VERSION SPECIFIC REGISTRATION ACTIONS
 */
-func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
+// func (dev *Device) HandleRegisterDevice(c *fiber.Ctx) (err error) {
 
-	role := c.Locals("role")
-	if role != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an administrator to register devices",
-		})
-	}
+// 	role := c.Locals("role")
+// 	if role != "admin" {
+// 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+// 			"status":  "fail",
+// 			"message": "You must be an administrator to register devices",
+// 		})
+// 	}
 
-	reg := pkg.DESRegistration{}
-	if err = c.BodyParser(&reg); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	}
+// 	reg := pkg.DESRegistration{}
+// 	if err = c.BodyParser(&reg); err != nil {
+// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+// 			"status":  "fail",
+// 			"message": err.Error(),
+// 		})
+// 	}
 
-	/*
-		CREATE A DEVICE RECORD IN THE DES DB FOR THIS DEVICE
-		 - Creates a new DESevice in the DES database
-		 - Gets the C001V001Device's DeviceID from the DES Database
-	*/
-	reg.DESDevRegTime = time.Now().UTC().UnixMilli()
-	reg.DESDevRegAddr = c.IP()
-	if device_res := pkg.DES.DB.Create(&reg.DESDev); device_res.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": device_res.Error.Error(),
-		})
-	}
+// 	/*
+// 		CREATE A DEVICE RECORD IN THE DES DB FOR THIS DEVICE
+// 		 - Creates a new DESevice in the DES database
+// 		 - Gets the C001V001Device's DeviceID from the DES Database
+// 	*/
+// 	reg.DESDevRegTime = time.Now().UTC().UnixMilli()
+// 	reg.DESDevRegAddr = c.IP()
+// 	if device_res := pkg.DES.DB.Create(&reg.DESDev); device_res.Error != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"status":  "fail",
+// 			"message": device_res.Error.Error(),
+// 		})
+// 	}
 
-	/*
-		CREATE THE DEFAULT JOB FOR THIS DEVICE
-	*/
-	job := Job{
-		DESRegistration: pkg.DESRegistration{
-			DESDev: reg.DESDev,
-			DESJob: pkg.DESJob{
-				DESJobRegTime:   reg.DESDevRegTime,
-				DESJobRegAddr:   reg.DESDevRegAddr,
-				DESJobRegUserID: reg.DESDevRegUserID,
-				DESJobRegApp:    reg.DESDevRegApp,
+// 	/*
+// 		CREATE THE DEFAULT JOB FOR THIS DEVICE
+// 	*/
+// 	job := Job{
+// 		DESRegistration: pkg.DESRegistration{
+// 			DESDev: reg.DESDev,
+// 			DESJob: pkg.DESJob{
+// 				DESJobRegTime:   reg.DESDevRegTime,
+// 				DESJobRegAddr:   reg.DESDevRegAddr,
+// 				DESJobRegUserID: reg.DESDevRegUserID,
+// 				DESJobRegApp:    reg.DESDevRegApp,
 
-				DESJobName:  fmt.Sprintf("%s_0000000000000", reg.DESDevSerial),
-				DESJobStart: 0,
-				DESJobEnd:   0,
-				DESJobLng:   reg.DESJobLng,
-				DESJobLat:   reg.DESJobLat,
-				DESJobDevID: reg.DESDevID,
-			},
-		},
-		Admins:  []Admin{(&Job{}).RegisterJob_Default_JobAdmin()},
-		Headers: []Header{(&Job{}).RegisterJob_Default_JobHeader()},
-		Configs: []Config{(&Job{}).RegisterJob_Default_JobConfig()},
-		Events:  []Event{(&Job{}).RegisterJob_Default_JobEvent()},
-	}
-	if err = job.RegisterJob(); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	}
+// 				DESJobName:  fmt.Sprintf("%s_0000000000000", reg.DESDevSerial),
+// 				DESJobStart: 0,
+// 				DESJobEnd:   0,
+// 				DESJobLng:   reg.DESJobLng,
+// 				DESJobLat:   reg.DESJobLat,
+// 				DESJobDevID: reg.DESDevID,
+// 			},
+// 		},
+// 		Admins:  []Admin{(&Job{}).RegisterJob_Default_JobAdmin()},
+// 		Headers: []Header{(&Job{}).RegisterJob_Default_JobHeader()},
+// 		Configs: []Config{(&Job{}).RegisterJob_Default_JobConfig()},
+// 		Events:  []Event{(&Job{}).RegisterJob_Default_JobEvent()},
+// 	}
+// 	if err = job.RegisterJob(); err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"status":  "fail",
+// 			"message": err.Error(),
+// 		})
+// 	}
 
-	reg = pkg.DESRegistration{
-		DESDev: reg.DESDev,
-		DESJob: job.DESJob,
-	}
+// 	reg = pkg.DESRegistration{
+// 		DESDev: reg.DESDev,
+// 		DESJob: job.DESJob,
+// 	}
 
-	device := Device{
-		DESRegistration: reg,
-		Job:             Job{DESRegistration: reg},
-		DESMQTTClient:   pkg.DESMQTTClient{},
-	}
-	if err = device.MQTTDeviceClient_Connect(); err != nil {
-		return pkg.TraceErr(err)
-	}
+// 	device := Device{
+// 		DESRegistration: reg,
+// 		Job:             Job{DESRegistration: reg},
+// 		DESMQTTClient:   pkg.DESMQTTClient{},
+// 	}
+// 	if err = device.MQTTDeviceClient_Connect(); err != nil {
+// 		return pkg.TraceErr(err)
+// 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &reg},
-		"message": "C001V001 Device Registered.",
-	})
-}
+// 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+// 		"status":  "success",
+// 		"data":    fiber.Map{"device": &reg},
+// 		"message": "C001V001 Device Registered.",
+// 	})
+// }

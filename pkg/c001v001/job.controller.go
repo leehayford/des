@@ -20,17 +20,17 @@ func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
 	})
 }
 
-func (job *Job) Write(model interface{}) (err error) {
+// func (job *Job) Write(model interface{}) (err error) {
 
-	// pkg.Json("(job *Job) Write(): -> model", model)
-	db := job.JDB()
-	db.Connect()
-	defer db.Close()
-	if res := db.Create(model); res.Error != nil {
-		return res.Error
-	}
-	return db.Close()
-}
+// 	// pkg.Json("(job *Job) Write(): -> model", model)
+// 	db := job.JDB()
+// 	db.Connect()
+// 	defer db.Disconnect()
+// 	if res := db.Create(model); res.Error != nil {
+// 		return res.Error
+// 	}
+// 	return db.Disconnect()
+// }
 
 func (job Job) WriteMQTT(msg []byte, model interface{}) (err error) {
 
@@ -65,7 +65,7 @@ func (job *Job) RegisterJob() (err error) {
 		// defer db.Close()
 		job.JDBX()
 		job.DBClient.Connect()
-		defer job.DBClient.Close()
+		// defer job.DBClient.Disconnect()
 
 		// if err = db.Migrator().CreateTable(
 		if err = job.DBClient.Migrator().CreateTable(
@@ -82,41 +82,41 @@ func (job *Job) RegisterJob() (err error) {
 		/* CREATE EVENT TYPES */
 		for _, typ := range EVENT_TYPES {
 			// db.Create(&typ)
-			job.DBClient.Create(&typ)
+			job.DBClient.Write(&typ)
 		}
 
 		// if adm_res := db.Create(&job.Admins[0]); adm_res.Error != nil {
-		if adm_res := job.DBClient.Create(&job.Admins[0]); adm_res.Error != nil {
-			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobAdmins[0]) -> Error:\n%s\n", adm_res.Error.Error())
-			return adm_res.Error
+		if adm_res := job.DBClient.Write(&job.Admins[0]); adm_res != nil {
+			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobAdmins[0]) -> Error:\n%s\n", adm_res.Error())
+			return adm_res
 		}
 
 		// if hdr_res := db.Create(&job.Headers[0]); hdr_res.Error != nil {
-		if hdr_res := job.DBClient.Create(&job.Headers[0]); hdr_res.Error != nil {
-			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobHeaderss[0]) -> Error:\n%s\n", hdr_res.Error.Error())
-			return hdr_res.Error
+		if hdr_res := job.DBClient.Write(&job.Headers[0]); hdr_res != nil {
+			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&jobHeaderss[0]) -> Error:\n%s\n", hdr_res.Error())
+			return hdr_res
 		}
 
 		// if cfg_res := db.Create(&job.Configs[0]); cfg_res.Error != nil {
-		if cfg_res := job.DBClient.Create(&job.Configs[0]); cfg_res.Error != nil {
-			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Configs[0]) -> Error:\n%s\n", cfg_res.Error.Error())
-			return cfg_res.Error
+		if cfg_res := job.DBClient.Write(&job.Configs[0]); cfg_res != nil {
+			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Configs[0]) -> Error:\n%s\n", cfg_res.Error())
+			return cfg_res
 		}
 
 		// if evt_res := db.Create(&job.Events[0]); evt_res.Error != nil {
-		if evt_res := job.DBClient.Create(&job.Events[0]); evt_res.Error != nil {
-			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Events[0]) -> Error:\n%s\n", evt_res.Error.Error())
-			return evt_res.Error
+		if evt_res := job.DBClient.Write(&job.Events[0]); evt_res != nil {
+			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Events[0]) -> Error:\n%s\n", evt_res.Error())
+			return evt_res
 		}
 
 		// if smp_res := db.Create(&job.Samples[0]); smp_res.Error != nil {
-		if smp_res := job.DBClient.Create(&job.Samples[0]); smp_res.Error != nil {
-			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Samples[0]) -> Error:\n%s\n", smp_res.Error.Error())
-			return smp_res.Error
+		if smp_res := job.DBClient.Write(&job.Samples[0]); smp_res != nil {
+			fmt.Printf("\n(job *Job) RegisterJob() -> db.Create(&job.Samples[0]) -> Error:\n%s\n", smp_res.Error())
+			return smp_res
 		}
 
 		// db.Close()
-		job.DBClient.Close()
+		job.DBClient.Disconnect()
 	}
 	return
 }
@@ -241,7 +241,7 @@ func (job *Job) RegisterJob_Default_JobEvent() (evt Event) {
 func (job *Job) GetJobData(limit int) (err error) {
 	db := job.JDB()
 	db.Connect()
-	defer db.Close()
+	defer db.Disconnect()
 	db.Select("*").Table("admins").Limit(limit).Order("adm_time DESC").Scan(&job.Admins)
 	db.Select("*").Table("headers").Limit(limit).Order("hdr_time DESC").Scan(&job.Headers)
 	db.Select("*").Table("configs").Limit(limit).Order("cfg_time DESC").Scan(&job.Configs)
@@ -250,8 +250,7 @@ func (job *Job) GetJobData(limit int) (err error) {
 	for _, smp := range job.Samples {
 		job.XYPoints.AppendXYSample(smp)
 	}
-	db.Close()
+	db.Disconnect()
 	// pkg.Json("GetJobData(): job", job)
 	return
 }
-
