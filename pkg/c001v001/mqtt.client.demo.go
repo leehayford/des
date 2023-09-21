@@ -269,6 +269,7 @@ func (demo *DemoDeviceClient) GetDemoDeviceStatus() (err error) {
 
 	if d.JobDBC.DB == nil {
 		d.ConnectJobDBC() // fmt.Printf("\n(demo *DemoDeviceClient) GetDeviceStatus() -> d.JobDBC.DB: %v\n", d.JobDBC.DB)
+		fmt.Printf("\n(demo *DemoDeviceClient) GetDeviceStatus() -> d.JobDBC: %v\n", d.JobDBC.GetDBName())
 	}
 
 	d.JobDBC.Last(&d.ADM)

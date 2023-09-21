@@ -97,9 +97,9 @@ func (dbc DBClient) Disconnect() (err error) {
 	if err = db.Close(); err != nil {
 		return TraceErr(err)
 	}
+	fmt.Printf("\n(dbc DBClient) Disconnect() -> %s -> Connection closed. \n", dbc.GetDBName())
 	dbc.ConnStr = ""
 	dbc.DB = nil
-	fmt.Printf("\n(dbc DBClient) Disconnect() -> %s -> Connection closed. \n", dbc.GetDBName())
 	return
 }
 func (dbc *DBClient) Write(model interface{}) (err error) {
