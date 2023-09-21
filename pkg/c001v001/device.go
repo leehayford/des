@@ -14,7 +14,7 @@ const DEVICE_VERSION = "001"
 /********************************************************************************************************/
 /* STATUS ( Event.EvtCode ) ****************************************************************************/
 
-const STATUS_DES_REG_REQ int32 = 0 // ADMIN USER REQUEST -> CHANGE DEVICE'S OPERATIONAL DATA EXCHANGE SERVER
+const STATUS_DES_REG_REQ int32 = 0 // USER REQUEST -> CHANGE DEVICE'S OPERATIONAL DATA EXCHANGE SERVER
 
 const STATUS_DES_REGISTERED int32 = 1 // DEVICE RESPONSE -> SENT TO NEW DATA EXCHANGE SERVER
 
@@ -67,7 +67,7 @@ type DevicesMap map[string]Device
 
 var Devices = make(DevicesMap)
 
-/* GET THE CURRENT DES REGISTRATION INFO FOR ALL DEVICES */
+/* GET THE CURRENT DESRegistration FOR ALL DEVICES ON THIS DES */
 func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 
 	/* WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 ) WE WANT THE LATEST */
@@ -88,38 +88,47 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 	err = res.Error
 	return
 }
+
+/* CALLED ON SERVER STARTUP */
 func DeviceClient_ConnectAll() {
 
-	ds, err := GetDeviceList()
+	regs, err := GetDeviceList()
 	if err != nil {
 		pkg.TraceErr(err)
 	}
 
-	for _, r := range ds {
-		(&Device{}).DeviceClient_Connect(r)
+	for _, reg := range regs {
+		device := Device{}
+		device.DESRegistration = reg
+		device.Job = Job{DESRegistration: reg}
+		device.DESMQTTClient = pkg.DESMQTTClient{}
+		device.DeviceClient_Connect()
 	}
 }
+
+/* CALLED ON SERVER SHUT DOWN */
 func DeviceClient_DisconnectAll() {
 	/* TODO: TEST WHEN IMPLEMENTING
 	- UNREGISTER DEVICE
 	- GRACEFUL SHUTDOWN
 	*/
+	fmt.Printf("\nDeviceClient_DisconnectAll()\n")
 	for _, d := range Devices {
 		d.DeviceClient_Disconnect()
 	}
-
-	return
 }
 
 /* CONNECT DEVICE DATABASE AND MQTT CLIENTS ADD CONNECTED DEVICE TO DevicesMap */
-func (device *Device) DeviceClient_Connect(reg pkg.DESRegistration) {
-	device.DESRegistration = reg
-	device.Job = Job{DESRegistration: reg}
-	device.DESMQTTClient = pkg.DESMQTTClient{}
+func (device *Device) DeviceClient_Connect() {
+	
+	fmt.Printf("\n\n(device *Device) DeviceClient_Connect() -> %s -> connecting... \n", device.DESDevSerial)
 
+	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting CMDARCHIVE... \n", device.DESDevSerial)
 	if err := device.ConnectZeroDBC(); err != nil {
 		pkg.TraceErr(err)
 	}
+	
+	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting ACTIVE JOB... \n", device.DESDevSerial)
 	if err := device.ConnectJobDBC(); err != nil {
 		pkg.TraceErr(err)
 	}
@@ -134,7 +143,9 @@ func (device *Device) DeviceClient_Connect(reg pkg.DESRegistration) {
 		pkg.TraceErr(err)
 	}
 
+	/* ADD TO Devices MAP */
 	Devices[device.DESDevSerial] = *device
+	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connected... \n\n", device.DESDevSerial)
 }
 
 /* DISCONNECT DEVICE DATABASE AND MQTT CLIENTS; REMOVE CONNECTED DEVICE FROM DevicesMap */
@@ -143,6 +154,8 @@ func (device *Device) DeviceClient_Disconnect() {
 	- UNREGISTER DEVICE
 	- GRACEFUL SHUTDOWN
 	*/
+	fmt.Printf("\n\n(device *Device) DeviceClient_Disconnect() -> %s -> disconnecting... \n", device.DESDevSerial)
+
 	if err := device.CmdDBC.Disconnect(); err != nil {
 		pkg.TraceErr(err)
 	}
@@ -195,7 +208,13 @@ func (device *Device) GetMappedSMP() {
 	device.SMP = d.SMP
 }
  
-
+/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Sample */
+func (device *Device) UpdateMappedSMP() {
+	d := Devices[device.DESDevSerial]
+	d.SMP = device.SMP
+	Devices[device.DESDevSerial] = d
+}
+ 
 /******************************************************************************************************************/
 /* TODO: RENAME ZERO JOB TO CMDARCHIVE ****************************************************************/
 
@@ -270,9 +289,10 @@ func (device *Device) StartJob(evt Event) {
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
+	// device.GetMappedSMP()
 
-	// /* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
-	// device.JobDBC.Disconnect()
+	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
+	device.JobDBC.Disconnect()
 
 	device.Job = Job{
 		DESRegistration: pkg.DESRegistration{
@@ -291,11 +311,6 @@ func (device *Device) StartJob(evt Event) {
 				DESJobDevID: device.DESDevID,
 			},
 		},
-		Admins:  []Admin{device.ADM},
-		Headers: []Header{device.HDR},
-		Configs: []Config{device.CFG},
-		Events:  []Event{evt},
-		Samples: []Sample{device.SMP},
 	}
 
 	/* CREATE A JOB RECORD IN THE DES DATABASE */
@@ -303,61 +318,63 @@ func (device *Device) StartJob(evt Event) {
 		pkg.TraceErr(res.Error)
 	}
 
-	dbName := strings.ToLower(device.Job.DESJobName)
-	/* WE AVOID WRITING IF THE DATABASE WAS PRE-EXISTING */
-	if !pkg.ADB.CheckDatabaseExists(dbName) {
-
-		/* CREATE NEW JOB DATABASE */
-		pkg.ADB.CreateDatabase(dbName)
-
-		/* CONNECT THE NEW ACTIVE JOB DATABASE */
-		device.ConnectJobDBC()
-		fmt.Printf("\n(device *Device) StartJob(): CONNECTED TO DATABASE: %s\n", device.HDR.HdrJobName)
-
-		/* CREATE JOB DB TABLES */
-		if err := device.JobDBC.Migrator().CreateTable(
-			&Admin{},
-			&Header{},
-			&Config{},
-			&EventTyp{},
-			&Event{},
-			&Sample{},
-		); err != nil {
-			pkg.TraceErr(err)
-		}
-
-		/* WRITE INITIAL JOB RECORDS */
-		for _, typ := range EVENT_TYPES {
-			device.JobDBC.Create(&typ)
-		}
-		if res := device.JobDBC.Create(&device.Job.Admins[0]); res.Error != nil {
-			pkg.TraceErr(res.Error)
-		}
-		if res := device.JobDBC.Create(&device.Job.Headers[0]); res.Error != nil {
-			pkg.TraceErr(res.Error)
-		}
-		if res := device.JobDBC.Create(&device.Job.Configs[0]); res.Error != nil {
-			pkg.TraceErr(res.Error)
-		}
-		if res := device.JobDBC.Create(&device.Job.Events[0]); res.Error != nil {
-			pkg.TraceErr(res.Error)
-		}
-		if res := device.JobDBC.Create(&device.Job.Samples[0]); res.Error != nil {
-			pkg.TraceErr(res.Error)
-		}
-
-	}
-
-	if device.JobDBC.DB == nil {
+	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
+	if pkg.ADB.CheckDatabaseExists(device.Job.DESJobName) {
 		device.JobDBC = device.CmdDBC
-		fmt.Printf("\n(device *Device) StartJob( ) FAILED! *** LOGGING TO: %s\n", device.HDR.HdrJobName)
+		fmt.Printf("\n(device *Device) StartJob( ): DATABASE ALREADY EXISTS! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
+	} else {
+		/* CREATE NEW JOB DATABASE */
+		pkg.ADB.CreateDatabase(device.Job.DESJobName)
+
+		/* CONNECT TO THE NEW ACTIVE JOB DATABASE, ON FAILURE, LOG TO CMDARCHIVE */
+		if err := device.ConnectJobDBC(); err != nil {
+			device.JobDBC = device.CmdDBC
+			fmt.Printf("\n(device *Device) StartJob( ): CONNECTION FAILED! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
+
+		} else {
+			fmt.Printf("\n(device *Device) StartJob( ): CONNECTED TO: %s\n", device.JobDBC.GetDBName())
+			
+			/* CREATE JOB DB TABLES */
+			if err := device.JobDBC.Migrator().CreateTable(
+				&Admin{},
+				&Header{},
+				&Config{},
+				&EventTyp{},
+				&Event{},
+				&Sample{},
+			); err != nil {
+				pkg.TraceErr(err)
+			}
+
+			for _, typ := range EVENT_TYPES {
+				device.JobDBC.Create(&typ)
+			}
+		}
 	}
+
+	/* WRITE INITIAL JOB RECORDS */
+	if err := device.JobDBC.Write(&device.ADM); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := device.JobDBC.Write(&device.HDR); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := device.JobDBC.Write(&device.CFG); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := device.JobDBC.Write(&evt); err != nil {
+		pkg.TraceErr(err)
+	}
+
+	/* UPDATE THE DEVICE EVENT CODE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB 
+	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
+	*/
+	device.EVT = evt
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	device.EVT = evt
 	Devices[device.DESDevSerial] = *device
 
-	fmt.Printf("\n(device *Device) StartJob( ) COMPLETE: %s\n", device.HDR.HdrJobName)
+	fmt.Printf("\n(device *Device) StartJob( ): COMPLETE: %s\n", device.JobDBC.GetDBName())
 }
 
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
@@ -387,9 +404,10 @@ func (device *Device) EndJob(evt Event) {
 	pkg.DES.DB.Save(zero.DESJob)
 
 	/* WAIT FOR FINAL HEADER TO BE RECEIVED */
-	fmt.Printf("\nWaiting for final Header...")
-	for device.HDR.HdrTime < evt.EvtTime {}
-	fmt.Printf("\nFinal Header received.")
+	fmt.Printf("\n(device *Device) EndJob( ) -> Waiting for final Header... H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime )
+	for device.HDR.HdrTime < evt.EvtTime {} // THIS IS A SHITE SOLUTION...
+	fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime )
+	/* TODO: IF FINAL HEADER NOT RECEIVED, MAKE ONE... */
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()

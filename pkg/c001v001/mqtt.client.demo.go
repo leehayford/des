@@ -1,6 +1,7 @@
 package c001v001
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -70,50 +71,7 @@ type DemoDeviceClientsMap map[string]DemoDeviceClient
 
 var DemoDeviceClients = make(DemoDeviceClientsMap)
 
-func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
-
-	demo.MQTTUser = pkg.MQTT_USER
-	demo.MQTTPW = pkg.MQTT_PW
-	demo.MQTTClientID = fmt.Sprintf(
-		"%s-%s-%s-DEMO",
-		demo.DESDevClass,
-		demo.DESDevVersion,
-		demo.DESDevSerial,
-	)
-	if err = demo.DESMQTTClient.DESMQTTClient_Connect(false); err != nil {
-		return err
-	}
-
-	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
-
-	// pkg.MQTTDemoClients[demo.DESDevSerial] = demo.DESMQTTClient
-	// demoClient := pkg.MQTTDemoClients[demo.DESDevSerial]
-	// fmt.Printf("\n%s client ID: %s\n", demo.DESDevSerial, demoClient.MQTTClientID)
-
-	// DemoDeviceClients[demo.DESDevSerial] = *demo
-	// d := c001v001.DemoDeviceClients[demo.DESDevSerial]
-	// fmt.Printf("\nCached DemoDeviceClient %s, current event code: %d\n", d.DESDevSerial, d.EVT.EvtCode)
-	// fmt.Printf("\n(demo) MQTTDemoDeviceClient_Connect( ) -> ClientID: %s\n", demo.ClientID)
-
-	return err
-}
-func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
-
-	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
-	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
-
-	/* DISCONNECT THE DESMQTTCLient */
-	demo.DESMQTTClient_Disconnect()
-
-	fmt.Printf("\n(device) MQTTDemoDeviceClient_Dicconnect( ): Complete -> ClientID: %s\n", demo.ClientID)
-}
-
+/* GET THE CURRENT DESRegistration FOR ALL DEMO DEVICES ON THIS DES */
 func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 
 	subQryLatestJob := pkg.DES.DB.
@@ -134,6 +92,7 @@ func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 	err = res.Error
 	return
 }
+/* REGISTER A DEMO DEVICE ON THIS DES */
 func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 
 	t := time.Now().UTC().UnixMilli()
@@ -259,83 +218,138 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 
 	return reg
 }
-func (demo *DemoDeviceClient) GetDemoDeviceStatus() (err error) {
-
-	demo.GetCurrentJob()
-	// fmt.Printf("\n(demo *DemoDeviceClient) GetDemoDeviceStatus() -> demo.DESJobName: %v\n", demo.DESJobName)
-
-	d := DemoDeviceClients[demo.DESDevSerial]
-	// fmt.Printf("\n(demo *DemoDeviceClient) GetDemoDeviceStatus() -> d.DESJobName: %v\n", d.DESJobName)
-
-	if d.JobDBC.DB == nil {
-		d.ConnectJobDBC() // fmt.Printf("\n(demo *DemoDeviceClient) GetDeviceStatus() -> d.JobDBC.DB: %v\n", d.JobDBC.DB)
-		fmt.Printf("\n(demo *DemoDeviceClient) GetDeviceStatus() -> d.JobDBC: %v\n", d.JobDBC.GetDBName())
-	}
-
-	d.JobDBC.Last(&d.ADM)
-	d.JobDBC.Last(&d.HDR)
-	d.JobDBC.Last(&d.CFG)
-	d.JobDBC.Last(&d.EVT)
-	d.JobDBC.Last(&d.SMP)
-
-	d.JobDBC.Disconnect() // we don't want to maintain this connection
-
-	DemoDeviceClients[demo.DESDevSerial] = d
-
-	return
+/* RETURNS A 10 CHRACTER SERIAL # LIKE 'DEMO000000' */
+func DemoSNMaker(i int) (sn string) {
+	iStr := fmt.Sprintf("%d", i)
+	l := len(iStr)
+	size := 6 - l
+	sn0s := string(bytes.Repeat([]byte{0x30}, size))
+	return fmt.Sprintf("DEMO%s%s", sn0s, iStr)
 }
 
-/* CREATE A DEMO DEVICE CLIENT FOR EACH REGISTERED DEMO DEVICE 
-	WHERE THERE ARE NO DEMO DEVICES, MAKE SOME */
-func DemoDeviceClient_ConnectAll() (err error) {
+/* CALLED ON SERVER STARTUP */
+func DemoDeviceClient_ConnectAll(qty int) {
 	
 	regs, err := GetDemoDeviceList()
 	if err != nil {
 		pkg.TraceErr(err)
 	}
 
+	/* WHERE THERE ARE NO DEMO DEVICES, MAKE qty OF THEM */
 	if len(regs) == 0 {
 		user := pkg.User{}
 		pkg.DES.DB.Last(&user)
-		regs = append(regs, MakeDemoC001V001("DEMO000000", user.ID.String()))
-		regs = append(regs, MakeDemoC001V001("DEMO000001", user.ID.String()))
-		regs = append(regs, MakeDemoC001V001("DEMO000002", user.ID.String()))
+
+		for i := 0; i < qty; i++ {
+			regs = append(regs, MakeDemoC001V001(DemoSNMaker(i), user.ID.String()))
+		}
 		MakeDemoC001V001("RENE123456", user.ID.String())
 	}
 
 	for _, reg := range regs {
-		demo := DemoDeviceClient{
-			Device: Device{ 
-				DESRegistration: reg,
-				Job: Job{DESRegistration: reg},
-			},
-		}
-
-		if err := demo.MQTTDemoDeviceClient_Connect(); err != nil {
-			pkg.TraceErr(err)
-		}
-
-		DemoDeviceClients[demo.DESDevSerial] = demo
-
-		demo.GetDemoDeviceStatus()
-		go demo.Demo_Simulation(time.Now().UTC())
-	
+		demo := DemoDeviceClient{}
+		demo.Device.DESRegistration = reg
+		demo.Device.Job = Job{DESRegistration: reg}
+		demo.DESMQTTClient = pkg.DESMQTTClient{}
+		demo.DemoDeviceClient_Connect()
 	}
+
+}
+
+/* CALLED ON SERVER SHUT DOWN */
+func DemoDeviceClient_DisconnectAll() {
+	/* TODO: TEST WHEN IMPLEMENTING
+	- UNREGISTER DEVICE
+	- GRACEFUL SHUTDOWN
+	*/
+	fmt.Printf("\nDemoDeviceClient_DisconnectAll()\n")
+	for _, d := range DemoDeviceClients {
+		d.DemoDeviceClient_Disconnect()
+	}
+}
+
+func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
+
+	fmt.Printf("\n\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connecting... \n", demo.DESDevSerial)
+
+	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> getting last known status... \n", demo.DESDevSerial)
+	demo.ConnectJobDBC()
+	demo.JobDBC.Last(&demo.ADM)
+	demo.JobDBC.Last(&demo.HDR)
+	demo.JobDBC.Last(&demo.CFG)
+	demo.JobDBC.Last(&demo.EVT)
+	demo.JobDBC.Last(&demo.SMP)
+	demo.JobDBC.Disconnect() // we don't want to maintain this connection
+
+	if err := demo.MQTTDemoDeviceClient_Connect(); err != nil {
+		pkg.TraceErr(err)
+	}
+
+	/* ADD TO DemoDeviceClients MAP */
+	DemoDeviceClients[demo.DESDevSerial] = *demo
+	
+	/* RUN THE SIMULATION */
+	go demo.Demo_Simulation(time.Now().UTC())
 	time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 
-	return
+	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
+
 }
-func DemoDeviceClient_DisconnectAll() (err error) {
+func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
+	/* TODO: TEST WHEN IMPLEMENTING
+	- UNREGISTER DEVICE
+	- GRACEFUL SHUTDOWN
+	*/
+	fmt.Printf("\n\n(demo *DemoDeviceClient) DemoDeviceClient_Disconnect() -> %s -> disconnecting... \n", demo.DESDevSerial)
 
-	for _, d := range DemoDeviceClients {
+	if err := demo.MQTTDeviceClient_Disconnect(); err != nil {
+		pkg.TraceErr(err)
+	}
+	delete(DemoDeviceClients, demo.DESDevSerial)
+}
 
-		if err := d.MQTTDeviceClient_Disconnect(); err != nil {
-			pkg.TraceErr(err)
-		}
+func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 
+	demo.MQTTUser = pkg.MQTT_USER
+	demo.MQTTPW = pkg.MQTT_PW
+	demo.MQTTClientID = fmt.Sprintf(
+		"%s-%s-%s-DEMO",
+		demo.DESDevClass,
+		demo.DESDevVersion,
+		demo.DESDevSerial,
+	)
+	if err = demo.DESMQTTClient.DESMQTTClient_Connect(false); err != nil {
+		return err
 	}
 
-	return
+	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
+
+	// pkg.MQTTDemoClients[demo.DESDevSerial] = demo.DESMQTTClient
+	// demoClient := pkg.MQTTDemoClients[demo.DESDevSerial]
+	// fmt.Printf("\n%s client ID: %s\n", demo.DESDevSerial, demoClient.MQTTClientID)
+
+	// DemoDeviceClients[demo.DESDevSerial] = *demo
+	// d := c001v001.DemoDeviceClients[demo.DESDevSerial]
+	// fmt.Printf("\nCached DemoDeviceClient %s, current event code: %d\n", d.DESDevSerial, d.EVT.EvtCode)
+	// fmt.Printf("\n(demo) MQTTDemoDeviceClient_Connect( ) -> ClientID: %s\n", demo.ClientID)
+
+	return err
+}
+func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
+
+	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
+	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
+
+	/* DISCONNECT THE DESMQTTCLient */
+	demo.DESMQTTClient_Disconnect()
+
+	fmt.Printf("\n(device) MQTTDemoDeviceClient_Dicconnect( ): Complete -> ClientID: %s\n", demo.ClientID)
 }
 
 
@@ -765,7 +779,6 @@ func (demo *DemoDeviceClient) EndDemoJob() {
 /*DEMO SIM -> PUBLISH TO MQTT */
 func (demo *DemoDeviceClient) Demo_Simulation(t0 time.Time) {
 
-	// i := 0
 	for demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 		t := time.Now().UTC()
 		demo.Demo_Simulation_Take_Sample(t0, t)
@@ -774,17 +787,7 @@ func (demo *DemoDeviceClient) Demo_Simulation(t0 time.Time) {
 		demo.MQTTPublication_DemoDeviceClient_SIGSample(&smp)
 
 		time.Sleep(time.Millisecond * time.Duration(demo.CFG.CfgOpSample))
-		// if i % 3 == 0 {
-		// 	demo.CFG.CfgVlvTgt = 0
-		// }
-		// if i % 5 == 0 {
-		// 	demo.CFG.CfgVlvTgt = 4
-		// }
-		// if i % 7 == 0 {
-		// 	demo.CFG.CfgVlvTgt = 6
-		// }
-		// i++
-		// fmt.Printf("(demo *DemoDeviceClient) Demo_Simulation( ): %s -> %d\n", demo.DESDevSerial, t.UnixMilli())
+
 	}
 	// pkg.Json("(demo *DemoDeviceClient) Demo_Simulation( )", demo.EVT)
 	fmt.Printf("\n(demo) Demo_Simulation( ) %s waiting for job start...\n", demo.DESDevSerial)

@@ -69,7 +69,7 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	DES JOB REGISTRATION
 	CLASS/VERSION SPECIFIC JOB START ACTIONS
 */
-func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
+func HandleStartJob(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleStartJob( )\n")
 
 	/* CHECK USER PERMISSION */
@@ -80,13 +80,15 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 			"message": "You must be an administrator to start a job",
 		})
 	}
+
 	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
 	if err = c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("(dev *Device) HandleStartJob(): -> c.BodyParser(&device) -> dev", device)
+	} // pkg.Json("HandleStartJob(): -> c.BodyParser(&device) -> dev", device)
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
@@ -108,7 +110,7 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	device.ADM.AdmOpHost = pkg.MQTT_HOST
 	device.ADM.AdmOpPort = pkg.MQTT_PORT
 	device.ADM.AdmSerial = device.Job.DESDevSerial
-	// pkg.Json("(device *Device) HandleStartJob(): -> device.ADM", device.ADM)
+	// pkg.Json("HandleStartJob(): -> device.ADM", device.ADM)
 
 	device.HDR.HdrTime = startTime
 	device.HDR.HdrAddr = c.IP()
@@ -118,15 +120,12 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	device.HDR.HdrJobEnd = -1          // This means there is a pending request for the device to start a new job
 	device.HDR.HdrGeoLng = -180
 	device.HDR.HdrGeoLat = 90
-	// pkg.Json("(device *Device) HandleStartJob(): -> device.HDR", device.HDR)
+	// pkg.Json("HandleStartJob(): -> device.HDR", device.HDR)
 
 	device.CFG.CfgTime = startTime
 	device.CFG.CfgAddr = c.IP()
 	device.CFG.CfgUserID = device.DESJobRegUserID
-	// pkg.Json("(device *Device) HandleStartJob(): -> device.CFG", device.CFG)
-
-	device.SMP.SmpTime = startTime
-	device.SMP.SmpJobName = device.HDR.HdrJobName
+	// pkg.Json("HandleStartJob(): -> device.CFG", device.CFG)
 
 	device.EVT = Event{
 		EvtTime:   startTime,
@@ -152,7 +151,7 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	Devices[device.DESDevSerial] = *device
+	Devices[device.DESDevSerial] = device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -170,7 +169,7 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	DES JOB REGISTRATION ( UPDATE JOB 0 START DATE )
 	CLASS/VERSION SPECIFIC JOB END ACTIONS
 */
-func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
+func HandleEndJob(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleEndtJob( )\n")
 
 	/* CHECK USER PERMISSION */
@@ -183,6 +182,7 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
 	if err = c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
@@ -218,7 +218,7 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	Devices[device.DESDevSerial] = *device
+	Devices[device.DESDevSerial] = device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -232,7 +232,7 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 
 BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
 */
-func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) {
+func HandleSetAdmin(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSetAdmin( )\n")
 
 	/* CHECK USER PERMISSION */
@@ -245,12 +245,13 @@ func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) {
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
 	if err = c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("(devive *Device) HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
+	} // pkg.Json("HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.ADM.AdmTime = time.Now().UTC().UnixMilli()
@@ -269,7 +270,7 @@ func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
 
 	/* UPDATE DevicesMap */
-	Devices[device.DESDevSerial] = *device
+	Devices[device.DESDevSerial] = device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -283,7 +284,7 @@ func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) {
 
 BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
 */
-func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) {
+func HandleSetHeader(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSetHeader( )\n")
 
 	/* CHECK USER PERMISSION */
@@ -296,12 +297,13 @@ func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) {
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
 	if err = c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("(devive *Device) HandleSetHeader(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
+	} // pkg.Json("HandleSetHeader(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedADM()
@@ -320,7 +322,7 @@ func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
 
 	/* UPDATE DevicesMap */
-	Devices[device.DESDevSerial] = *device
+	Devices[device.DESDevSerial] = device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -334,8 +336,8 @@ func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) {
 
 BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
 */
-func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleSetConfig( )\n")
+func HandleSetConfig(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleSetConfig( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
@@ -347,12 +349,13 @@ func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
 	if err = c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("(devive *Device) HandleSetConfig(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
+	} // pkg.Json("HandleSetConfig(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedADM()
@@ -371,7 +374,7 @@ func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
 
 	/* UPDATE DevicesMap */
-	Devices[device.DESDevSerial] = *device
+	Devices[device.DESDevSerial] = device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",

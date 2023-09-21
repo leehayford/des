@@ -46,17 +46,17 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub bool ) (err error
 	desm.SetCleanSession(falseToResub) // FALSE to ensure subscriptions are active on reconnect
 	desm.SetMaxReconnectInterval(time.Second * 10)
 	desm.OnConnect = func(c phao.Client) {
-		fmt.Printf("\n\nDESMQTTClient: %s connected...\n", desm.MQTTClientID,)
+		fmt.Printf("\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connected...\n", desm.MQTTClientID,)
 	}
 	desm.OnConnectionLost = func(c phao.Client, err error) {
 		fmt.Printf(
-			"\nDESMQTTClient: %s connection lost...\n%s\n", desm.MQTTClientID,
+			"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connection lost...\n%s\n", desm.MQTTClientID,
 			err.Error(),
 		)
 	}
 	desm.DefaultPublishHandler = func(c phao.Client, msg phao.Message) {
 		fmt.Printf(
-			"\nDESMQTTClient: %s\nDefault Handler:\nTopic: %s:\nMessage:\n%s\n\n",
+			"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s\nDefault Handler:\nTopic: %s:\nMessage:\n%s\n\n",
 			desm.MQTTClientID,
 			msg.Topic(),
 			msg.Payload(),
@@ -66,7 +66,7 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub bool ) (err error
 	/*Cerate MQTT Client*/
 	c := phao.NewClient(&desm.ClientOptions)
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
-		fmt.Printf("\nDESMQTTClient: %s connection failed...\n%s\n", desm.MQTTClientID, token.Error())
+		fmt.Printf("\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> FAILED!\n%s\n", desm.MQTTClientID, token.Error())
 		return token.Error()
 	}
 

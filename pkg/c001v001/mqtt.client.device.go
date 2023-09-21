@@ -213,6 +213,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 					go device.JobDBC.Write(device.SMP)
 
 				}
+				// device.UpdateMappedSMP()
 			}
 		},
 	}

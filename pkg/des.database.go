@@ -43,51 +43,55 @@ type DBClient struct {
 	*gorm.DB
 
 	/* WAIT GROUP USED TO ENSURE ALL PENDING WRITES HAVE COMPLETED BEFORE DISCONNECT */
-	WG *sync.WaitGroup
+	WG *sync.WaitGroup /* TODO: ? MAKE THIS PRIVATE IF WE DON'T NEED TO MANAGE IT EXTERNALLY */
 }
 func (dbc *DBClient) GetDBName() string {
-	return strings.Split(dbc.ConnStr, "/")[3]
+	str := strings.Split(dbc.ConnStr, "/")
+	if len(str) == 4 { 
+		/* THIS IS A VALID CONNECTION STRING */
+		return str[3] /* TODO: IMPROVE VALIDATION ? */
+	} else {
+		return ""
+	}
 }
 
 
 func (dbc *DBClient) Connect( /* TODO: CONNECTION POOL OPTIONS */ ) (err error) {
-	/* TODO: SETUP CONNECTION POOLING FOR DIFERENT TYPES OF CONNECTIONS
+	/* TODO: SETUP CONNECTION POOLING FOR DIFFERENT TYPES OF CONNECTIONS
 			? "gorm.io/plugin/dbresolver" ?
 
 			INITIALLY AIMING FOR 100 ACTIVE DEVICES / DES
 			
-			ADMIN DB POOL: USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
-					MAX OPEN CONNECTIONS = 50
-					MAX IDLE CONNECTIONS = 100
+			ADMIN DB POOL: 
+				USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
 
-			DES DB: USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
-					MAX OPEN CONNECTIONS = 50
-					MAX IDLE CONNECTIONS = 100
+			DES DB: 
+				USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
 			
-			DEVICE DB(s): 
-				CMDARCHIVE: USED BY DEVICE CLIENT -> A FEW TRANSACTIONS / PER DAY
-					MAX OPEN CONNECTIONS < 5
-					MAX IDLE CONNECTIONS < 5
-				ACTIVE JOB: USED BY DEVICE CLIENT -> ~ ONE TRANSACTION / SECOND
-					MAX OPEN CONNECTIONS < 5
-					MAX IDLE CONNECTIONS < 5
+			DEVICE DB POOL OR POOLS: 
+				CMDARCHIVE: 
+					USED BY DEVICE CLIENT -> A FEW TRANSACTIONS / PER DAY / DEVICE
+				ACTIVE JOB: 
+					USED BY DEVICE CLIENT -> ~ ONE TRANSACTION / SECOND / DEVCE
 
-			JOB DB: USED WHEN USERS ARE CREATING / VIEWING REPORTS/JOB DATA -> A FEW TRANSACTIONS / PER MINUTE
-				MAX OPEN CONNECTIONS = 50
-				MAX IDLE CONNECTIONS = 100
+			JOB DB POOL: 
+				USED WHEN USERS ARE CREATING / VIEWING REPORTS/JOB DATA -> A FEW TRANSACTIONS / PER MINUTE
 	*/
 	if dbc.DB, err = gorm.Open(postgres.Open(dbc.ConnStr), &gorm.Config{}); err != nil {
-		return err
+		fmt.Printf("\n(dbc *DBClient) Connect() -> %s -> FAILED! \n", dbc.GetDBName())
+		return TraceErr(err)
 	}
 	dbc.DB.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
 	dbc.DB.Logger = logger.Default.LogMode(logger.Error)
 	dbc.WG = &sync.WaitGroup{}
+	
+	fmt.Printf("\n(dbc *DBClient) Connect() -> %s -> connected... \n", dbc.GetDBName())
 	return err
 }
 func (dbc DBClient) Disconnect() (err error) {
 
 	/* ENSURE ALL PENDING WRITES TO JOB DB ARE COMPLETE BEFORE DISCONNECTION */
-	fmt.Printf("\n(dbc DBClient) Disconnect() -> %s -> Waiting for final write ops... \n", dbc.GetDBName())
+	fmt.Printf("\n(dbc *DBClient) Disconnect() -> %s -> waiting for final write ops... \n", dbc.GetDBName())
 	dbc.WG.Wait()
 
 	db, err := dbc.DB.DB()
@@ -97,14 +101,18 @@ func (dbc DBClient) Disconnect() (err error) {
 	if err = db.Close(); err != nil {
 		return TraceErr(err)
 	}
-	fmt.Printf("\n(dbc DBClient) Disconnect() -> %s -> Connection closed. \n", dbc.GetDBName())
-	dbc.ConnStr = ""
-	dbc.DB = nil
+	fmt.Printf("\n(dbc *DBClient) Disconnect() -> %s -> connection closed. \n", dbc.GetDBName())
+	dbc = DBClient{}
 	return
 }
 func (dbc *DBClient) Write(model interface{}) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
+		WE WANT TO PREVENT DISCONNECTION UNTIL ALL TRANSACTIONS HAVE FINISHED
+	*/
 	dbc.WG.Add(1)
 	defer dbc.WG.Done()
+
 	res := dbc.Create(model)
 	return res.Error
 }
@@ -120,6 +128,7 @@ var ADB ADMINDatabase = ADMINDatabase{DBClient: DBClient{ConnStr: ADMIN_DB_CONNE
 type ADMINDatabase struct{ DBClient }
 
 func (adb ADMINDatabase) CreateDatabase(db_name string) {
+	db_name = strings.ToLower(db_name)
 	createDBCommand := fmt.Sprintf(`CREATE DATABASE %s WITH OWNER = datacan 
 		ENCODING = 'UTF8' LC_COLLATE = 'C.UTF-8' LC_CTYPE = 'C.UTF-8' TABLESPACE = pg_default CONNECTION LIMIT = -1 IS_TEMPLATE = False;`,
 		db_name,
@@ -128,11 +137,13 @@ func (adb ADMINDatabase) CreateDatabase(db_name string) {
 	adb.DB.Exec(createDBCommand)
 }
 func (adb ADMINDatabase) CheckDatabaseExists(db_name string) (exists bool) {
+	db_name = strings.ToLower(db_name)
 	checkExistsCommand := `SELECT EXISTS ( SELECT datname FROM pg_catalog.pg_database WHERE datname=? )`
 	adb.DB.Raw(checkExistsCommand, db_name).Scan(&exists)
 	return
 }
 func (adb ADMINDatabase) DropDatabase(db_name string) {
+	db_name = strings.ToLower(db_name)
 	dropDBCommand := fmt.Sprintf(`DROP DATABASE %s WITH (FORCE)`, db_name)
 	adb.DB.Exec(dropDBCommand)
 }

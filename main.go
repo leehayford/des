@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gofiber/contrib/websocket"
+	// "github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/websocket/v2"
 
 	"github.com/leehayford/des/pkg"
 	"github.com/leehayford/des/pkg/c001v001"
@@ -36,6 +37,7 @@ func main() {
 	defer pkg.ADB.Disconnect()
 
 	cleanDB := flag.Bool("clean", false, "Drop and recreate databases")
+	demoQty := flag.Int("demos", 5, "Create n demo devices if there are none currently") /* DEMO -> NOT FOR PRODUCTION */
 	flag.Parse()
 
 	if *cleanDB {
@@ -59,7 +61,7 @@ func main() {
 	/********************************************************************************************/
 	/* DEMO DEVICES -> NOT FOR PRODUCTION */
 	fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
-	c001v001.DemoDeviceClient_ConnectAll()
+	c001v001.DemoDeviceClient_ConnectAll(*demoQty)
 	defer c001v001.DemoDeviceClient_DisconnectAll()
 	/********************************************************************************************/
 
@@ -96,12 +98,21 @@ func main() {
 	/* C001V001 DEVICE ROUTES */
 	api.Route("/001/001/device", func(router fiber.Router) {
 		// router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
-		router.Post("/start", pkg.DesAuth, (&c001v001.Device{}).HandleStartJob)
-		router.Post("/end", pkg.DesAuth, (&c001v001.Device{}).HandleEndJob)
-		router.Post("/admin", pkg.DesAuth, (&c001v001.Device{}).HandleSetAdmin)
-		router.Post("/header", pkg.DesAuth, (&c001v001.Device{}).HandleSetHeader)
-		router.Post("/config", pkg.DesAuth, (&c001v001.Device{}).HandleSetConfig)
+		router.Post("/start", pkg.DesAuth, c001v001.HandleStartJob)
+		router.Post("/end", pkg.DesAuth, c001v001.HandleEndJob)
+		router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)
+		router.Post("/header", pkg.DesAuth, c001v001.HandleSetHeader)
+		router.Post("/config", pkg.DesAuth, c001v001.HandleSetConfig)
 		router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
+
+		
+		app.Use("/ws", func(c *fiber.Ctx) error {
+			if websocket.IsWebSocketUpgrade(c) {
+				c.Locals("allowed", true)
+				return c.Next()
+			}
+			return fiber.ErrUpgradeRequired
+		})
 		router.Get("/ws", pkg.DesAuth, websocket.New(
 			(&c001v001.DeviceUserClient{}).WSDeviceUserClient_Connect,
 		))
