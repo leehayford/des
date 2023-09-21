@@ -34,6 +34,8 @@ type WSMessage struct {
 	Data interface{} `json:"data"`
 }
 
+var done = make(chan struct{})
+
 func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 
 	fmt.Println("\nWSDeviceUserClient_Connect( )...")

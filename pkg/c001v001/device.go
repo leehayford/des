@@ -11,29 +11,56 @@ import (
 const DEVICE_CLASS = "001"
 const DEVICE_VERSION = "001"
 
-const STATUS_JOB_ENDED int32 = 2
+/********************************************************************************************************/
+/* STATUS ( Event.EvtCode ) ****************************************************************************/
 
-const STATUS_JOB_START_REQ int32 = 3
-const STATUS_JOB_STARTED int32 = 4
+const STATUS_DES_REG_REQ int32 = 0 // ADMIN USER REQUEST -> CHANGE DEVICE'S OPERATIONAL DATA EXCHANGE SERVER
 
-const STATUS_JOB_END_REQ int32 = 5
+const STATUS_DES_REGISTERED int32 = 1 // DEVICE RESPONSE -> SENT TO NEW DATA EXCHANGE SERVER
 
+const STATUS_JOB_ENDED int32 = 2 // DEVICE RESPONSE -> WAITING TO START A NEW JOB
+
+const STATUS_JOB_START_REQ int32 = 3 // USER REQUEST -> START JOB
+
+/* STATUS > JOB_START_REQ MEANS WE ARE LOGGING TO AN ACTIVE JOB */
+
+const STATUS_JOB_STARTED int32 = 4 // DEVICE RESPONSE -> JOB HAS BEGUN
+
+const STATUS_JOB_END_REQ int32 = 5 // USER REQUEST -> END JOB
+
+/* STATUS ( Event.EvtCode ) ****************************************************************************/
+/*********************************************************************************************************/
+
+/* VALVE POSITIONS */
 const MODE_BUILD int32 = 0
 const MODE_VENT int32 = 2
 const MODE_HI_FLOW int32 = 4
 const MODE_LO_FLOW int32 = 6
 
+/*
+	FOR EACH REGISTERED DEVICE, THE DES MAINTAINS:
+
+# THE MOST RECENT REGISTRATION DATA FOR THE DEVICE ITSELF, AND THE ACTIVE JOB
+
+# THE MOST RECENT MESSAGE DATA FROM THE DEVICE, ONE OF EACH DATA MODEL PRESENT IN A JOB DATABASE
+
+SEVERAL DEDICATED CONNECTIONS:
+
+	A DEVICE-SPECIFIC CMDARCHIVE DATABASE ( FOR LIFE )
+	A DEVICE-SPECIFIC ACTIVE JOB DATABASE ( CHANGES WITH EACH JOB START )
+	DEVICE-SPECIFIC MQTT CLIENT ( FOR LIFE )
+*/
 type Device struct {
+	pkg.DESRegistration `json:"reg"` // Contains registration data for both the device and active job
 	ADM                 Admin        `json:"adm"` // Last known Admin value
 	HDR                 Header       `json:"hdr"` // Last known Header value
 	CFG                 Config       `json:"cfg"` // Last known Config value
 	EVT                 Event        `json:"evt"` // Last known Event value
 	SMP                 Sample       `json:"smp"` // Last known Sample value
-	Job                 `json:"job"` // The active job for this device ( last job if it has ended )
-	pkg.DESRegistration `json:"reg"`
+	Job                 `json:"job"` // The active job for this device ( CMDARCHIVE when between jobs )
+	CmdDBC              pkg.DBClient `json:"-"` // Database Client for the CMDARCHIVE
+	JobDBC              pkg.DBClient `json:"-"` // Database Client for the active job
 	pkg.DESMQTTClient   `json:"-"`   // MQTT client handling all subscriptions and publications for this device
-	JobDBC              pkg.DBClient `json:"-"` // Database Client for the current job
-	ZeroDBC             pkg.DBClient `json:"-"` // Database Client for the zero job
 }
 
 type DevicesMap map[string]Device
@@ -116,7 +143,7 @@ func (device *Device) DeviceClient_Disconnect() {
 	- UNREGISTER DEVICE
 	- GRACEFUL SHUTDOWN
 	*/
-	if err := device.ZeroDBC.Disconnect(); err != nil {
+	if err := device.CmdDBC.Disconnect(); err != nil {
 		pkg.TraceErr(err)
 	}
 	if err := device.JobDBC.Disconnect(); err != nil {
@@ -133,7 +160,7 @@ func (device *Device) GetMappedClients() {
 
 	/* GET THE DEVICE CLIENT DATA FROM THE DEVICES CLIENT MAP */
 	d := Devices[device.DESDevSerial]
-	device.ZeroDBC = d.ZeroDBC
+	device.CmdDBC = d.CmdDBC
 	device.JobDBC = d.JobDBC
 	device.DESMQTTClient = d.DESMQTTClient
 }
@@ -167,8 +194,8 @@ func (device *Device) GetMappedSMP() {
 	d := Devices[device.DESDevSerial]
 	device.SMP = d.SMP
 }
+ 
 
-/******************************************************************************************************************/
 /******************************************************************************************************************/
 /* TODO: RENAME ZERO JOB TO CMDARCHIVE ****************************************************************/
 
@@ -198,13 +225,13 @@ func (device Device) GetZeroJobDESRegistration() (zero Job) {
 
 /* CONNECTS THE ZERO JOB DBClient TO THE ZERO JOB DATABASE */
 func (device *Device) ConnectZeroDBC() (err error) {
-	device.ZeroDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.ZeroJobName()))}
-	return device.ZeroDBC.Connect()
+	device.CmdDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.ZeroJobName()))}
+	return device.CmdDBC.Connect()
 }
 
 /* TODO: RENAME ZERO JOB TO CMDARCHIVE ****************************************************************/
-/******************************************************************************************************************/
-/******************************************************************************************************************/
+/******************************************************************************************************************/ 
+
 
 /* RETURNS THE DESRegistration FOR THE DEVICE AND ITS ACTIVE JOB FROM THE DES DATABASE */
 func (device *Device) GetCurrentJob() {
@@ -322,7 +349,7 @@ func (device *Device) StartJob(evt Event) {
 	}
 
 	if device.JobDBC.DB == nil {
-		device.JobDBC = device.ZeroDBC
+		device.JobDBC = device.CmdDBC
 		fmt.Printf("\n(device *Device) StartJob( ) FAILED! *** LOGGING TO: %s\n", device.HDR.HdrJobName)
 	}
 
@@ -359,12 +386,17 @@ func (device *Device) EndJob(evt Event) {
 	zero.DESJobRegApp = evt.EvtApp
 	pkg.DES.DB.Save(zero.DESJob)
 
+	/* WAIT FOR FINAL HEADER TO BE RECEIVED */
+	fmt.Printf("\nWaiting for final Header...")
+	for device.HDR.HdrTime < evt.EvtTime {}
+	fmt.Printf("\nFinal Header received.")
+
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 
 	/* ENSURE WE CATCH STRAY SAMPLES IN THE CMDARCHIVE */
 	device.Job = zero
-	device.ConnectJobDBC() 
+	device.ConnectJobDBC()
 
 	/* RETURN DEVICE CLIENT DATA TO DEFAULT STATE */
 	device.ADM = device.Job.RegisterJob_Default_JobAdmin()
@@ -385,7 +417,6 @@ func (device *Device) EndJob(evt Event) {
 	device.CFG.CfgUserID = evt.EvtUserID
 	device.CFG.CfgApp = evt.EvtApp
 
-	
 	/* RETURN DEVICE (PHYSICAL) DATA TO DEFAULT STATE */
 	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
 	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)

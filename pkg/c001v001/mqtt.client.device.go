@@ -9,11 +9,11 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
-/* MQTT DEVICE CLIENT
-
-PUBLISHES ALL COMMANDS TO A SINGLE DEVICE
-SUBSCRIBES TO ALL SIGNALS FOR A SINGLE DEVICE
-  - WRITES MESSAGES TO THE JOB DATABASE
+/*
+	 MQTT DEVICE CLIENT
+		PUBLISHES ALL COMMANDS TO A SINGLE DEVICE
+		SUBSCRIBES TO ALL SIGNALS FOR A SINGLE DEVICE
+	  - WRITES MESSAGES TO THE CMD ARCHIVE AND ACTIVE JOB DATABASES
 */
 func (device *Device) MQTTDeviceClient_Connect() (err error) {
 
@@ -78,7 +78,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			if err := json.Unmarshal(msg.Payload(), &device.ADM); err != nil {
 				pkg.TraceErr(err)
 			}
-			go device.ZeroDBC.Write(device.ADM)
+			go device.CmdDBC.Write(device.ADM)
 			// device.ZeroDBC.WriteMQTT(msg.Payload(), &device.ADM)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
@@ -102,7 +102,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			if err := json.Unmarshal(msg.Payload(), &device.HDR); err != nil {
 				pkg.TraceErr(err)
 			}
-			go device.ZeroDBC.Write(device.HDR)
+			go device.CmdDBC.Write(device.HDR)
 			// device.ZeroDBC.WriteMQTT(msg.Payload(), &device.HDR)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
@@ -126,7 +126,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			if err := json.Unmarshal(msg.Payload(), &device.CFG); err != nil {
 				pkg.TraceErr(err)
 			}
-			go device.ZeroDBC.Write(device.CFG)
+			go device.CmdDBC.Write(device.CFG)
 			// device.ZeroDBC.WriteMQTT(msg.Payload(), &device.CFG)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
@@ -155,7 +155,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
 				pkg.TraceErr(err)
 			}
-			go device.ZeroDBC.Write(evt)
+			go device.CmdDBC.Write(evt)
 
 			/* CHECK THE RECEIVED EVENT CODE */
 			switch evt.EvtCode {
@@ -211,7 +211,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 
 					// Write the Sample to the job database
 					go device.JobDBC.Write(device.SMP)
-					
+
 				}
 			}
 		},
@@ -229,7 +229,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 		},
 	}
 }
-
 
 /* PUBLICATIONS ******************************************************************************************/
 

@@ -41,7 +41,7 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 			device := Devices[r.DESDevSerial]
 			device.DESRegistration = r
-			device.GetCurrentJob() 
+			device.GetCurrentJob()
 			// device.GetMappedADM()
 			// device.GetMappedHDR()
 			// device.GetMappedCFG()
@@ -139,10 +139,10 @@ func (device *Device) HandleStartJob(c *fiber.Ctx) (err error) {
 	}
 
 	/* LOG START JOB REQUEST TO ZERO JOB */
-	device.ZeroDBC.Create(&device.ADM)
-	device.ZeroDBC.Create(&device.HDR)
-	device.ZeroDBC.Create(&device.CFG)
-	device.ZeroDBC.Create(&device.EVT)
+	device.CmdDBC.Create(&device.ADM)
+	device.CmdDBC.Create(&device.HDR)
+	device.CmdDBC.Create(&device.CFG)
+	device.CmdDBC.Create(&device.EVT)
 
 	// /* MQTT PUB CMD: ADM, HDR, CFG, EVT */
 	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -208,7 +208,7 @@ func (device *Device) HandleEndJob(c *fiber.Ctx) (err error) {
 	}
 
 	/* LOG END JOB REQUEST TO ZERO JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.ZeroJobName())
-	device.ZeroDBC.Create(&device.EVT)
+	device.CmdDBC.Create(&device.EVT)
 
 	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
 	device.JobDBC.Create(&device.EVT)
@@ -262,7 +262,7 @@ func (device *Device) HandleSetAdmin(c *fiber.Ctx) (err error) {
 	device.GetMappedClients()
 
 	/* LOG ADM CHANGE REQUEST TO ZERO JOB */
-	device.ZeroDBC.Create(device.ADM)
+	device.CmdDBC.Create(device.ADM)
 
 	/* MQTT PUB CMD: ADM */
 	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -313,7 +313,7 @@ func (device *Device) HandleSetHeader(c *fiber.Ctx) (err error) {
 	device.GetMappedClients()
 
 	/* LOG HDR CHANGE REQUEST TO ZERO JOB */
-	device.ZeroDBC.Create(device.HDR)
+	device.CmdDBC.Create(device.HDR)
 
 	/* MQTT PUB CMD: HDR */
 	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -364,7 +364,7 @@ func (device *Device) HandleSetConfig(c *fiber.Ctx) (err error) {
 	device.GetMappedClients()
 
 	/* LOG CFG CHANGE REQUEST TO ZERO JOB */
-	device.ZeroDBC.Create(device.CFG)
+	device.CmdDBC.Create(device.CFG)
 
 	/* MQTT PUB CMD: CFG */
 	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
