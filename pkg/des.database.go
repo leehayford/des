@@ -45,6 +45,9 @@ type DBClient struct {
 	/* WAIT GROUP USED TO ENSURE ALL PENDING WRITES HAVE COMPLETED BEFORE DISCONNECT */
 	WG *sync.WaitGroup
 }
+func (dbc *DBClient) GetDBName() string {
+	return strings.Split(dbc.ConnStr, "/")[3]
+}
 
 
 func (dbc *DBClient) Connect( /* TODO: CONNECTION POOL OPTIONS */ ) (err error) {
@@ -84,6 +87,7 @@ func (dbc *DBClient) Connect( /* TODO: CONNECTION POOL OPTIONS */ ) (err error) 
 func (dbc DBClient) Disconnect() (err error) {
 
 	/* ENSURE ALL PENDING WRITES TO JOB DB ARE COMPLETE BEFORE DISCONNECTION */
+	fmt.Printf("\n(dbc DBClient) Disconnect() -> %s -> Waiting for final write ops... \n", dbc.GetDBName())
 	dbc.WG.Wait()
 
 	db, err := dbc.DB.DB()
@@ -95,7 +99,7 @@ func (dbc DBClient) Disconnect() (err error) {
 	}
 	dbc.ConnStr = ""
 	dbc.DB = nil
-	fmt.Printf("\n (dbc DBClient) Disconnect() -> Connection closed. \n")
+	fmt.Printf("\n(dbc DBClient) Disconnect() -> %s -> Connection closed. \n", dbc.GetDBName())
 	return
 }
 func (dbc *DBClient) Write(model interface{}) (err error) {
