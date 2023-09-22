@@ -2,7 +2,6 @@ package c001v001
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -16,7 +15,6 @@ import (
 	"time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
-	// "github.com/gofiber/contrib/websocket"
 
 	"github.com/leehayford/des/pkg"
 )
@@ -27,14 +25,6 @@ import (
 PUBLISHES TO ALL SIG TOPICS AS A SINGLE DEVICE AS A SINGLE DEVICE
 SUBSCRIBES TO ALL COMMAND TOPICS AS A SINGLE DEVICE
 */
-type Sim struct {
-	Qty      int                `json:"qty"`
-	Dur      int64              `json:"dur"`
-	FillQty  int64              `json:"fill_qty"`
-	MTxCh4   DemoModeTransition `json:"mtx_ch4"`
-	MTxFlow  DemoModeTransition `json:"mtx_flow"`
-	MTxBuild DemoModeTransition `json:"mtx_build"`
-}
 
 type DemoModeTransition struct {
 	VMin    float32       `json:"v_min"`
@@ -45,28 +35,10 @@ type DemoModeTransition struct {
 
 type DemoDeviceClient struct {
 	Device
-
-	// // ADM     Admin    // RAM Value
-	// ADMFile *os.File // Flash
-
-	// // HDR     Header   // RAM Value
-	// HDRFile *os.File // Flash
-
-	// // CFG     Config   // RAM Value
-	// CFGFile *os.File // Flash
-
-	// // EVT     Event    // RAM Value
-	// EVTFile *os.File // Flash
-
-	// // SMP 	Sample // RAM Value
-	// SMPFile *os.File // Flash
-
-	Sim
-	sizeChan   chan int
-	sentChan   chan int
-	WSClientID string
-	CTX        context.Context
-	Cancel     context.CancelFunc
+	TZero time.Time
+	MTxCh4   DemoModeTransition `json:"mtx_ch4"`
+	MTxFlow  DemoModeTransition `json:"mtx_flow"`
+	MTxBuild DemoModeTransition `json:"mtx_build"`
 	pkg.DESMQTTClient
 }
 
@@ -98,6 +70,8 @@ func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 
 /* REGISTER A DEMO DEVICE ON THIS DES */
 func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
+
+	fmt.Printf("\n\nMakeDemoC001V001() -> %s... \n", serial)
 
 	t := time.Now().UTC().UnixMilli()
 	/* CREATE DEMO DEVICE */
@@ -293,7 +267,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	DemoDeviceClients[demo.DESDevSerial] = *demo
 
 	/* RUN THE SIMULATION */
-	go demo.Demo_Simulation(time.Now().UTC())
+	go demo.Demo_Simulation()
 	time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 
 	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
@@ -450,10 +424,16 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 		Topic: demo.MQTTTopic_CMDConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
+			mode := demo.CFG.CfgVlvTgt
+
 			/* LOAD VALUE INTO SIM 'RAM' */
 			if err := json.Unmarshal(msg.Payload(), &demo.CFG); err != nil {
 				pkg.TraceErr(err)
 				// return
+			}
+
+			if mode != demo.CFG.CfgVlvTgt {
+				demo.TZero = time.Now().UTC()
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -644,8 +624,8 @@ func (demo *DemoDeviceClient) StartDemoJob( /*state*/ ) {
 	// }
 
 	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
-	t0 := time.Now().UTC()
-	startTime := t0.UnixMilli()
+	demo.TZero = time.Now().UTC()
+	startTime := demo.TZero.UnixMilli()
 
 	/* WHERE JOB START ADMIN WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.ADM.AdmTime != demo.EVT.EvtTime {
@@ -690,7 +670,7 @@ func (demo *DemoDeviceClient) StartDemoJob( /*state*/ ) {
 	demo.EVT.EvtMsg = demo.HDR.HdrJobName
 
 	/* TAKE A SAMPLE */
-	demo.Demo_Simulation_Take_Sample(t0, time.Now().UTC())
+	demo.Demo_Simulation_Take_Sample(demo.TZero, time.Now().UTC())
 
 	/* WRITE TO FLASH - CMDARCHIVE */
 	demo.WriteAdmToFlash(demo.CmdArchiveName(), demo.ADM)
@@ -734,7 +714,7 @@ func (demo *DemoDeviceClient) StartDemoJob( /*state*/ ) {
 
 	// time.Sleep(time.Second * 10)
 	/* RUN JOB... */
-	go demo.Demo_Simulation(t0)
+	go demo.Demo_Simulation()
 	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( ) -> RUNNING %s...\n", demo.HDR.HdrJobName)
 }
 
@@ -775,11 +755,19 @@ func (demo *DemoDeviceClient) EndDemoJob() {
 }
 
 /*DEMO SIM -> PUBLISH TO MQTT */
-func (demo *DemoDeviceClient) Demo_Simulation(t0 time.Time) {
+func (demo *DemoDeviceClient) Demo_Simulation() {
 
+	/* CREATE RANDOM SIMULATED WELL CONDITIONS */
+	demo.Set_MTx()
+	demo.SMP.SmpCH4 = demo.MTxCh4.VMin
+	demo.SMP.SmpHiFlow = demo.MTxFlow.VMin
+	demo.SMP.SmpLoFlow = demo.MTxFlow.VMin
+	demo.SMP.SmpPress = demo.MTxBuild.VMin
+
+	demo.TZero = time.Now().UTC()
 	for demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 		t := time.Now().UTC()
-		demo.Demo_Simulation_Take_Sample(t0, t)
+		demo.Demo_Simulation_Take_Sample(demo.TZero, t)
 		demo.WriteSmpToFlash(demo.Job.DESJobName, demo.SMP)
 		smp := Demo_EncodeMQTTSampleMessage(demo.Job.DESJobName, 0, demo.SMP)
 		demo.MQTTPublication_DemoDeviceClient_SIGSample(&smp)
@@ -793,10 +781,20 @@ func (demo *DemoDeviceClient) Demo_Simulation(t0 time.Time) {
 func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 
 	demo.SMP.SmpTime = ti.UnixMilli()
-	demo.SMP.SmpCH4 = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*250), 97.99999, 0.01)
-	demo.SMP.SmpHiFlow = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*30), 1.79999, 0.01)
-	demo.SMP.SmpLoFlow = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*30), 1.79999, 0.01)
-	demo.SMP.SmpPress = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*600), 18.99999, 699.99999)
+
+	// demo.SMP.SmpCH4 = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*250), 97.99999, 0.01)
+	// demo.SMP.SmpHiFlow = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*30), 1.79999, 0.01)
+	// demo.SMP.SmpLoFlow = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*30), 1.79999, 0.01)
+	// demo.SMP.SmpPress = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*600), 18.99999, 699.99999)
+	if demo.SMP.SmpVlvPos == uint32(MODE_VENT) {
+		demo.Set_MTxVent(t0, ti)
+	}
+	if demo.SMP.SmpVlvPos == uint32(MODE_BUILD) {
+		demo.Set_MTxBuild(t0, ti)
+	}
+	if demo.SMP.SmpVlvPos == uint32(MODE_HI_FLOW) || demo.SMP.SmpVlvPos == uint32(MODE_LO_FLOW ) {
+		demo.Set_MTxFlow(t0, ti)
+	}
 
 	demo.SMP.SmpBatAmp = 0.049 + rand.Float32()*0.023
 	demo.SMP.SmpBatVolt = 12.733 + rand.Float32()*0.072
@@ -808,21 +806,52 @@ func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 	demo.SMP.SmpJobName = demo.HDR.HdrJobName
 }
 
-func YSinX(t0, ti time.Time, max, shift float64) (y float32) {
 
-	freq := 0.5
-	dt := ti.Sub(t0).Seconds()
-	a := max / 2
 
-	return float32(a * (math.Sin(dt*freq+(freq/shift)) + 1))
+/* CREATE RANDOM SIMULATED WELL CONDITIONS */
+var maxCh4 = float32(97.99)
+var minCh4 = float32(23.99)
+var Ch4Dur =  time.Duration(time.Second*250)
+
+var maxFlow = float32(239.99)
+var minFlow = float32(0.23)
+var FlowDur =  time.Duration(time.Second*125)
+
+var maxPress = float32(6205.99)
+var minPress = float32(101.99)
+var BuildDur =  time.Duration(time.Second*375)
+
+func (demo *DemoDeviceClient) Set_MTx() {
+
+	demo.MTxCh4.VMax = minCh4+rand.Float32()*(maxCh4-minCh4)
+	demo.MTxCh4.VMin = 0.01
+
+	demo.MTxFlow.VMax = minFlow+rand.Float32()*(maxFlow-minFlow)
+	demo.MTxFlow.VMin = 0.01
+
+	demo.MTxBuild.VMax = ( demo.MTxFlow.VMax / maxFlow ) * maxPress
+	demo.MTxBuild.VMin = minPress
 }
-func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
 
-	freq := 0.5
-	dt := ti.Sub(t0).Seconds()
-	a := max / 2
+func (demo *DemoDeviceClient) Set_MTxVent(t0, ti time.Time) {
+	demo.SMP.SmpCH4 = Demo_Mode_Transition(t0, ti, Ch4Dur, demo.SMP.SmpCH4, demo.MTxCh4.VMin)
+	demo.SMP.SmpHiFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpHiFlow,demo.MTxFlow.VMin)
+	demo.SMP.SmpLoFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpLoFlow, demo.MTxFlow.VMin)
+	demo.SMP.SmpPress = Demo_Mode_Transition(t0, ti, BuildDur, demo.SMP.SmpPress, demo.MTxBuild.VMin)
+}
+func (demo *DemoDeviceClient) Set_MTxBuild(t0, ti time.Time) {
+	demo.SMP.SmpCH4 = Demo_Mode_Transition(t0, ti, Ch4Dur, demo.SMP.SmpCH4, demo.MTxCh4.VMin)
+	demo.SMP.SmpHiFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpHiFlow,demo.MTxFlow.VMin)
+	demo.SMP.SmpLoFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpLoFlow, demo.MTxFlow.VMin)
+	demo.SMP.SmpPress = Demo_Mode_Transition(t0, ti, BuildDur, demo.SMP.SmpPress, demo.MTxBuild.VMax)
+}
+func (demo *DemoDeviceClient) Set_MTxFlow(t0, ti time.Time) {
+	demo.SMP.SmpCH4 = Demo_Mode_Transition(t0, ti, Ch4Dur, demo.SMP.SmpCH4, demo.MTxCh4.VMax)
+	demo.SMP.SmpHiFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpHiFlow,demo.MTxFlow.VMax)
+	demo.SMP.SmpLoFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpLoFlow, demo.MTxFlow.VMax)
 
-	return float32(a * (math.Cos(dt*freq+(freq/shift)) + 1))
+	fp := ((demo.MTxFlow.VMax / maxFlow ) * minPress * 2 ) + minPress
+	demo.SMP.SmpPress = Demo_Mode_Transition(t0, ti, BuildDur, demo.SMP.SmpPress, fp)
 }
 
 func Demo_EncodeMQTTSampleMessage(job string, i int, smp Sample) MQTT_Sample {
@@ -906,6 +935,23 @@ func Demo_Mode_Transition(t_start, ti time.Time, t_span time.Duration, v_start, 
 	v = min + rand.Float32()*res
 	// fmt.Printf("%f : %f\n", t_rel, v)
 	return
+}
+
+func YSinX(t0, ti time.Time, max, shift float64) (y float32) {
+
+	freq := 0.5
+	dt := ti.Sub(t0).Seconds()
+	a := max / 2
+
+	return float32(a * (math.Sin(dt*freq+(freq/shift)) + 1))
+}
+func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
+
+	freq := 0.5
+	dt := ti.Sub(t0).Seconds()
+	a := max / 2
+
+	return float32(a * (math.Cos(dt*freq+(freq/shift)) + 1))
 }
 
 /* FOR TESTING SIMULATED FLASH WRITE */

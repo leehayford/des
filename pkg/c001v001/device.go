@@ -398,9 +398,16 @@ func (device *Device) EndJob(evt Event) {
 	/* WAIT FOR FINAL HEADER TO BE RECEIVED */
 	fmt.Printf("\n(device *Device) EndJob( ) -> Waiting for final Header... H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
 	for device.HDR.HdrTime < evt.EvtTime {
-	} // THIS IS A SHITE SOLUTION...
+		/* THIS IS A SHITE SOLUTION AND LIKELY UNNECESSARY...
+
+			MQTT MESSAGES COMING FROM THE SIMULATION ARRIVE MUCH QUICKER THAN THEY WILL IN REALITY.
+			THESE MESSAGES ARE PROCESSED IN GO ROUTINES SO A SHORT MESSAGE (JOB ENDED EVENT) CAN END UP
+			BEING PROCESSED BEFORE A LARGER MESSAGE (HEADER), EVEN IF THE SHORT MESSAGE ARRIVED LAST.  
+			
+			WE'LL DO SOME TESTING ONCE THE REAL DEVICES ARE UP AND RUNNING
+		*/
+	} 
 	fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
-	/* TODO: IF FINAL HEADER NOT RECEIVED, MAKE ONE... */
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()

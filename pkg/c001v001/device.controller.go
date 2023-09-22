@@ -34,7 +34,7 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	devices := []Device{}
 	for _, reg := range regs {
 
-		pkg.Json("HandleGetDeviceList( ) -> reg", reg)
+		// pkg.Json("HandleGetDeviceList( ) -> reg", reg)
 		go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
 
 			defer wg.Done()
