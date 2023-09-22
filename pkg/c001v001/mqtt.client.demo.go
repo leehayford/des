@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math"
 	"math/rand"
+
 	// "net/url"
 	"os"
 	"strconv"
@@ -20,9 +21,11 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
-/* NOT FOR PRODUCTION - SIMULATES A C001V001 DEVICE MQTT DEMO DEVICE 
-	PUBLISHES TO ALL SIG TOPICS AS A SINGLE DEVICE AS A SINGLE DEVICE
-	SUBSCRIBES TO ALL COMMAND TOPICS AS A SINGLE DEVICE
+/*
+	NOT FOR PRODUCTION - SIMULATES A C001V001 DEVICE MQTT DEMO DEVICE
+
+PUBLISHES TO ALL SIG TOPICS AS A SINGLE DEVICE AS A SINGLE DEVICE
+SUBSCRIBES TO ALL COMMAND TOPICS AS A SINGLE DEVICE
 */
 type Sim struct {
 	Qty      int                `json:"qty"`
@@ -92,12 +95,13 @@ func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 	err = res.Error
 	return
 }
+
 /* REGISTER A DEMO DEVICE ON THIS DES */
 func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 
 	t := time.Now().UTC().UnixMilli()
 	/* CREATE DEMO DEVICE */
-	
+
 	des_dev := pkg.DESDev{
 		DESDevRegTime:   t,
 		DESDevRegAddr:   "DEMO",
@@ -115,7 +119,7 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 		DESJobRegUserID: userID,
 		DESJobRegApp:    des_dev.DESDevRegApp,
 
-		DESJobName:  fmt.Sprintf("%s_0000000000000", serial),
+		DESJobName:  fmt.Sprintf("%s_CMDARCHIVE", serial),
 		DESJobStart: 0,
 		DESJobEnd:   0,
 		DESJobLng:   -180, // -114.75 + rand.Float32() * ( -110.15 + 114.75 ),
@@ -127,7 +131,7 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 	reg := pkg.DESRegistration{
 		DESDev: des_dev,
 		DESJob: des_job,
-	} 
+	}
 
 	adm := (&Job{}).RegisterJob_Default_JobAdmin()
 	adm.AdmTime = t
@@ -150,14 +154,14 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 	demo := DemoDeviceClient{
 		Device: Device{
 			DESRegistration: reg,
-			ADM: adm,
-			HDR: hdr,
-			CFG: cfg,
+			ADM:             adm,
+			HDR:             hdr,
+			CFG:             cfg,
 			EVT: Event{
 				EvtTime:   t,
-				EvtAddr:  des_dev.DESDevRegAddr,
+				EvtAddr:   des_dev.DESDevRegAddr,
 				EvtUserID: userID,
-				EvtApp:   des_dev.DESDevRegApp,
+				EvtApp:    des_dev.DESDevRegApp,
 
 				EvtCode:  STATUS_JOB_ENDED,
 				EvtTitle: "Intitial State",
@@ -168,7 +172,7 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 		},
 	}
 	/* CREATE CMDARCHIVE DATABASE */
-	pkg.ADB.CreateDatabase( strings.ToLower(demo.Job.DESJobName))
+	pkg.ADB.CreateDatabase(strings.ToLower(demo.Job.DESJobName))
 
 	demo.ConnectJobDBC()
 	// fmt.Printf("\nMakeDemoC001V001(): CONNECTED TO DATABASE: %s\n", demo.JobDBC.ConnStr)
@@ -207,8 +211,8 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 
 	demo.JobDBC.Disconnect()
 
-	/* WRITE TO FLASH - JOB_0 */
-	
+	/* WRITE TO FLASH - CMDARCHIVE */
+
 	fmt.Printf("\nMakeDemoC001V001(): WRITE TO FLASH: %s/\n", demo.Job.DESJobName)
 	demo.WriteAdmToFlash(demo.DESJobName, demo.ADM)
 	demo.WriteHdrToFlash(demo.DESJobName, demo.HDR)
@@ -218,6 +222,7 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 
 	return reg
 }
+
 /* RETURNS A 10 CHRACTER SERIAL # LIKE 'DEMO000000' */
 func DemoSNMaker(i int) (sn string) {
 	iStr := fmt.Sprintf("%d", i)
@@ -229,7 +234,7 @@ func DemoSNMaker(i int) (sn string) {
 
 /* CALLED ON SERVER STARTUP */
 func DemoDeviceClient_ConnectAll(qty int) {
-	
+
 	regs, err := GetDemoDeviceList()
 	if err != nil {
 		pkg.TraceErr(err)
@@ -286,7 +291,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 
 	/* ADD TO DemoDeviceClients MAP */
 	DemoDeviceClients[demo.DESDevSerial] = *demo
-	
+
 	/* RUN THE SIMULATION */
 	go demo.Demo_Simulation(time.Now().UTC())
 	time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
@@ -308,6 +313,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
 
 func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 
+	/* CREATE MQTT CLIENT ID; 23 CHAR MAXIMUM */
 	demo.MQTTUser = pkg.MQTT_USER
 	demo.MQTTPW = pkg.MQTT_PW
 	demo.MQTTClientID = fmt.Sprintf(
@@ -316,27 +322,22 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 		demo.DESDevVersion,
 		demo.DESDevSerial,
 	)
+
+	/* CONNECT TO THE BROKER WITH 'CleanSession = false'
+	AUTOMATICALLY RE-SUBSCRIBE ON RECONNECT AFTER */
 	if err = demo.DESMQTTClient.DESMQTTClient_Connect(false); err != nil {
 		return err
 	}
 
+	/* SUBSCRIBE TO ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
 
-	// pkg.MQTTDemoClients[demo.DESDevSerial] = demo.DESMQTTClient
-	// demoClient := pkg.MQTTDemoClients[demo.DESDevSerial]
-	// fmt.Printf("\n%s client ID: %s\n", demo.DESDevSerial, demoClient.MQTTClientID)
-
-	// DemoDeviceClients[demo.DESDevSerial] = *demo
-	// d := c001v001.DemoDeviceClients[demo.DESDevSerial]
-	// fmt.Printf("\nCached DemoDeviceClient %s, current event code: %d\n", d.DESDevSerial, d.EVT.EvtCode)
-	// fmt.Printf("\n(demo) MQTTDemoDeviceClient_Connect( ) -> ClientID: %s\n", demo.ClientID)
-
 	return err
 }
-func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
+func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().UnSub(demo.DESMQTTClient)
@@ -345,11 +346,13 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() {
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
 
 	/* DISCONNECT THE DESMQTTCLient */
-	demo.DESMQTTClient_Disconnect()
+	if err = demo.DESMQTTClient_Disconnect(); err != nil {
+		pkg.TraceErr(err)
+	}
 
-	fmt.Printf("\n(device) MQTTDemoDeviceClient_Dicconnect( ): Complete -> ClientID: %s\n", demo.ClientID)
+	fmt.Printf("\n(device) MQTTDemoDeviceClient_Dicconnect( ) -> %s -> disconnected.\n", demo.ClientID)
+	return
 }
-
 
 /* SUBSCRIPTIONS ****************************************************************************************/
 
@@ -367,8 +370,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 				// return
 			}
 
-			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB 0 */
-			demo.WriteAdmToFlash(demo.ZeroJobName(), demo.ADM)
+			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
+			demo.WriteAdmToFlash(demo.CmdArchiveName(), demo.ADM)
 			// adm := demo.ADM
 
 			/* UPDATE SOURCE ONLY */
@@ -376,19 +379,19 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 
 			if demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 
-				// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB X */
+				// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				// demo.WriteAdmToFlash(demo.Job.DESJobName, adm)
 
 				/* UPDATE TIME ONLY WHEN LOGGING */
 				demo.ADM.AdmTime = time.Now().UTC().UnixMilli()
 
-				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB X */
+				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
 				demo.WriteAdmToFlash(demo.Job.DESJobName, demo.ADM)
 
 			}
 
-			// /* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB 0 */
-			// demo.WriteAdmToFlash(demo.ZeroJobName(), demo.ADM)
+			// /* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
+			// demo.WriteAdmToFlash(demo.CmdArchiveName(), demo.ADM)
 
 			/* SEND CONFIRMATION */
 			demo.MQTTPublication_DemoDeviceClient_SIGAdmin(&demo.ADM)
@@ -411,8 +414,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 				// return
 			}
 
-			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB 0 */
-			demo.WriteHdrToFlash(demo.ZeroJobName(), demo.HDR)
+			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
+			demo.WriteHdrToFlash(demo.CmdArchiveName(), demo.HDR)
 			// hdr := demo.HDR
 
 			/* UPDATE SOURCE ONLY */
@@ -420,18 +423,18 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 
 			if demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 
-				// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB X */
+				// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				// demo.WriteHdrToFlash(demo.Job.DESJobName, hdr)
 
 				/* UPDATE TIME ONLY WHEN LOGGING */
 				demo.HDR.HdrTime = time.Now().UTC().UnixMilli()
 
-				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB X */
+				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
 				demo.WriteHdrToFlash(demo.Job.DESJobName, demo.HDR)
 			}
 
-			// /* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB 0 */
-			// demo.WriteHdrToFlash(demo.ZeroJobName(), demo.HDR)
+			// /* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
+			// demo.WriteHdrToFlash(demo.CmdArchiveName(), demo.HDR)
 
 			/* SEND CONFIRMATION */
 			demo.MQTTPublication_DemoDeviceClient_SIGHeader(&demo.HDR)
@@ -453,8 +456,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 				// return
 			}
 
-			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB 0 */
-			demo.WriteCfgToFlash(demo.ZeroJobName(), demo.CFG)
+			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
+			demo.WriteCfgToFlash(demo.CmdArchiveName(), demo.CFG)
 			// cfg := demo.CFG
 
 			/* UPDATE SOURCE ONLY */
@@ -462,7 +465,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 
 			if demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 
-				// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB X */
+				// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				// demo.WriteCfgToFlash(demo.Job.DESJobName, cfg)
 
 				/* UPDATE TIME( ONLY WHEN LOGGING) */
@@ -472,8 +475,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 				demo.WriteCfgToFlash(demo.Job.DESJobName, demo.CFG)
 			}
 
-			// /* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB 0 */
-			// demo.WriteCfgToFlash(demo.ZeroJobName(), demo.CFG)
+			// /* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
+			// demo.WriteCfgToFlash(demo.CmdArchiveName(), demo.CFG)
 
 			/* SEND CONFIRMATION */
 			demo.MQTTPublication_DemoDeviceClient_SIGConfig(&demo.CFG)
@@ -498,8 +501,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 				// return
 			}
 
-			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB 0 */
-			demo.WriteEvtToFlash(demo.ZeroJobName(), demo.EVT)
+			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
+			// demo.WriteEvtToFlash(demo.CmdArchiveName(), demo.EVT)
 			// evt := demo.EVT
 
 			/* UPDATE SOURCE ONLY */
@@ -508,42 +511,41 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 			/* CHECK THE RECEIVED EVENT CODE */
 			switch demo.EVT.EvtCode {
 
-			// case 0: 
-				/* REGISTRATION EVENT: USED TO ASSIGN THIS DEVICE TO 
-				A DIFFERENT DATA EXCHANGE SERVER */
-	
-			case STATUS_JOB_END_REQ: // End Job
+			// case 0:
+			/* REGISTRATION EVENT: USED TO ASSIGN THIS DEVICE TO
+			A DIFFERENT DATA EXCHANGE SERVER */
+
+			case STATUS_JOB_END_REQ: 
 				demo.EndDemoJob()
 
-			case STATUS_JOB_START_REQ: // Start Job
-				demo.StartDemoJob(/*state*/)
+			case STATUS_JOB_START_REQ: 
+				demo.StartDemoJob( /*state*/ )
 
 			default:
 
-				/* CHECK THE ORIGINAL DEVICE STATE EVENT CODE 
+				/* CHECK THE ORIGINAL DEVICE STATE EVENT CODE
 				TO SEE IF WE SHOULD WRITE TO THE ACTIVE JOB */
 				if state > STATUS_JOB_START_REQ {
 
-					// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB X */
+					// /* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 					// demo.WriteEvtToFlash(demo.Job.DESJobName, evt)
-				
+
 					/* UPDATE TIME( ONLY WHEN LOGGING) */
 					demo.EVT.EvtTime = time.Now().UTC().UnixMilli()
 
-					/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB X */
+					/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
 					demo.WriteEvtToFlash(demo.Job.DESJobName, demo.EVT)
 				}
 
-				// /* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB 0 */
-				// demo.WriteEvtToFlash(demo.ZeroJobName(), demo.EVT)
-	
+				// /* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
+				// demo.WriteEvtToFlash(demo.CmdArchiveName(), demo.EVT)
+
 				/* SEND CONFIRMATION */
 				demo.MQTTPublication_DemoDeviceClient_SIGEvent(&demo.EVT)
 			}
 		},
 	}
 }
-
 
 /* PUBLICATIONS ******************************************************************************************/
 
@@ -631,10 +633,9 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts *
 	}).Pub(demo.DESMQTTClient)
 }
 
-
 /* SIMULATIONS *******************************************************************************************/
 
-func (demo *DemoDeviceClient) StartDemoJob(/*state*/) {
+func (demo *DemoDeviceClient) StartDemoJob( /*state*/ ) {
 	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( )...\n")
 
 	/* TODO: MAKE SURE THE PREVIOUS JOB IS ENDED */
@@ -691,14 +692,14 @@ func (demo *DemoDeviceClient) StartDemoJob(/*state*/) {
 	/* TAKE A SAMPLE */
 	demo.Demo_Simulation_Take_Sample(t0, time.Now().UTC())
 
-	/* WRITE TO FLASH - JOB 0 */
-	demo.WriteAdmToFlash(demo.ZeroJobName(), demo.ADM)
-	demo.WriteHdrToFlash(demo.ZeroJobName(), demo.HDR)
-	demo.WriteCfgToFlash(demo.ZeroJobName(), demo.CFG)
-	demo.WriteEvtToFlash(demo.ZeroJobName(), demo.EVT)
-	demo.WriteSmpToFlash(demo.ZeroJobName(), demo.SMP)
+	/* WRITE TO FLASH - CMDARCHIVE */
+	demo.WriteAdmToFlash(demo.CmdArchiveName(), demo.ADM)
+	demo.WriteHdrToFlash(demo.CmdArchiveName(), demo.HDR)
+	demo.WriteCfgToFlash(demo.CmdArchiveName(), demo.CFG)
+	demo.WriteEvtToFlash(demo.CmdArchiveName(), demo.EVT)
+	demo.WriteSmpToFlash(demo.CmdArchiveName(), demo.SMP)
 
-	/* WRITE TO FLASH - JOB X */
+	/* WRITE TO FLASH - JOB */
 	demo.Job = Job{
 		DESRegistration: pkg.DESRegistration{
 			DESDev: demo.DESDev,
@@ -744,7 +745,7 @@ func (demo *DemoDeviceClient) EndDemoJob() {
 	t0 := time.Now().UTC()
 	endTime := t0.UnixMilli()
 
-	// demo.GetHdrFromFlash(demo.ZeroJobName(), &demo.HDR)
+	// demo.GetHdrFromFlash(demo.CmdArchiveName(), &demo.HDR)
 	demo.HDR.HdrTime = endTime
 	demo.HDR.HdrAddr = demo.DESDevSerial
 	demo.HDR.HdrUserID = demo.EVT.EvtUserID
@@ -758,11 +759,11 @@ func (demo *DemoDeviceClient) EndDemoJob() {
 	demo.EVT.EvtTitle = "JOB ENDED"
 	demo.EVT.EvtMsg = demo.HDR.HdrJobName
 
-	/* WRITE TO FLASH - JOB 0 */
-	demo.WriteEvtToFlash(demo.ZeroJobName(), demo.EVT)
-	demo.WriteHdrToFlash(demo.ZeroJobName(), demo.HDR)
+	/* WRITE TO FLASH - CMDARCHIVE */
+	demo.WriteEvtToFlash(demo.CmdArchiveName(), demo.EVT)
+	demo.WriteHdrToFlash(demo.CmdArchiveName(), demo.HDR)
 
-	/* WRITE TO FLASH - JOB X */
+	/* WRITE TO FLASH - JOB */
 	demo.WriteEvtToFlash(demo.Job.DESJobName, demo.EVT)
 	demo.WriteHdrToFlash(demo.Job.DESJobName, demo.HDR)
 
@@ -772,7 +773,6 @@ func (demo *DemoDeviceClient) EndDemoJob() {
 
 	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) -> ENDED: %s\n", demo.HDR.HdrJobName)
 }
-
 
 /*DEMO SIM -> PUBLISH TO MQTT */
 func (demo *DemoDeviceClient) Demo_Simulation(t0 time.Time) {
@@ -806,10 +806,6 @@ func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 	demo.SMP.SmpVlvPos = uint32(demo.CFG.CfgVlvPos)
 
 	demo.SMP.SmpJobName = demo.HDR.HdrJobName
-
-/* TODO:  CHECK ALARMS BASED ON NEW SAMPLE VALUES...
-	SEND RESULTING EVENTS / CONFIG CHANGES
-	*/
 }
 
 func YSinX(t0, ti time.Time, max, shift float64) (y float32) {
@@ -828,7 +824,6 @@ func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
 
 	return float32(a * (math.Cos(dt*freq+(freq/shift)) + 1))
 }
-
 
 func Demo_EncodeMQTTSampleMessage(job string, i int, smp Sample) MQTT_Sample {
 	// fmt.Println("\nDemo_EncodeMQTTSampleMessage()...")
@@ -1222,86 +1217,3 @@ func (demo *DemoDeviceClient) WriteSmpToFlash(jobName string, smp Sample) (err e
 	return
 }
 
-/* func (demo DemoDeviceClient) WSDemoDeviceClient_Connect(c *websocket.Conn) {
-
-	simStr, _ := url.QueryUnescape(c.Query("sim"))
-	des_regStr, _ := url.QueryUnescape(c.Query("des_reg"))
-
-	des_reg := pkg.DESRegistration{}
-	if err := json.Unmarshal([]byte(des_regStr), &des_reg); err != nil {
-		pkg.TraceErr(err)
-	}
-	des_reg.DESDevRegAddr = c.RemoteAddr().String()
-	des_reg.DESJobRegAddr = c.RemoteAddr().String()
-
-	sim := Sim{}
-	if err := json.Unmarshal([]byte(simStr), &sim); err != nil {
-		pkg.TraceErr(err)
-	}
-
-	wscid := fmt.Sprintf("%s-DEMO", des_reg.DESDevSerial)
-
-	demo = DemoDeviceClient{
-		Device: Device{
-			DESRegistration: des_reg,
-			Job:             Job{DESRegistration: des_reg},
-		},
-		Sim:        sim,
-		WSClientID: wscid,
-	} // fmt.Printf("\nHandleDemo_Run_Sim(...) -> ddc: %v\n\n", demo)
-
-	demo.Device.Job.GetJobData(1)
-
-	demo.sizeChan = make(chan int)
-	defer func() {
-		close(demo.sizeChan)
-		demo.sizeChan = nil
-	}()
-	demo.sentChan = make(chan int)
-	defer func() {
-		close(demo.sentChan)
-		demo.sentChan = nil
-	}()
-
-	// if no demo client ...
-	// demo.MQTTDemoDeviceClient_Connect()
-
-	pkg.TraceFunc("Call -> demo.ReadEvtDir(zero)")
-	evts := demo.ReadEvtDir(demo.ZeroJobName())
-	evt := evts[len(evts)-1]
-
-	if evt.EvtCode < 2 {
-		fmt.Printf("\n%s: waiting for job start event...\n", demo.DESDevSerial)
-	} else {
-		fmt.Printf("\n%s: simulation running...\n", demo.DESDevSerial)
-		// go demo.Demo_Simulation(time.Now().UTC())
-	}
-
-	open := true
-	go func() {
-		for {
-			_, msg, err := c.ReadMessage()
-			if err != nil {
-				fmt.Printf("WSDemoDeviceClient_Connect -> c.ReadMessage() ERROR:\n%s", err.Error())
-				break
-			}
-			if string(msg) == "close" {
-				fmt.Printf("WSDemoDeviceClient_Connect -> go func() -> c.ReadMessage(): %s\n", string(msg))
-				demo.MQTTDemoDeviceClient_Disconnect()
-				open = false
-				break
-			}
-		}
-		fmt.Printf("WSDemoDeviceClient_Connect -> go func() done\n")
-	}()
-
-	for open {
-		select {
-		case size := <-demo.sizeChan:
-			c.WriteJSON(size)
-		case sent := <-demo.sentChan:
-			c.WriteJSON(sent)
-		}
-	}
-	return
-} */

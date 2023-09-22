@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	// "math/rand"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -20,17 +19,6 @@ func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
 	})
 }
 
-// func (job *Job) Write(model interface{}) (err error) {
-
-// 	// pkg.Json("(job *Job) Write(): -> model", model)
-// 	db := job.JDB()
-// 	db.Connect()
-// 	defer db.Disconnect()
-// 	if res := db.Create(model); res.Error != nil {
-// 		return res.Error
-// 	}
-// 	return db.Disconnect()
-// }
 
 func (job Job) WriteMQTT(msg []byte, model interface{}) (err error) {
 

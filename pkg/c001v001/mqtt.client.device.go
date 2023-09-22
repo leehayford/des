@@ -17,10 +17,11 @@ import (
 */
 func (device *Device) MQTTDeviceClient_Connect() (err error) {
 
-	/* TODO: replace with <device.Class>-<device.Version> specific credentials */
+	/* TODO: REPLACE WITH <Device.Class>-<Device.Version> SPECIFIC CREDENTIALS */
 	class_version_user := pkg.MQTT_USER
 	class_version_pw := pkg.MQTT_PW
 
+	/* CREATE MQTT CLIENT ID; 23 CHAR MAXIMUM */
 	device.MQTTUser = class_version_user
 	device.MQTTPW = class_version_pw
 	device.MQTTClientID = fmt.Sprintf(
@@ -30,13 +31,13 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 		device.DESDevSerial,
 	)
 
+	/* CONNECT TO THE BROKER WITH 'CleanSession = false' 
+		AUTOMATICALLY RE-SUBSCRIBE ON RECONNECT AFTER */
 	if err = device.DESMQTTClient.DESMQTTClient_Connect(false); err != nil {
 		return err
 	}
-	// pkg.Json(`(device *Device) RegisterMQTTDESDeviceClient(...) -> device.DESMQTTClient.RegisterDESMQTTClient()
-	// device.DESMQTTClient.ClientOptions.ClientID:`,
-	// device.DESMQTTClient.ClientOptions.ClientID)
 
+	/* SUBSCRIBE TO ALL MQTTSubscriptions */
 	device.MQTTSubscription_DeviceClient_SIGAdmin().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGHeader().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGConfig().Sub(device.DESMQTTClient)
@@ -57,11 +58,12 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 	// device.MQTTSubscription_DeviceClient_SIGDiagSample() //.UnSub(device.DESMQTTClient)
 
 	/* DISCONNECT THE DESMQTTCLient */
-	err = device.DESMQTTClient_Disconnect()
+	if err = device.DESMQTTClient_Disconnect(); err != nil {
+		pkg.TraceErr(err)
+	}
 
-	fmt.Printf("\n(device) MQTTDeviceClient_Dicconnect( ): Complete -> ClientID: %s\n", device.ClientID)
-
-	return err
+	fmt.Printf("\n(device) MQTTDeviceClient_Dicconnect( ) -> %s -> disconnected.\n", device.ClientID)
+	return 
 }
 
 /* SUBSCRIPTIONS ****************************************************************************************/
@@ -74,17 +76,19 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		Topic: device.MQTTTopic_SIGAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			/* PARSE / STORE THE ADMIN IN ZERO JOB */
+			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			if err := json.Unmarshal(msg.Payload(), &device.ADM); err != nil {
 				pkg.TraceErr(err)
 			}
+
+			/* CALL DB WRITE IN GOROUTINE */
 			go device.CmdDBC.Write(device.ADM)
-			// device.ZeroDBC.WriteMQTT(msg.Payload(), &device.ADM)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
+
+				/* CALL DB WRITE IN GOROUTINE */
 				go device.JobDBC.Write(device.ADM)
-				// device.JobDBC.WriteMQTT(msg.Payload(), &device.ADM)
 			}
 		},
 	}
@@ -98,17 +102,19 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 		Topic: device.MQTTTopic_SIGHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			/* PARSE / STORE THE HEADER IN ZERO JOB */
+			/* PARSE / STORE THE HEADER IN CMDARCHIVE */
 			if err := json.Unmarshal(msg.Payload(), &device.HDR); err != nil {
 				pkg.TraceErr(err)
 			}
+
+			/* CALL DB WRITE IN GOROUTINE */
 			go device.CmdDBC.Write(device.HDR)
-			// device.ZeroDBC.WriteMQTT(msg.Payload(), &device.HDR)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
+
+				/* CALL DB WRITE IN GOROUTINE */
 				go device.JobDBC.Write(device.HDR)
-				// device.JobDBC.WriteMQTT(msg.Payload(), &device.HDR)
 			}
 		},
 	}
@@ -122,18 +128,19 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 		Topic: device.MQTTTopic_SIGConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			/* PARSE / STORE THE CONFIG IN ZERO JOB */
+			/* PARSE / STORE THE CONFIG IN CMDARCHIVE */
 			if err := json.Unmarshal(msg.Payload(), &device.CFG); err != nil {
 				pkg.TraceErr(err)
 			}
+
+			/* CALL DB WRITE IN GOROUTINE */
 			go device.CmdDBC.Write(device.CFG)
-			// device.ZeroDBC.WriteMQTT(msg.Payload(), &device.CFG)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
-				/* PARSE / STORE THE EVENT IN THE ACTIVE JOB */
+
+				/* CALL DB WRITE IN GOROUTINE */
 				go device.JobDBC.Write(device.CFG)
-				// device.JobDBC.WriteMQTT(msg.Payload(), &device.CFG)
 			}
 		},
 	}
@@ -147,11 +154,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 		Topic: device.MQTTTopic_SIGEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			/* CAPTURE THE ORIGINAL DEVICE STATE EVENT CODE */
-			// state := device.EVT.EvtCode
-
+			/* CAPTURE INCOMING EVENT IN A NEW Event STRUCT TO 
+				PREVENT PREMATURE CHANGE IN DEVICE STATE */
 			evt := Event{}
-			/* PARSE / STORE THE EVENT IN ZERO JOB */
+
+			/* PARSE / STORE THE EVENT IN CMDARCHIVE */
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
 				pkg.TraceErr(err)
 			}

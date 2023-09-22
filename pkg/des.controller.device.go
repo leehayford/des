@@ -84,7 +84,7 @@ func HandleRegisterDesDev(c *fiber.Ctx) (err error) {
 		DESJobRegUserID: device.DESDevRegUserID,
 		DESJobRegApp:    device.DESDevRegApp,
 
-		DESJobName:  fmt.Sprintf("%s_0000000000000", device.DESDevSerial),
+		DESJobName:  fmt.Sprintf("%s_CMDARCHIVE", device.DESDevSerial),
 		DESJobStart: device.DESDevRegTime,
 		DESJobEnd:   0,
 

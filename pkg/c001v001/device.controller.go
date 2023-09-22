@@ -115,7 +115,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	device.HDR.HdrTime = startTime
 	device.HDR.HdrAddr = c.IP()
 	device.HDR.HdrUserID = device.DESJobRegUserID
-	device.HDR.HdrJobName = fmt.Sprintf("%s_0000000000000", device.DESDevSerial)
+	device.HDR.HdrJobName = device.CmdArchiveName()
 	device.HDR.HdrJobStart = startTime // This is displays the time/date of the request while pending
 	device.HDR.HdrJobEnd = -1          // This means there is a pending request for the device to start a new job
 	device.HDR.HdrGeoLng = -180
@@ -137,7 +137,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 		EvtMsg:    "Job start sequence initiated.",
 	}
 
-	/* LOG START JOB REQUEST TO ZERO JOB */
+	/* LOG START JOB REQUEST TO CMDARCHIVE */
 	device.CmdDBC.Create(&device.ADM)
 	device.CmdDBC.Create(&device.HDR)
 	device.CmdDBC.Create(&device.CFG)
@@ -166,7 +166,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 SEND AN MQTT END JOB EVENT TO THE DEVICE
 UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 
-	DES JOB REGISTRATION ( UPDATE JOB 0 START DATE )
+	DES JOB REGISTRATION ( UPDATE CMDARCHIVE START DATE )
 	CLASS/VERSION SPECIFIC JOB END ACTIONS
 */
 func HandleEndJob(c *fiber.Ctx) (err error) {
@@ -207,7 +207,7 @@ func HandleEndJob(c *fiber.Ctx) (err error) {
 		EvtMsg:    "Job end sequence initiated.",
 	}
 
-	/* LOG END JOB REQUEST TO ZERO JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.ZeroJobName())
+	/* LOG END JOB REQUEST TO CMDARCHIVE */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.CmdArchiveName())
 	device.CmdDBC.Create(&device.EVT)
 
 	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
@@ -230,7 +230,7 @@ func HandleEndJob(c *fiber.Ctx) (err error) {
 /*
 	USED TO ALTER THE ADMIN SETTINGS FOR A GIVEN DEVICE
 
-BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
+BOTH DURING A JOB OR WHEN SENT TO CMDARCHIVE, TO ALTER THE DEVICE DEFAULTS
 */
 func HandleSetAdmin(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSetAdmin( )\n")
@@ -262,7 +262,7 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 	device.GetMappedSMP()
 	device.GetMappedClients()
 
-	/* LOG ADM CHANGE REQUEST TO ZERO JOB */
+	/* LOG ADM CHANGE REQUEST TO  CMDARCHIVE */
 	device.CmdDBC.Create(device.ADM)
 
 	/* MQTT PUB CMD: ADM */
@@ -282,7 +282,7 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 /*
 	USED TO ALTER THE HEADER SETTINGS FOR A GIVEN DEVICE
 
-BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
+BOTH DURING A JOB OR WHEN SENT TO CMDARCHIVE, TO ALTER THE DEVICE DEFAULTS
 */
 func HandleSetHeader(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSetHeader( )\n")
@@ -314,7 +314,7 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 	device.GetMappedSMP()
 	device.GetMappedClients()
 
-	/* LOG HDR CHANGE REQUEST TO ZERO JOB */
+	/* LOG HDR CHANGE REQUEST TO CMDARCHIVE */
 	device.CmdDBC.Create(device.HDR)
 
 	/* MQTT PUB CMD: HDR */
@@ -334,7 +334,7 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 /*
 	USED TO ALTER THE CONFIG SETTINGS FOR A GIVEN DEVICE
 
-BOTH DURING A JOB OR WHEN SENT TO JOB 0, TO ALTER THE DEVICE DEFAULTS
+BOTH DURING A JOB OR WHEN SENT TO CMDARCHIVE, TO ALTER THE DEVICE DEFAULTS
 */
 func HandleSetConfig(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSetConfig( )\n")
@@ -366,7 +366,7 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 	device.GetMappedSMP()
 	device.GetMappedClients()
 
-	/* LOG CFG CHANGE REQUEST TO ZERO JOB */
+	/* LOG CFG CHANGE REQUEST TO CMDARCHIVE */
 	device.CmdDBC.Create(device.CFG)
 
 	/* MQTT PUB CMD: CFG */

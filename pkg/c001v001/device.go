@@ -120,14 +120,14 @@ func DeviceClient_DisconnectAll() {
 
 /* CONNECT DEVICE DATABASE AND MQTT CLIENTS ADD CONNECTED DEVICE TO DevicesMap */
 func (device *Device) DeviceClient_Connect() {
-	
+
 	fmt.Printf("\n\n(device *Device) DeviceClient_Connect() -> %s -> connecting... \n", device.DESDevSerial)
 
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting CMDARCHIVE... \n", device.DESDevSerial)
-	if err := device.ConnectZeroDBC(); err != nil {
+	if err := device.ConnectCmdDBC(); err != nil {
 		pkg.TraceErr(err)
 	}
-	
+
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting ACTIVE JOB... \n", device.DESDevSerial)
 	if err := device.ConnectJobDBC(); err != nil {
 		pkg.TraceErr(err)
@@ -207,50 +207,42 @@ func (device *Device) GetMappedSMP() {
 	d := Devices[device.DESDevSerial]
 	device.SMP = d.SMP
 }
- 
+
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Sample */
 func (device *Device) UpdateMappedSMP() {
 	d := Devices[device.DESDevSerial]
 	d.SMP = device.SMP
 	Devices[device.DESDevSerial] = d
 }
- 
-/******************************************************************************************************************/
-/* TODO: RENAME ZERO JOB TO CMDARCHIVE ****************************************************************/
 
 /* RETURNS THE CMDARCHIVE NAME  */
-func (device Device) ZeroJobName() string {
-	return fmt.Sprintf("%s_0000000000000", device.DESDevSerial)
-	// return fmt.Sprintf("%_CMDARCHIVE", device.DESDevSerial)
+func (device Device) CmdArchiveName() string {
+	return fmt.Sprintf("%s_CMDARCHIVE", device.DESDevSerial)
 }
 
-/* RETURNS THE ZERO JOB DESRegistration FROM THE DES DATABASE */
-func (device Device) GetZeroJobDESRegistration() (zero Job) {
-	// fmt.Printf("\n(device) GetZeroJob() for: %s\n", device.DESDevSerial)
+/* RETURNS THE CMDARCHIVE DESRegistration FROM THE DES DATABASE */
+func (device Device) GetCmdArchiveDESRegistration() (cmd Job) {
+	// fmt.Printf("\n(device) GetCmdArchiveDESRegistration() for: %s\n", device.DESDevSerial)
 	qry := pkg.DES.DB.
 		Table("des_devs AS d").
 		Select("d.*, j.*").
 		Joins("JOIN des_jobs AS j ON d.des_dev_id = j.des_job_dev_id").
 		Where("d.des_dev_serial = ? AND j.des_job_name LIKE ?",
-			device.DESDevSerial, device.ZeroJobName())
+			device.DESDevSerial, device.CmdArchiveName())
 
-	res := qry.Scan(&zero.DESRegistration)
+	res := qry.Scan(&cmd.DESRegistration)
 	if res.Error != nil {
 		pkg.TraceErr(res.Error)
 	}
-	// pkg.Json("(device *Device) GetZeroJobDESRegistration( )", zero)
+	// pkg.Json("(device *Device) GetCmdArchiveDESRegistration( )", cmd)
 	return
 }
 
-/* CONNECTS THE ZERO JOB DBClient TO THE ZERO JOB DATABASE */
-func (device *Device) ConnectZeroDBC() (err error) {
-	device.CmdDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.ZeroJobName()))}
+/* CONNECTS THE CMDARCHIVE DBClient TO THE CMDARCHIVE DATABASE */
+func (device *Device) ConnectCmdDBC() (err error) {
+	device.CmdDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.CmdArchiveName()))}
 	return device.CmdDBC.Connect()
 }
-
-/* TODO: RENAME ZERO JOB TO CMDARCHIVE ****************************************************************/
-/******************************************************************************************************************/ 
-
 
 /* RETURNS THE DESRegistration FOR THE DEVICE AND ITS ACTIVE JOB FROM THE DES DATABASE */
 func (device *Device) GetCurrentJob() {
@@ -333,7 +325,7 @@ func (device *Device) StartJob(evt Event) {
 
 		} else {
 			fmt.Printf("\n(device *Device) StartJob( ): CONNECTED TO: %s\n", device.JobDBC.GetDBName())
-			
+
 			/* CREATE JOB DB TABLES */
 			if err := device.JobDBC.Migrator().CreateTable(
 				&Admin{},
@@ -366,7 +358,7 @@ func (device *Device) StartJob(evt Event) {
 		pkg.TraceErr(err)
 	}
 
-	/* UPDATE THE DEVICE EVENT CODE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB 
+	/* UPDATE THE DEVICE EVENT CODE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB
 	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
 	*/
 	device.EVT = evt
@@ -383,10 +375,10 @@ func (device *Device) EndJob(evt Event) {
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
 
-	/* WRITE END JOB REQUEST EVENT AS RECEIVED TO JOB X */
+	/* WRITE END JOB REQUEST EVENT AS RECEIVED TO JOB */
 	device.JobDBC.Write(evt)
 
-	/* CLOSE DES JOB X */
+	/* CLOSE DES JOB */
 	device.Job.DESJob.DESJobRegTime = evt.EvtTime
 	device.Job.DESJob.DESJobRegAddr = evt.EvtAddr
 	device.Job.DESJob.DESJobRegUserID = evt.EvtUserID
@@ -395,42 +387,43 @@ func (device *Device) EndJob(evt Event) {
 	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", device.HDR.HdrJobName)
 	pkg.DES.DB.Save(device.Job.DESJob)
 
-	/* UPDATE DES JOB 0 */
-	zero := device.GetZeroJobDESRegistration()
-	zero.DESJobRegTime = time.Now().UTC().UnixMilli() // WE WANT THIS TO BE THE LATEST
-	zero.DESJobRegAddr = evt.EvtAddr
-	zero.DESJobRegUserID = evt.EvtUserID
-	zero.DESJobRegApp = evt.EvtApp
-	pkg.DES.DB.Save(zero.DESJob)
+	/* UPDATE DES CMDARCHIVE */
+	cmd := device.GetCmdArchiveDESRegistration()
+	cmd.DESJobRegTime = time.Now().UTC().UnixMilli() // WE WANT THIS TO BE THE LATEST
+	cmd.DESJobRegAddr = evt.EvtAddr
+	cmd.DESJobRegUserID = evt.EvtUserID
+	cmd.DESJobRegApp = evt.EvtApp
+	pkg.DES.DB.Save(cmd.DESJob)
 
 	/* WAIT FOR FINAL HEADER TO BE RECEIVED */
-	fmt.Printf("\n(device *Device) EndJob( ) -> Waiting for final Header... H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime )
-	for device.HDR.HdrTime < evt.EvtTime {} // THIS IS A SHITE SOLUTION...
-	fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime )
+	fmt.Printf("\n(device *Device) EndJob( ) -> Waiting for final Header... H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
+	for device.HDR.HdrTime < evt.EvtTime {
+	} // THIS IS A SHITE SOLUTION...
+	fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
 	/* TODO: IF FINAL HEADER NOT RECEIVED, MAKE ONE... */
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 
 	/* ENSURE WE CATCH STRAY SAMPLES IN THE CMDARCHIVE */
-	device.Job = zero
+	device.Job = cmd
 	device.ConnectJobDBC()
 
 	/* RETURN DEVICE CLIENT DATA TO DEFAULT STATE */
 	device.ADM = device.Job.RegisterJob_Default_JobAdmin()
-	device.ADM.AdmTime = zero.DESJobRegTime
+	device.ADM.AdmTime = cmd.DESJobRegTime
 	device.ADM.AdmAddr = evt.EvtAddr
 	device.ADM.AdmUserID = evt.EvtUserID
 	device.ADM.AdmApp = evt.EvtApp
 
 	device.HDR = device.Job.RegisterJob_Default_JobHeader()
-	device.HDR.HdrTime = zero.DESJobRegTime
+	device.HDR.HdrTime = cmd.DESJobRegTime
 	device.HDR.HdrAddr = evt.EvtAddr
 	device.HDR.HdrUserID = evt.EvtUserID
 	device.HDR.HdrApp = evt.EvtApp
 
 	device.CFG = device.Job.RegisterJob_Default_JobConfig()
-	device.CFG.CfgTime = zero.DESJobRegTime
+	device.CFG.CfgTime = cmd.DESJobRegTime
 	device.CFG.CfgAddr = evt.EvtAddr
 	device.CFG.CfgUserID = evt.EvtUserID
 	device.CFG.CfgApp = evt.EvtApp

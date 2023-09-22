@@ -34,7 +34,7 @@ type DESMQTTClient struct {
 
 func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub bool ) (err error) {
 
-	/*Cerate MQTT Client Options*/
+	/* CREATE MQTT CLEITN OPTIONS */
 	desm.ClientOptions = *phao.NewClientOptions()
 	desm.AddBroker(MQTT_BROKER)
 	desm.SetUsername(desm.MQTTUser)
@@ -79,6 +79,7 @@ func (desm *DESMQTTClient) DESMQTTClient_Disconnect() (err error) {
 	return err
 }
 
+/* ALL MQTT SUBSCRIPTIONS ON THE DES ARE MANAGED USING THIS STRUCTURE */
 type MQTTSubscription struct {
 	Topic   string
 	Qos     byte
@@ -96,6 +97,7 @@ func (sub MQTTSubscription) UnSub(client DESMQTTClient) {
 	token.Wait() // fmt.Printf("\nUnsubscribed: %s from:\t%s\n", client.MQTTClientID, sub.Topic)
 }
 
+/* ALL MQTT PUBLICATIONS ON THE DES ARE MANAGED USING THIS STRUCTURE */
 type MQTTPublication struct {
 	Topic    string
 	Qos      byte
