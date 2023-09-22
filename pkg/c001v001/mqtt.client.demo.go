@@ -253,7 +253,6 @@ func DemoDeviceClient_ConnectAll(qty int) {
 		demo.DESMQTTClient = pkg.DESMQTTClient{}
 		demo.DemoDeviceClient_Connect()
 	}
-
 }
 
 /* CALLED ON SERVER SHUT DOWN */
@@ -293,7 +292,6 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 
 	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
-
 }
 func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
 	/* TODO: TEST WHEN IMPLEMENTING
