@@ -109,7 +109,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	device.ADM.AdmDefPort = pkg.MQTT_PORT
 	device.ADM.AdmOpHost = pkg.MQTT_HOST
 	device.ADM.AdmOpPort = pkg.MQTT_PORT
-	device.ADM.AdmSerial = device.Job.DESDevSerial
+	device.ADM.AdmSerial = device.DESDevSerial
 	// pkg.Json("HandleStartJob(): -> device.ADM", device.ADM)
 
 	device.HDR.HdrTime = startTime
