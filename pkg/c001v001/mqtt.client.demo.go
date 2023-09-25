@@ -29,6 +29,7 @@ SUBSCRIBES TO ALL COMMAND TOPICS AS A SINGLE DEVICE
 type DemoModeTransition struct {
 	VMin    float32       `json:"v_min"`
 	VMax    float32       `json:"v_max"`
+	VRes float32 `json:"v_res"`
 	TSpanUp time.Duration `json:"t_span_up"`
 	TSpanDn time.Duration `json:"t_span_dn"`
 }
@@ -37,7 +38,8 @@ type DemoDeviceClient struct {
 	Device
 	TZero time.Time
 	MTxCh4   DemoModeTransition `json:"mtx_ch4"`
-	MTxFlow  DemoModeTransition `json:"mtx_flow"`
+	MTxHiFlow  DemoModeTransition `json:"mtx_hi_flow"`
+	MTxLoFlow  DemoModeTransition `json:"mtx_lo_flow"`
 	MTxBuild DemoModeTransition `json:"mtx_build"`
 	pkg.DESMQTTClient
 }
@@ -760,8 +762,8 @@ func (demo *DemoDeviceClient) Demo_Simulation() {
 	/* CREATE RANDOM SIMULATED WELL CONDITIONS */
 	demo.Set_MTx()
 	demo.SMP.SmpCH4 = demo.MTxCh4.VMin
-	demo.SMP.SmpHiFlow = demo.MTxFlow.VMin
-	demo.SMP.SmpLoFlow = demo.MTxFlow.VMin
+	demo.SMP.SmpHiFlow = demo.MTxHiFlow.VMin
+	demo.SMP.SmpLoFlow = demo.MTxLoFlow.VMin
 	demo.SMP.SmpPress = demo.MTxBuild.VMin
 
 	demo.TZero = time.Now().UTC()
@@ -775,17 +777,12 @@ func (demo *DemoDeviceClient) Demo_Simulation() {
 		time.Sleep(time.Millisecond * time.Duration(demo.CFG.CfgOpSample))
 
 	}
-	// pkg.Json("(demo *DemoDeviceClient) Demo_Simulation( )", demo.EVT)
 	fmt.Printf("\n(demo) Demo_Simulation( ) %s waiting for job start...\n", demo.DESDevSerial)
 }
 func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 
 	demo.SMP.SmpTime = ti.UnixMilli()
 
-	// demo.SMP.SmpCH4 = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*250), 97.99999, 0.01)
-	// demo.SMP.SmpHiFlow = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*30), 1.79999, 0.01)
-	// demo.SMP.SmpLoFlow = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*30), 1.79999, 0.01)
-	// demo.SMP.SmpPress = Demo_Mode_Transition(t0, ti, time.Duration(time.Second*600), 18.99999, 699.99999)
 	if demo.SMP.SmpVlvPos == uint32(MODE_VENT) {
 		demo.Set_MTxVent(t0, ti)
 	}
@@ -807,51 +804,63 @@ func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 }
 
 
-
 /* CREATE RANDOM SIMULATED WELL CONDITIONS */
 var maxCh4 = float32(97.99)
 var minCh4 = float32(23.99)
-var Ch4Dur =  time.Duration(time.Second*250)
 
 var maxFlow = float32(239.99)
 var minFlow = float32(0.23)
-var FlowDur =  time.Duration(time.Second*125)
 
 var maxPress = float32(6205.99)
 var minPress = float32(101.99)
-var BuildDur =  time.Duration(time.Second*375)
 
 func (demo *DemoDeviceClient) Set_MTx() {
 
 	demo.MTxCh4.VMax = minCh4+rand.Float32()*(maxCh4-minCh4)
 	demo.MTxCh4.VMin = 0.01
+	demo.MTxCh4.TSpanUp = time.Duration(time.Second*35)
+	demo.MTxCh4.TSpanDn = time.Duration(time.Second*70)
+	demo.MTxCh4.VRes = float32(100) * 0.005
 
-	demo.MTxFlow.VMax = minFlow+rand.Float32()*(maxFlow-minFlow)
-	demo.MTxFlow.VMin = 0.01
+	demo.MTxHiFlow.VMax = minFlow+rand.Float32()*(maxFlow-minFlow)
+	demo.MTxHiFlow.VMin = 0.01
+	demo.MTxHiFlow.TSpanUp = time.Duration(time.Second*70)
+	demo.MTxHiFlow.TSpanDn = time.Duration(time.Second*35)
+	demo.MTxHiFlow.VRes = float32(250) * 0.005
 
-	demo.MTxBuild.VMax = ( demo.MTxFlow.VMax / maxFlow ) * maxPress
+	demo.MTxLoFlow.VMax = demo.MTxHiFlow.VMax
+	demo.MTxLoFlow.VMin = 0.01
+	demo.MTxLoFlow.TSpanUp = time.Duration(time.Second*70)
+	demo.MTxLoFlow.TSpanDn = time.Duration(time.Second*35)
+	demo.MTxLoFlow.VRes = float32(2.0) * 0.005
+
+	demo.MTxBuild.VMax = ( demo.MTxHiFlow.VMax / maxFlow ) * maxPress
 	demo.MTxBuild.VMin = minPress
+	demo.MTxBuild.TSpanUp = time.Duration(time.Second*275)
+	demo.MTxBuild.TSpanDn = time.Duration(time.Second*150)
+	demo.MTxBuild.VRes = maxPress * 0.005
+
+	fmt.Printf("\n(demo *DemoDeviceClient) Set_MTx() -> %s:, %f, %f, %f, %f\n", demo.DESDevSerial, demo.MTxCh4.VMax, demo.MTxHiFlow.VMax, demo.MTxLoFlow.VMax, demo.MTxBuild.VMax)
 }
 
 func (demo *DemoDeviceClient) Set_MTxVent(t0, ti time.Time) {
-	demo.SMP.SmpCH4 = Demo_Mode_Transition(t0, ti, Ch4Dur, demo.SMP.SmpCH4, demo.MTxCh4.VMin)
-	demo.SMP.SmpHiFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpHiFlow,demo.MTxFlow.VMin)
-	demo.SMP.SmpLoFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpLoFlow, demo.MTxFlow.VMin)
-	demo.SMP.SmpPress = Demo_Mode_Transition(t0, ti, BuildDur, demo.SMP.SmpPress, demo.MTxBuild.VMin)
+	demo.SMP.SmpCH4 = demo.MTxCh4.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpCH4, demo.MTxCh4.VMin, true)
+	demo.SMP.SmpHiFlow = demo.MTxHiFlow.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpHiFlow, demo.MTxHiFlow.VMin, true)
+	demo.SMP.SmpLoFlow = demo.MTxLoFlow.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpLoFlow, demo.MTxLoFlow.VMin, true)
+	demo.SMP.SmpPress = demo.MTxBuild.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpPress, demo.MTxBuild.VMin, true)
 }
 func (demo *DemoDeviceClient) Set_MTxBuild(t0, ti time.Time) {
-	demo.SMP.SmpCH4 = Demo_Mode_Transition(t0, ti, Ch4Dur, demo.SMP.SmpCH4, demo.MTxCh4.VMin)
-	demo.SMP.SmpHiFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpHiFlow,demo.MTxFlow.VMin)
-	demo.SMP.SmpLoFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpLoFlow, demo.MTxFlow.VMin)
-	demo.SMP.SmpPress = Demo_Mode_Transition(t0, ti, BuildDur, demo.SMP.SmpPress, demo.MTxBuild.VMax)
+	demo.SMP.SmpCH4 = demo.MTxCh4.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpCH4, demo.MTxCh4.VMin, false)
+	demo.SMP.SmpHiFlow = demo.MTxHiFlow.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpHiFlow, demo.MTxHiFlow.VMin, false)
+	demo.SMP.SmpLoFlow = demo.MTxLoFlow.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpLoFlow, demo.MTxLoFlow.VMin, false)
+	demo.SMP.SmpPress = demo.MTxBuild.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpPress, demo.MTxBuild.VMax, false)
 }
 func (demo *DemoDeviceClient) Set_MTxFlow(t0, ti time.Time) {
-	demo.SMP.SmpCH4 = Demo_Mode_Transition(t0, ti, Ch4Dur, demo.SMP.SmpCH4, demo.MTxCh4.VMax)
-	demo.SMP.SmpHiFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpHiFlow,demo.MTxFlow.VMax)
-	demo.SMP.SmpLoFlow = Demo_Mode_Transition(t0, ti, FlowDur, demo.SMP.SmpLoFlow, demo.MTxFlow.VMax)
-
-	fp := ((demo.MTxFlow.VMax / maxFlow ) * minPress * 2 ) + minPress
-	demo.SMP.SmpPress = Demo_Mode_Transition(t0, ti, BuildDur, demo.SMP.SmpPress, fp)
+	demo.SMP.SmpCH4 = demo.MTxCh4.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpCH4, demo.MTxCh4.VMax, false)
+	demo.SMP.SmpHiFlow = demo.MTxHiFlow.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpHiFlow, demo.MTxHiFlow.VMax, false)
+	demo.SMP.SmpLoFlow = demo.MTxLoFlow.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpLoFlow, demo.MTxLoFlow.VMax, false)
+	fp := ((demo.MTxHiFlow.VMax / maxFlow ) * minPress * 2 ) + minPress
+	demo.SMP.SmpPress = demo.MTxBuild.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpPress, fp, false)
 }
 
 func Demo_EncodeMQTTSampleMessage(job string, i int, smp Sample) MQTT_Sample {
@@ -903,37 +912,61 @@ func Demo_EncodeMQTTSampleMessage(job string, i int, smp Sample) MQTT_Sample {
 
 	return msg
 }
-func Demo_Mode_Transition(t_start, ti time.Time, t_span time.Duration, v_start, v_end float32) (v float32) {
 
-	// dt := ti.Sub(t_start).Seconds()
+func (mtx *DemoModeTransition)MTx_CalcModeTransValue(t_start, ti time.Time, vi, v_end float32, vent bool) (value float32) {
+	
+	/* SPAN OF THE VALUE TRANSITION */
+	v_span := float64(v_end - vi)
+
+	/* TOTAL TRANSITION TIME */
+	var t_span time.Duration
+
+	if vent {
+		t_span = time.Duration(time.Second * 30)
+	} else if vi < v_end {
+		t_span = mtx.TSpanUp
+	} else {
+		t_span = mtx.TSpanDn
+	}
+
+	/* TIME RIGHT NOW RELATIVE TO THE TOTAL TRANSITION TIME */
 	t_rel := float64(ti.Sub(t_start).Seconds() / t_span.Seconds())
 
-	// fmt.Printf("dt: %f, t_span: %v, t_rel: %f\n", dt, t_span.Seconds(), t_rel)
-	v_span := float64(v_end - v_start)
-
+	/* MAGIC NUMBERS BASED ON CURRENT VALUE AND RELATIVE TIME */
 	a := v_span * math.Pow(t_rel, 2)
-
-	var bx float64
-	if t_rel > 0.5 {
-		bx = 0.45
-	} else {
-		bx = 0.5
-	}
+	bx := 0.5125
 	b := 1 - math.Pow((bx-t_rel), 4)
-	// fmt.Printf("\nt_rel: %f, a: %f, b: %f\n", t_rel, a, b)
+
+	/* SIMULATED VALUE */
+	value = vi + float32(a*b)
+
+	/* MAX ERROR */
+	res := mtx.VRes
 
 	if b < 0.8 {
-
-		v = v_end
+		value = v_end
 	} else {
-
-		v = v_start + float32(a*b)
+		/* ENSURE THE SIMULATED VALUE DOESN'T DIP THE WRONG WAY */
+		if (v_span > 1 && value < (vi + res)) {
+			value = vi + res
+		} else if (v_span < 1 && value > (vi - res)) {
+			value = vi - res
+		}
 	}
 
-	res := float32(v_span) * 0.005
-	min := v - res
-	v = min + rand.Float32()*res
-	// fmt.Printf("%f : %f\n", t_rel, v)
+	/* ENSURE THE SIMULATED VALUE REMAINS HIGHER THAN MIN */
+	if value < mtx.VMin {
+		value = mtx.VMin + res
+	}
+
+	/* ENSURE THE SIMULATED VALUE REMAINS LOWER THAN MAX */
+	if value > mtx.VMax {
+		value = mtx.VMax - res
+	}
+
+	/* ADD SOME NOISE */
+	min := value - res
+	value = min + rand.Float32()*res
 	return
 }
 
@@ -1237,6 +1270,7 @@ func (demo *DemoDeviceClient) ReadEvtDir(jobName string) (evts []Event) {
 	return
 }
 
+/* SMP DEMO MEMORY -> 40 BYTES -> HxD 40 */
 func (demo *DemoDeviceClient) WriteSmpToFlash(jobName string, smp Sample) (err error) {
 
 	smpBytes := smp.FilterSmpBytes()
