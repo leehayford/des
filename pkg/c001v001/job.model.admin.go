@@ -153,3 +153,61 @@ func (adm *Admin) AdminFromBytes(b []byte) {
 	//  pkg.Json("(demo *DemoDeviceClient)MakeAdmFromBytes() -> adm", adm)
 	return
 }
+
+/*
+ADMIN - DEFAULT VALUES
+*/
+func (adm *Admin) DefaultSettings_Admin(reg pkg.DESRegistration) {
+
+		adm.AdmTime = reg.DESJobRegTime
+		adm.AdmAddr = reg.DESJobRegAddr
+		adm.AdmUserID = reg.DESJobRegUserID
+		adm.AdmApp = reg.DESJobRegApp
+
+		/* BROKER */
+		adm.AdmDefHost = pkg.MQTT_HOST
+		adm.AdmDefPort = pkg.MQTT_PORT
+		adm.AdmOpHost = pkg.MQTT_HOST
+		adm.AdmOpPort = pkg.MQTT_PORT
+
+		/* DEVICE */
+		adm.AdmClass =  DEVICE_CLASS
+		adm.AdmVersion = DEVICE_VERSION
+		adm.AdmSerial =  reg.DESDevSerial
+
+		/* BATTERY */
+		adm.AdmBatHiAmp = 2.5  // Amps
+		adm.AdmBatLoVolt = 10.5 // Volts
+
+		/* MOTOR */
+		adm.AdmMotHiAmp =1.9 // Volts
+
+		// /* POSTURE - NOT IMPLEMENTED */
+		// TiltTarget float32 `json:"tilt_target"` // 90.0 °
+		// TiltMargin float32 `json:"tilt_margin"` // 3.0 °
+		// AzimTarget float32 `json:"azim_target"` // 180.0 °
+		// AzimMargin float32 `json:"azim_margin"` // 3.0 °
+
+		/* HIGH FLOW SENSOR ( HFS )*/
+		adm.AdmHFSFlow = 200.0 // 200.0 L/min
+		adm.AdmHFSFlowMin =  150.0 // 150.0 L/min
+		adm.AdmHFSFlowMax =  250.0 //  250.0 L/min
+		adm.AdmHFSPress =    160.0 // 160.0 psia
+		adm.AdmHFSPressMin = 23    //  23.0 psia
+		adm.AdmHFSPressMax = 200.0 //  200.0 psia
+		adm.AdmHFSDiff =    65.0  //  65.0 psi
+		adm.AdmHFSDiffMin =  10.0  //  10.0 psi
+		adm.AdmHFSDiffMax =  75.0  //  75.0 psi
+
+		/* LOW FLOW SENSOR ( LFS )*/
+		adm.AdmLFSFlow =    1.85 // 1.85 L/min
+		adm.AdmLFSFlowMin =  0.5  // 0.5 L/min
+		adm.AdmLFSFlowMax =  2.0  // 2.0 L/min
+		adm.AdmLFSPress =    60.0 // 60.0 psia
+		adm.AdmLFSPressMin = 20.0 // 20.0 psia
+		adm.AdmLFSPressMax = 800  // 80.0 psia
+		adm.AdmLFSDiff =     9.0  // 9.0 psi
+		adm.AdmLFSDiffMin =  2.0  // 2.0 psi
+		adm.AdmLFSDiffMax =  10.0 // 10.0 psi
+	
+}

@@ -125,6 +125,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	device.CFG.CfgTime = startTime
 	device.CFG.CfgAddr = c.IP()
 	device.CFG.CfgUserID = device.DESJobRegUserID
+	device.ValidateCFG() 
 	// pkg.Json("HandleStartJob(): -> device.CFG", device.CFG)
 
 	device.EVT = Event{
@@ -362,6 +363,7 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 	device.GetMappedHDR()
 	device.CFG.CfgTime = time.Now().UTC().UnixMilli()
 	device.CFG.CfgAddr = c.IP()
+	device.ValidateCFG() 
 	device.GetMappedEVT()
 	device.GetMappedSMP()
 	device.GetMappedClients()

@@ -53,6 +53,19 @@ func (evt *Event) EventFromBytes(b []byte) {
 	return
 }
 
+/*
+EVENT - DEFAULT VALUES
+*/
+func (evt *Event) DefaultSettings_Event(job pkg.DESRegistration) {
+	evt.EvtTime =  job.DESJobRegTime
+	evt.EvtAddr = job.DESJobRegAddr
+	evt.EvtUserID = job.DESJobRegUserID
+	evt.EvtApp = job.DESJobRegApp
+	evt.EvtCode = STATUS_DES_REG_REQ
+	evt.EvtTitle = "A Device is Born"
+	evt.EvtMsg = `Congratulations, it's a class 001, version 001 device! This text is here to take up space. Normal people would use the function that shits out latin but I don't; partly because I don't remember what it is and partly because I don't feel like looking it up.`
+}
+
 type EventTyp struct {
 	EvtTypID   int64  `gorm:"unique; primaryKey" json:"evt_typ_id"`
 	EvtTypCode int32  `gorm:"unique" json:"evt_typ_code"`

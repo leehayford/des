@@ -109,23 +109,14 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 		DESJob: des_job,
 	}
 
-	adm := (&Job{}).RegisterJob_Default_JobAdmin()
-	adm.AdmTime = t
-	adm.AdmAddr = des_dev.DESDevRegAddr
-	adm.AdmUserID = userID
-	adm.AdmApp = des_dev.DESDevRegApp
+	adm := Admin{}
+	adm.DefaultSettings_Admin(reg)
 
-	hdr := (&Job{}).RegisterJob_Default_JobHeader()
-	hdr.HdrTime = t
-	hdr.HdrAddr = des_dev.DESDevRegAddr
-	hdr.HdrUserID = userID
-	hdr.HdrApp = des_dev.DESDevRegApp
+	hdr := Header{}
+	hdr.DefaultSettings_Header(reg)
 
-	cfg := (&Job{}).RegisterJob_Default_JobConfig()
-	cfg.CfgTime = t
-	cfg.CfgAddr = des_dev.DESDevRegAddr
-	cfg.CfgUserID = userID
-	cfg.CfgApp = des_dev.DESDevRegApp
+	cfg := Config{}
+	cfg.DefaultSettings_Config(reg)
 
 	demo := DemoDeviceClient{
 		Device: Device{
@@ -140,15 +131,15 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 				EvtApp:    des_dev.DESDevRegApp,
 
 				EvtCode:  STATUS_JOB_ENDED,
-				EvtTitle: "Intitial State",
-				EvtMsg:   "End Job event to ensure this newly registered demo device is ready to start a new demo job.",
+				EvtTitle: "DEMO DEVICE: Intitial State",
+				EvtMsg:   "Created with STATUS_JOB_ENDED event to ensure this newly registered demo device is ready to start a new demo job.",
 			},
 			SMP: Sample{SmpTime: t, SmpJobName: des_job.DESJobName},
 			Job: Job{DESRegistration: reg},
 		},
 	}
 	/* CREATE CMDARCHIVE DATABASE */
-	pkg.ADB.CreateDatabase(strings.ToLower(demo.Job.DESJobName))
+	pkg.ADB.CreateDatabase(strings.ToLower(demo.DESJobName))
 
 	demo.ConnectJobDBC()
 	// fmt.Printf("\nMakeDemoC001V001(): CONNECTED TO DATABASE: %s\n", demo.JobDBC.ConnStr)
@@ -189,7 +180,7 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 
 	/* WRITE TO FLASH - CMDARCHIVE */
 
-	fmt.Printf("\nMakeDemoC001V001(): WRITE TO FLASH: %s/\n", demo.Job.DESJobName)
+	fmt.Printf("\nMakeDemoC001V001(): WRITE TO FLASH: %s/\n", demo.DESJobName)
 	demo.WriteAdmToFlash(demo.DESJobName, demo.ADM)
 	demo.WriteHdrToFlash(demo.DESJobName, demo.HDR)
 	demo.WriteCfgToFlash(demo.DESJobName, demo.CFG)
@@ -629,10 +620,29 @@ func (demo *DemoDeviceClient) StartDemoJob( /*state*/ ) {
 	demo.TZero = time.Now().UTC()
 	startTime := demo.TZero.UnixMilli()
 
+
+	/* USED INCASE WE NEED TO CREATE DEFAULT SETTINGS */
+	reg := pkg.DESRegistration {
+		DESDev: demo.DESDev,
+		DESJob: pkg.DESJob{
+			DESJobRegTime:   startTime,
+			DESJobRegAddr:   demo.DESDevSerial,
+			DESJobRegUserID: demo.EVT.EvtUserID,
+			DESJobRegApp:    demo.EVT.EvtApp,
+
+			DESJobName: fmt.Sprintf("%s_%d", demo.DESDevSerial, startTime),
+			DESJobStart: startTime,
+			DESJobEnd:   0,
+			DESJobLng:   -114.75 + rand.Float32()*(-110.15+114.75),
+			DESJobLat:   51.85 + rand.Float32()*(54.35-51.85),
+			DESJobDevID: demo.DESDevID,
+		},
+	}
+
 	/* WHERE JOB START ADMIN WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.ADM.AdmTime != demo.EVT.EvtTime {
 		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT ADMIN.\n")
-		demo.ADM = demo.RegisterJob_Default_JobAdmin()
+		demo.ADM.DefaultSettings_Admin(reg)
 	}
 	demo.ADM.AdmTime = startTime
 	demo.ADM.AdmAddr = demo.DESDevSerial
@@ -642,7 +652,7 @@ func (demo *DemoDeviceClient) StartDemoJob( /*state*/ ) {
 	/* WHERE JOB START HEADER WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.HDR.HdrTime != demo.EVT.EvtTime {
 		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT HEADER\n")
-		demo.HDR = demo.RegisterJob_Default_JobHeader()
+		demo.HDR.DefaultSettings_Header(reg)
 	}
 	demo.HDR.HdrTime = startTime
 	demo.HDR.HdrAddr = demo.DESDevSerial
@@ -657,13 +667,14 @@ func (demo *DemoDeviceClient) StartDemoJob( /*state*/ ) {
 	/* WHERE JOB START CONFIG WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.CFG.CfgTime != demo.EVT.EvtTime {
 		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT CONFIG.\n")
-		demo.CFG = demo.RegisterJob_Default_JobConfig()
+		demo.CFG.DefaultSettings_Config(reg)
 	}
 	demo.CFG.CfgTime = startTime
 	demo.CFG.CfgAddr = demo.DESDevSerial
 	demo.CFG.CfgUserID = demo.EVT.EvtUserID
 	demo.CFG.CfgApp = demo.EVT.EvtApp
 	demo.CFG.CfgVlvTgt = MODE_VENT
+	demo.ValidateCFG() 
 
 	demo.EVT.EvtTime = startTime
 	demo.EVT.EvtAddr = demo.DESDevSerial
@@ -838,7 +849,7 @@ func (demo *DemoDeviceClient) Set_MTx() {
 	demo.MTxBuild.VMin = minPress
 	demo.MTxBuild.TSpanUp = time.Duration(time.Second*275)
 	demo.MTxBuild.TSpanDn = time.Duration(time.Second*150)
-	demo.MTxBuild.VRes = maxPress * 0.005
+	demo.MTxBuild.VRes = maxPress * 0.0005
 
 	fmt.Printf("\n(demo *DemoDeviceClient) Set_MTx() -> %s:, %f, %f, %f, %f\n", demo.DESDevSerial, demo.MTxCh4.VMax, demo.MTxHiFlow.VMax, demo.MTxLoFlow.VMax, demo.MTxBuild.VMax)
 }

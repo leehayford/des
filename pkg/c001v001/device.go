@@ -196,6 +196,18 @@ func (device *Device) GetMappedCFG() {
 	device.CFG = d.CFG
 }
 
+/* ENSURE THE SAMPLE / LOG / TRANS RATES HAVE BEEN SET WITHIN ACCEPTABLE LIMITS */
+func (device *Device) ValidateCFG() {
+	/* TODO: SET ACCEPTABLE LIMITS FOR THE REST OF THE CONFIG SETTINGS */
+	smpPeriodLimit := int32(200)
+	if device.CFG.CfgOpSample < smpPeriodLimit { device.CFG.CfgOpSample = smpPeriodLimit }
+	if device.CFG.CfgOpLog < device.CFG.CfgOpSample { device.CFG.CfgOpLog = device.CFG.CfgOpSample }
+	if device.CFG.CfgOpTrans < device.CFG.CfgOpSample { device.CFG.CfgOpTrans = device.CFG.CfgOpSample }
+	if device.CFG.CfgDiagSample < smpPeriodLimit { device.CFG.CfgDiagSample = smpPeriodLimit }
+	if device.CFG.CfgDiagLog < device.CFG.CfgDiagSample { device.CFG.CfgDiagLog = device.CFG.CfgDiagSample }
+	if device.CFG.CfgDiagTrans < device.CFG.CfgDiagSample { device.CFG.CfgDiagTrans = device.CFG.CfgDiagSample }
+}
+
 /* HYDRATES THE DEVICE'S Event STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedEVT() {
 	d := Devices[device.DESDevSerial]

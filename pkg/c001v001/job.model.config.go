@@ -97,3 +97,35 @@ func (cfg *Config) ConfigFromBytes(b []byte) {
 	//  pkg.Json("(demo *DemoDeviceClient)MakeCfgFromBytes() -> cfg", cfg)
 	return
 }
+
+/*
+CONFIG - DEFAULT VALUES
+*/
+func (cfg *Config) DefaultSettings_Config(reg pkg.DESRegistration) {
+	cfg.CfgTime = reg.DESJobRegTime
+	cfg.CfgAddr = reg.DESJobRegAddr
+	cfg.CfgUserID = reg.DESJobRegUserID
+	cfg.CfgApp =  reg.DESJobRegApp
+
+	/* JOB */
+	cfg.CfgSCVD = 596.8 // m
+	cfg.CfgSCVDMult = 10.5  // kPa / m
+	cfg.CfgSSPRate = 1.95  // kPa / hour
+	cfg.CfgSSPDur = 6.0   // hour
+	cfg.CfgHiSCVF = 201.4 //  L/min
+	cfg.CfgFlowTog = 1.85  // L/min
+
+	/* VALVE */
+	cfg.CfgVlvTgt = 2 // vent
+	cfg.CfgVlvPos = 2 // vent
+
+	/* OP PERIODS*/
+	cfg.CfgOpSample = 1000 // millisecond
+	cfg.CfgOpLog = 1000 // millisecond
+	cfg.CfgOpTrans = 1000 // millisecond
+
+	/* DIAG PERIODS */
+	cfg.CfgDiagSample = 10000  // millisecond
+	cfg.CfgDiagLog = 100000 // millisecond
+	cfg.CfgDiagTrans = 600000 // millisecond
+}
