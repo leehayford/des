@@ -33,7 +33,7 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 
 	/* CONNECT TO THE BROKER WITH 'CleanSession = false' 
 		AUTOMATICALLY RE-SUBSCRIBE ON RECONNECT AFTER */
-	if err = device.DESMQTTClient.DESMQTTClient_Connect(false); err != nil {
+	if err = device.DESMQTTClient.DESMQTTClient_Connect(false, true); err != nil {
 		return err
 	}
 

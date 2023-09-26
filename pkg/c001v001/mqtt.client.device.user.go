@@ -129,7 +129,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 	duc.MQTTPW = pw
 	duc.MQTTClientID = duc.WSClientID
 	/* DEVICE USER CLIENTS ***DO NOT*** AUTOMATICALLY RESUBSCRIBE */
-	if err = duc.DESMQTTClient.DESMQTTClient_Connect(true); err != nil {
+	if err = duc.DESMQTTClient.DESMQTTClient_Connect(true, false); err != nil {
 		return err
 	}
 	// pkg.Json(`(duc *DeviceUserClient) MQTTDeviceUserClient_Connect(...) -> duc.DESMQTTClient.DESMQTTClient_Connect()

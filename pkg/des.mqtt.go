@@ -32,7 +32,7 @@ type DESMQTTClient struct {
 	Subs []MQTTSubscription
 }
 
-func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub bool ) (err error) {
+func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub, autoReconn bool ) (err error) {
 
 	/* CREATE MQTT CLEITN OPTIONS */
 	desm.ClientOptions = *phao.NewClientOptions()
@@ -42,7 +42,7 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub bool ) (err error
 	desm.SetClientID(desm.MQTTClientID)
 	desm.SetPingTimeout(time.Second * 20) // Must be 1.5 x greater than Keep-Alive
 	desm.SetKeepAlive(time.Second * 10)
-	desm.SetAutoReconnect(true)
+	desm.SetAutoReconnect(autoReconn)
 	desm.SetCleanSession(falseToResub) // FALSE to ensure subscriptions are active on reconnect
 	desm.SetMaxReconnectInterval(time.Second * 10)
 	desm.OnConnect = func(c phao.Client) {
