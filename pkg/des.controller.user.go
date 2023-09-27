@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -21,8 +20,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2" // go get github.com/gofiber/fiber/v2
-	"github.com/golang-jwt/jwt" // go get github.com/golang-jwt/jwt
-	"golang.org/x/crypto/bcrypt" // go get golang.org/x/crypto/bcrypt
+	"github.com/golang-jwt/jwt"   // go get github.com/golang-jwt/jwt
+	"golang.org/x/crypto/bcrypt"  // go get golang.org/x/crypto/bcrypt
 )
 
 func SignUpUser(c *fiber.Ctx) error {
@@ -48,14 +47,14 @@ func SignUpUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": err.Error()})
 	}
 
-	newUser := User{
+	user := User{
 		Name:     payload.Name,
 		Email:    strings.ToLower(payload.Email),
 		Password: string(hashedPassword),
 		Photo:    payload.Photo,
 	}
 
-	result := DES.DB.Create(&newUser)
+	result := DES.DB.Create(&user)
 
 	if result.Error != nil && strings.Contains(result.Error.Error(), "duplicate key value violates unique") {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "fail", "message": "User with that email already exists"})
@@ -63,7 +62,7 @@ func SignUpUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"status": "error", "message": "Something bad happened"})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": fiber.Map{"user": FilterUserRecord(&newUser)}})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": fiber.Map{"user": user.FilterUserRecord()}})
 }
 
 func SignInUser(c *fiber.Ctx) error {
@@ -72,13 +71,13 @@ func SignInUser(c *fiber.Ctx) error {
 	if err := c.BodyParser(&payload); err != nil {
 		fmt.Println("SignInUser(c *fiber.Ctx) -> c.BodyParser")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": err.Error(),
 		})
 	}
 	if errors := ValidateStruct(payload); errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": errors,
 		})
 	}
@@ -86,13 +85,13 @@ func SignInUser(c *fiber.Ctx) error {
 	user := User{}
 	if result := DES.DB.First(&user, "email = ?", strings.ToLower(payload.Email)); result.Error != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": "Invalid email or Password",
 		})
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(payload.Password)); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": "Invalid email or Password",
 		})
 	}
@@ -109,7 +108,7 @@ func SignInUser(c *fiber.Ctx) error {
 	tokenString, err := tokenByte.SignedString([]byte(JWT_SECRET))
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": fmt.Sprintf("generating JWT Token failed: %v", err),
 		})
 	}
@@ -126,7 +125,7 @@ func SignInUser(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
-		"token": tokenString,
+		"token":  tokenString,
 	})
 }
 
@@ -147,33 +146,33 @@ func GetMe(c *fiber.Ctx) error {
 	DES.DB.First(&user, "id = ?", id)
 	if user.ID.String() != id {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": "the user belonging to this token no logger exists",
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success", 
-		"data": fiber.Map{"user": FilterUserRecord(&user)},
+		"status": "success",
+		"data":   fiber.Map{"user": user.FilterUserRecord()},
 	})
 }
 
-func GetUsers(c *fiber.Ctx) error {
-	
-	fmt.Printf("\nGetUsers( ):\n")	
+func GetUserList(c *fiber.Ctx) error {
 
-	usrs := []User{}
-	DES.DB.Find(&usrs)
-	fmt.Printf("\nusrs: %d\n", len(usrs))	
+	fmt.Printf("\nGetUsers( ):\n")
 
-	users := []UserResponse{}
-	for _, usr := range usrs {
-		users = append(users, FilterUserRecord(&usr))
+	users := []User{}
+	DES.DB.Find(&users)
+	fmt.Printf("\nusrs: %d\n", len(users))
+
+	userList := []UserResponse{}
+	for _, user := range users {
+		userList = append(userList, user.FilterUserRecord())
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success", 
+		"status":  "success",
 		"message": "These are all tolerable people!",
-		"data": fiber.Map{"users": users},
+		"data":    fiber.Map{"users": userList},
 	})
 }

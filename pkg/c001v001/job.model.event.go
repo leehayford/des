@@ -75,53 +75,28 @@ type EventTyp struct {
 
 var EVENT_TYPES = []EventTyp{
 
-	// 0 DEVICE REGISTRATION REQUESTED
-	{EvtTypCode: 0, EvtTypName: "DEVICE REGISTRATION REQUESTED"},
-	// 1 DEVICE REGISTERED
-	{EvtTypCode: 1, EvtTypName: "DEVICE REGISTERED"},
+	/* DEVICE CONTROL EVENT TYPES: 0 - 999 */
+	{EvtTypCode: STATUS_DES_REG_REQ, EvtTypName: "DEVICE REGISTRATION REQUESTED"},
+	{EvtTypCode: STATUS_DES_REGISTERED, EvtTypName: "DEVICE REGISTERED"},
+	{EvtTypCode: STATUS_JOB_ENDED, EvtTypName: "JOB ENDED"},
+	{EvtTypCode: STATUS_JOB_START_REQ, EvtTypName: "START JOB REQUESTED"},
+	{EvtTypCode: STATUS_JOB_STARTED, EvtTypName: "JOB STARTED"},
+	{EvtTypCode: STATUS_JOB_END_REQ, EvtTypName: "END JOB REQUESTED"},
 
-	// 2 END JOB REQUESTED
-	{EvtTypCode: 2, EvtTypName: "END JOB REQUESTED"},
-	// 3 JOB ENDED
-	{EvtTypCode: 3, EvtTypName: "JOB ENDED"},
+// 	/*OPERATIONAL ALARM EVENT TYPES 1000 -1999 */
+// 	{EvtTypCode: 1000, EvtTypName: "ALARM HIGH BATTERY CURRENT"},
+// 	{EvtTypCode: 1001, EvtTypName: "ALARM LOW BATTERY VOLTAGE"},
+// 	{EvtTypCode: 1002, EvtTypName: "ALARM HIGH MOTOR CURRENT"},
+// 	{EvtTypCode: 1003, EvtTypName: "ALARM HIGH PRESSURE"},
+// 	{EvtTypCode: 1004, EvtTypName: "ALARM HIGH FLOW"},
 
-	// 4 START JOB REQUESTED
-	{EvtTypCode: 4, EvtTypName: "START JOB REQUESTED"},
-	// 5 JOB STARTED
-	{EvtTypCode: 5, EvtTypName: "JOB STARTED"},
-
-
-// 	/*ADMIN EVENT TYPES*/
-// 	{EvtTypCode: 0, EvtTypName: "DEVICE REGISTRATION"},
-
-// 	/*OPERATIONAL EVENT TYPES*/
-// 	{EvtTypCode: 1, EvtTypName: "JOB END"},
-
-// 	{EvtTypCode: 2, EvtTypName: "JOB START"},
-
-// 	{EvtTypCode: 3, EvtTypName: "CONFIGURATION CHANGED"},
-
-// 	{EvtTypCode: 4, EvtTypName: "SHUT-IN PRESSURE STABILIZED"},
-
-// 	/*OPERATION ALARM EVENT TYPES*/
-// 	{EvtTypCode: 5, EvtTypName: "ALARM HIGH BATTERY CURRENT"},
-
-// 	{EvtTypCode: 6, EvtTypName: "ALARM LOW BATTERY VOLTAGE"},
-
-// 	{EvtTypCode: 7, EvtTypName: "ALARM HIGH MOTOR CURRENT"},
-
-// 	{EvtTypCode: 8, EvtTypName: "ALARM HIGH PRESSURE"},
-
-// 	{EvtTypCode: 9, EvtTypName: "ALARM HIGH FLOW"},
-
-// 	/*OPERATION MODE EVENT TYPES*/
-// 	{EvtTypCode: 10, EvtTypName: "MODE VENT"},
-
-// 	{EvtTypCode: 11, EvtTypName: "MODE BUILD"},
-
-// 	{EvtTypCode: 12, EvtTypName: "MODE HIGH FLOW"},
-
-// 	{EvtTypCode: 13, EvtTypName: "MODE LOW FLOW"},
+// 	/* OPERATIONAL STATUS EVENT TYPES 2000 - 2999 */
+// 	{EvtTypCode: 2000, EvtTypName: "CONFIGURATION CHANGED"},
+// 	{EvtTypCode: 2001, EvtTypName: "SHUT-IN PRESSURE STABILIZED"},
+// 	{EvtTypCode: 2002, EvtTypName: "MODE VENT"},
+// 	{EvtTypCode: 2003, EvtTypName: "MODE BUILD"},
+// 	{EvtTypCode: 2004, EvtTypName: "MODE HIGH FLOW"},
+// 	{EvtTypCode: 2005, EvtTypName: "MODE LOW FLOW"},
 
 }
 

@@ -29,7 +29,6 @@ import (
 	"github.com/leehayford/des/pkg/c001v001"
 )
 
-
 func main() {
 
 	/* ADMIN DB - CONNECT TO THE ADMIN DATABASE */
@@ -85,7 +84,7 @@ func main() {
 	/* API ROUTES */
 	api := fiber.New()
 	app.Mount("/api", api)
-	app.Get("/user", pkg.GetUsers)
+	app.Get("/user", pkg.GetUserList)
 	app.Get("/user/me", pkg.DesAuth, pkg.GetMe)
 
 	/* AUTH & USER ROUTES */
@@ -105,7 +104,6 @@ func main() {
 		router.Post("/config", pkg.DesAuth, c001v001.HandleSetConfig)
 		router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
 
-		
 		app.Use("/ws", func(c *fiber.Ctx) error {
 			if websocket.IsWebSocketUpgrade(c) {
 				c.Locals("allowed", true)

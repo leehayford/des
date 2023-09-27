@@ -100,7 +100,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	startTime := time.Now().UTC().UnixMilli()
 
 	device.DESRegistration.DESJobRegTime = startTime
-	device.Job.DESRegistration = device.DESRegistration
+	// device.Job.DESRegistration = device.DESRegistration
 
 	device.ADM.AdmTime = startTime
 	device.ADM.AdmAddr = c.IP()

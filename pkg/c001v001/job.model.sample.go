@@ -26,7 +26,7 @@ type Sample struct {
 /*
 SAMPLE - AS STORED IN DEVICE FLASH
 */
-func (smp *Sample) FilterSmpBytes() (out []byte) {
+func (smp *Sample) SampleToBytes() (out []byte) {
 
 	out = append(out, pkg.Int64ToBytes(smp.SmpTime)...)
 	out = append(out, pkg.Float32ToBytes(smp.SmpCH4)...)
@@ -41,6 +41,24 @@ func (smp *Sample) FilterSmpBytes() (out []byte) {
 
 	return
 }
+func (smp *Sample) SampleFromBytes(bytes []byte) {
+
+	smp = &Sample{
+		SmpTime: pkg.BytesToInt64(bytes[0:8]),
+		SmpCH4: pkg.BytesToFloat32(bytes[8:12]),
+		SmpHiFlow: pkg.BytesToFloat32(bytes[12:16]),
+		SmpLoFlow: pkg.BytesToFloat32(bytes[16:20]),
+		SmpPress: pkg.BytesToFloat32(bytes[20:24]),
+		SmpBatAmp: pkg.BytesToFloat32(bytes[24:28]),
+		SmpBatVolt: pkg.BytesToFloat32(bytes[28:32]),
+		SmpMotVolt: pkg.BytesToFloat32(bytes[32:36]),
+		SmpVlvTgt: pkg.BytesToUInt32(bytes[36:38]),
+		SmpVlvPos: pkg.BytesToUInt32(bytes[38:40]),
+	}
+	// pkg.Json("(smp *Sample) SampleFromBytes(...) ->  smp:", smp)
+	return
+}
+
 
 /*
 SAMPLE - MQTT MESSAGE STRUCTURE
@@ -70,7 +88,7 @@ func (job *Job) WriteMQTTSample(msg []byte, smp *Sample) (err error) {
 		if err = job.Write(smp); err != nil {
 			return err
 		}
-		
+
 	}
 
 	return err

@@ -15,17 +15,12 @@ const DEVICE_VERSION = "001"
 /* STATUS ( Event.EvtCode ) ****************************************************************************/
 
 const STATUS_DES_REG_REQ int32 = 0 // USER REQUEST -> CHANGE DEVICE'S OPERATIONAL DATA EXCHANGE SERVER
-
 const STATUS_DES_REGISTERED int32 = 1 // DEVICE RESPONSE -> SENT TO NEW DATA EXCHANGE SERVER
-
 const STATUS_JOB_ENDED int32 = 2 // DEVICE RESPONSE -> WAITING TO START A NEW JOB
-
 const STATUS_JOB_START_REQ int32 = 3 // USER REQUEST -> START JOB
 
 /* STATUS > JOB_START_REQ MEANS WE ARE LOGGING TO AN ACTIVE JOB */
-
 const STATUS_JOB_STARTED int32 = 4 // DEVICE RESPONSE -> JOB HAS BEGUN
-
 const STATUS_JOB_END_REQ int32 = 5 // USER REQUEST -> END JOB
 
 /* STATUS ( Event.EvtCode ) ****************************************************************************/
@@ -40,15 +35,15 @@ const MODE_LO_FLOW int32 = 6
 /*
 	FOR EACH REGISTERED DEVICE, THE DES MAINTAINS:
 
-# THE MOST RECENT REGISTRATION DATA FOR THE DEVICE ITSELF, AND THE ACTIVE JOB
+	THE MOST RECENT REGISTRATION DATA FOR THE DEVICE ITSELF, AND THE ACTIVE JOB
 
-# THE MOST RECENT MESSAGE DATA FROM THE DEVICE, ONE OF EACH DATA MODEL PRESENT IN A JOB DATABASE
+	THE MOST RECENT MESSAGE DATA FROM THE DEVICE, ONE OF EACH DATA MODEL PRESENT IN A JOB DATABASE
 
-SEVERAL DEDICATED CONNECTIONS:
+	SEVERAL DEDICATED CONNECTIONS:
 
-	A DEVICE-SPECIFIC CMDARCHIVE DATABASE ( FOR LIFE )
-	A DEVICE-SPECIFIC ACTIVE JOB DATABASE ( CHANGES WITH EACH JOB START )
-	DEVICE-SPECIFIC MQTT CLIENT ( FOR LIFE )
+		A DEVICE-SPECIFIC CMDARCHIVE DATABASE ( FOR LIFE )
+		A DEVICE-SPECIFIC ACTIVE JOB DATABASE ( CHANGES WITH EACH JOB START )
+		DEVICE-SPECIFIC MQTT CLIENT ( FOR LIFE )
 */
 type Device struct {
 	pkg.DESRegistration `json:"reg"` // Contains registration data for both the device and active job
@@ -57,7 +52,12 @@ type Device struct {
 	CFG                 Config       `json:"cfg"` // Last known Config value
 	EVT                 Event        `json:"evt"` // Last known Event value
 	SMP                 Sample       `json:"smp"` // Last known Sample value
+
+	/****************************************************************************************************/
+	/* TODO: REMOVE Job STRUCT FROM DEVICE SO Job CAN BE DEDICATED TO REPORTING */
 	Job                 `json:"job"` // The active job for this device ( CMDARCHIVE when between jobs )
+	/****************************************************************************************************/
+
 	CmdDBC              pkg.DBClient `json:"-"` // Database Client for the CMDARCHIVE
 	JobDBC              pkg.DBClient `json:"-"` // Database Client for the active job
 	pkg.DESMQTTClient   `json:"-"`   // MQTT client handling all subscriptions and publications for this device

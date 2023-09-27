@@ -29,18 +29,18 @@ SUBSCRIBES TO ALL COMMAND TOPICS AS A SINGLE DEVICE
 type DemoModeTransition struct {
 	VMin    float32       `json:"v_min"`
 	VMax    float32       `json:"v_max"`
-	VRes float32 `json:"v_res"`
+	VRes    float32       `json:"v_res"`
 	TSpanUp time.Duration `json:"t_span_up"`
 	TSpanDn time.Duration `json:"t_span_dn"`
 }
 
 type DemoDeviceClient struct {
 	Device
-	TZero time.Time
-	MTxCh4   DemoModeTransition `json:"mtx_ch4"`
-	MTxHiFlow  DemoModeTransition `json:"mtx_hi_flow"`
-	MTxLoFlow  DemoModeTransition `json:"mtx_lo_flow"`
-	MTxBuild DemoModeTransition `json:"mtx_build"`
+	TZero     time.Time
+	MTxCh4    DemoModeTransition `json:"mtx_ch4"`
+	MTxHiFlow DemoModeTransition `json:"mtx_hi_flow"`
+	MTxLoFlow DemoModeTransition `json:"mtx_lo_flow"`
+	MTxBuild  DemoModeTransition `json:"mtx_build"`
 	pkg.DESMQTTClient
 }
 
@@ -488,10 +488,10 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 			/* REGISTRATION EVENT: USED TO ASSIGN THIS DEVICE TO
 			A DIFFERENT DATA EXCHANGE SERVER */
 
-			case STATUS_JOB_END_REQ: 
+			case STATUS_JOB_END_REQ:
 				demo.EndDemoJob()
 
-			case STATUS_JOB_START_REQ: 
+			case STATUS_JOB_START_REQ:
 				demo.StartDemoJob( /*state*/ )
 
 			default:
@@ -620,9 +620,8 @@ func (demo *DemoDeviceClient) StartDemoJob( /*state*/ ) {
 	demo.TZero = time.Now().UTC()
 	startTime := demo.TZero.UnixMilli()
 
-
 	/* USED INCASE WE NEED TO CREATE DEFAULT SETTINGS */
-	reg := pkg.DESRegistration {
+	reg := pkg.DESRegistration{
 		DESDev: demo.DESDev,
 		DESJob: pkg.DESJob{
 			DESJobRegTime:   startTime,
@@ -630,7 +629,7 @@ func (demo *DemoDeviceClient) StartDemoJob( /*state*/ ) {
 			DESJobRegUserID: demo.EVT.EvtUserID,
 			DESJobRegApp:    demo.EVT.EvtApp,
 
-			DESJobName: fmt.Sprintf("%s_%d", demo.DESDevSerial, startTime),
+			DESJobName:  fmt.Sprintf("%s_%d", demo.DESDevSerial, startTime),
 			DESJobStart: startTime,
 			DESJobEnd:   0,
 			DESJobLng:   -114.75 + rand.Float32()*(-110.15+114.75),
@@ -674,7 +673,7 @@ func (demo *DemoDeviceClient) StartDemoJob( /*state*/ ) {
 	demo.CFG.CfgUserID = demo.EVT.EvtUserID
 	demo.CFG.CfgApp = demo.EVT.EvtApp
 	demo.CFG.CfgVlvTgt = MODE_VENT
-	demo.ValidateCFG() 
+	demo.ValidateCFG()
 
 	demo.EVT.EvtTime = startTime
 	demo.EVT.EvtAddr = demo.DESDevSerial
@@ -800,7 +799,7 @@ func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 	if demo.SMP.SmpVlvPos == uint32(MODE_BUILD) {
 		demo.Set_MTxBuild(t0, ti)
 	}
-	if demo.SMP.SmpVlvPos == uint32(MODE_HI_FLOW) || demo.SMP.SmpVlvPos == uint32(MODE_LO_FLOW ) {
+	if demo.SMP.SmpVlvPos == uint32(MODE_HI_FLOW) || demo.SMP.SmpVlvPos == uint32(MODE_LO_FLOW) {
 		demo.Set_MTxFlow(t0, ti)
 	}
 
@@ -814,7 +813,6 @@ func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time) {
 	demo.SMP.SmpJobName = demo.HDR.HdrJobName
 }
 
-
 /* CREATE RANDOM SIMULATED WELL CONDITIONS */
 var maxCh4 = float32(97.99)
 var minCh4 = float32(23.99)
@@ -827,28 +825,28 @@ var minPress = float32(101.99)
 
 func (demo *DemoDeviceClient) Set_MTx() {
 
-	demo.MTxCh4.VMax = minCh4+rand.Float32()*(maxCh4-minCh4)
+	demo.MTxCh4.VMax = minCh4 + rand.Float32()*(maxCh4-minCh4)
 	demo.MTxCh4.VMin = 0.01
-	demo.MTxCh4.TSpanUp = time.Duration(time.Second*35)
-	demo.MTxCh4.TSpanDn = time.Duration(time.Second*70)
+	demo.MTxCh4.TSpanUp = time.Duration(time.Second * 35)
+	demo.MTxCh4.TSpanDn = time.Duration(time.Second * 70)
 	demo.MTxCh4.VRes = float32(100) * 0.005
 
-	demo.MTxHiFlow.VMax = minFlow+rand.Float32()*(maxFlow-minFlow)
+	demo.MTxHiFlow.VMax = minFlow + rand.Float32()*(maxFlow-minFlow)
 	demo.MTxHiFlow.VMin = 0.01
-	demo.MTxHiFlow.TSpanUp = time.Duration(time.Second*70)
-	demo.MTxHiFlow.TSpanDn = time.Duration(time.Second*35)
+	demo.MTxHiFlow.TSpanUp = time.Duration(time.Second * 70)
+	demo.MTxHiFlow.TSpanDn = time.Duration(time.Second * 35)
 	demo.MTxHiFlow.VRes = float32(250) * 0.005
 
 	demo.MTxLoFlow.VMax = demo.MTxHiFlow.VMax
 	demo.MTxLoFlow.VMin = 0.01
-	demo.MTxLoFlow.TSpanUp = time.Duration(time.Second*70)
-	demo.MTxLoFlow.TSpanDn = time.Duration(time.Second*35)
+	demo.MTxLoFlow.TSpanUp = time.Duration(time.Second * 70)
+	demo.MTxLoFlow.TSpanDn = time.Duration(time.Second * 35)
 	demo.MTxLoFlow.VRes = float32(2.0) * 0.005
 
-	demo.MTxBuild.VMax = ( demo.MTxHiFlow.VMax / maxFlow ) * maxPress
+	demo.MTxBuild.VMax = (demo.MTxHiFlow.VMax / maxFlow) * maxPress
 	demo.MTxBuild.VMin = minPress
-	demo.MTxBuild.TSpanUp = time.Duration(time.Second*275)
-	demo.MTxBuild.TSpanDn = time.Duration(time.Second*150)
+	demo.MTxBuild.TSpanUp = time.Duration(time.Second * 275)
+	demo.MTxBuild.TSpanDn = time.Duration(time.Second * 150)
 	demo.MTxBuild.VRes = maxPress * 0.0005
 
 	fmt.Printf("\n(demo *DemoDeviceClient) Set_MTx() -> %s:, %f, %f, %f, %f\n", demo.DESDevSerial, demo.MTxCh4.VMax, demo.MTxHiFlow.VMax, demo.MTxLoFlow.VMax, demo.MTxBuild.VMax)
@@ -870,7 +868,7 @@ func (demo *DemoDeviceClient) Set_MTxFlow(t0, ti time.Time) {
 	demo.SMP.SmpCH4 = demo.MTxCh4.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpCH4, demo.MTxCh4.VMax, false)
 	demo.SMP.SmpHiFlow = demo.MTxHiFlow.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpHiFlow, demo.MTxHiFlow.VMax, false)
 	demo.SMP.SmpLoFlow = demo.MTxLoFlow.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpLoFlow, demo.MTxLoFlow.VMax, false)
-	fp := ((demo.MTxHiFlow.VMax / maxFlow ) * minPress * 2 ) + minPress
+	fp := ((demo.MTxHiFlow.VMax / maxFlow) * minPress * 2) + minPress
 	demo.SMP.SmpPress = demo.MTxBuild.MTx_CalcModeTransValue(t0, ti, demo.SMP.SmpPress, fp, false)
 }
 
@@ -924,8 +922,8 @@ func Demo_EncodeMQTTSampleMessage(job string, i int, smp Sample) MQTT_Sample {
 	return msg
 }
 
-func (mtx *DemoModeTransition)MTx_CalcModeTransValue(t_start, ti time.Time, vi, v_end float32, vent bool) (value float32) {
-	
+func (mtx *DemoModeTransition) MTx_CalcModeTransValue(t_start, ti time.Time, vi, v_end float32, vent bool) (value float32) {
+
 	/* SPAN OF THE VALUE TRANSITION */
 	v_span := float64(v_end - vi)
 
@@ -958,9 +956,9 @@ func (mtx *DemoModeTransition)MTx_CalcModeTransValue(t_start, ti time.Time, vi, 
 		value = v_end
 	} else {
 		/* ENSURE THE SIMULATED VALUE DOESN'T DIP THE WRONG WAY */
-		if (v_span > 1 && value < (vi + res)) {
+		if v_span > 1 && value < (vi+res) {
 			value = vi + res
-		} else if (v_span < 1 && value > (vi - res)) {
+		} else if v_span < 1 && value > (vi-res) {
 			value = vi - res
 		}
 	}
@@ -1284,7 +1282,7 @@ func (demo *DemoDeviceClient) ReadEvtDir(jobName string) (evts []Event) {
 /* SMP DEMO MEMORY -> 40 BYTES -> HxD 40 */
 func (demo *DemoDeviceClient) WriteSmpToFlash(jobName string, smp Sample) (err error) {
 
-	smpBytes := smp.FilterSmpBytes()
+	smpBytes := smp.SampleToBytes()
 	// fmt.Printf("\nsmpBytes ( %d ) : %v\n", len(smpBytes), smpBytes)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
@@ -1307,4 +1305,3 @@ func (demo *DemoDeviceClient) WriteSmpToFlash(jobName string, smp Sample) (err e
 
 	return
 }
-

@@ -59,7 +59,7 @@ type UserResponse struct {
 	UpdatedAt int64 `json:"updated_at"`
 }
 
-func FilterUserRecord(user *User) UserResponse {
+func (user *User) FilterUserRecord() UserResponse {
 	return UserResponse{
 		ID:        user.ID,
 		Name:      user.Name,
