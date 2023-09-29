@@ -42,8 +42,8 @@ type DBClient struct {
 	ConnStr string
 	*gorm.DB
 
-	/* WAIT GROUP USED TO ENSURE ALL PENDING WRITES HAVE COMPLETED BEFORE DISCONNECT */
-	WG *sync.WaitGroup /* TODO: ? MAKE THIS PRIVATE IF WE DON'T NEED TO MANAGE IT EXTERNALLY */
+	/* WAIT GROUP USED TO PREVENT CONCURRENT ACCESS  */
+	WG *sync.WaitGroup 
 }
 func (dbc *DBClient) GetDBName() string {
 	str := strings.Split(dbc.ConnStr, "/")
@@ -108,12 +108,12 @@ func (dbc DBClient) Disconnect() (err error) {
 func (dbc *DBClient) Write(model interface{}) (err error) {
 
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
-		WE WANT TO PREVENT DISCONNECTION UNTIL ALL TRANSACTIONS HAVE FINISHED
+		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
 	dbc.WG.Add(1)
-	defer dbc.WG.Done()
+	res := dbc.Create(model) 
+	dbc.WG.Done()
 
-	res := dbc.Create(model)
 	return res.Error
 }
 

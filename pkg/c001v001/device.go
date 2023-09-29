@@ -3,6 +3,7 @@ package c001v001
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/leehayford/des/pkg"
@@ -66,6 +67,7 @@ type Device struct {
 type DevicesMap map[string]Device
 
 var Devices = make(DevicesMap)
+var DevicesRWMutex = sync.RWMutex{}
 
 /* GET THE CURRENT DESRegistration FOR ALL DEVICES ON THIS DES */
 func GetDeviceList() (devices []pkg.DESRegistration, err error) {
@@ -136,15 +138,16 @@ func (device *Device) DeviceClient_Connect() {
 	device.JobDBC.Last(&device.ADM)
 	device.JobDBC.Last(&device.HDR)
 	device.JobDBC.Last(&device.CFG)
-	device.JobDBC.Last(&device.EVT)
 	device.JobDBC.Last(&device.SMP)
+	device.JobDBC.Last(&device.EVT)
 
 	if err := device.MQTTDeviceClient_Connect(); err != nil {
 		pkg.TraceErr(err)
 	}
 
 	/* ADD TO Devices MAP */
-	Devices[device.DESDevSerial] = *device
+	UpdateDevicesMap(device.DESDevSerial,  *device)
+	// Devices[device.DESDevSerial] = *device
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connected... \n\n", device.DESDevSerial)
 }
 
@@ -168,31 +171,57 @@ func (device *Device) DeviceClient_Disconnect() {
 	delete(Devices, device.DESDevSerial)
 }
 
+
+/* UPDATE THE DevicesMap USING RWMutex TO PREVENT CONCURRENT MAP WRITES */
+func  (device *Device) ReadDevicesMap(serial string) (d Device) {
+	
+	DevicesRWMutex.Lock()
+	d = Devices[serial]
+	DevicesRWMutex.Unlock()
+	return
+}
+
 /* HYDRATES THE DEVICE'S DB & MQTT CLIENT OBJECTS OF THE DEVICE FROM DevicesMap */
 func (device *Device) GetMappedClients() {
 
 	/* GET THE DEVICE CLIENT DATA FROM THE DEVICES CLIENT MAP */
-	d := Devices[device.DESDevSerial]
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
+	
+	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
+	d.CmdDBC.WG.Wait()
+	if device.CmdDBC.DB != nil {
+		device.CmdDBC.WG.Wait()
+	}
 	device.CmdDBC = d.CmdDBC
+
+	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
+	d.JobDBC.WG.Wait()
+	if device.JobDBC.DB != nil {
+		device.JobDBC.WG.Wait()
+	}
 	device.JobDBC = d.JobDBC
+
+	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DESMQTTClient IS BUSY */
+	d.DESMQTTClient.WG.Wait()
+	device.DESMQTTClient.WG.Wait()
 	device.DESMQTTClient = d.DESMQTTClient
 }
 
 /* HYDRATES THE DEVICE'S Admin STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedADM() {
-	d := Devices[device.DESDevSerial]
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
 	device.ADM = d.ADM
 }
 
 /* HYDRATES THE DEVICE'S HEader STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedHDR() {
-	d := Devices[device.DESDevSerial]
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
 	device.HDR = d.HDR
 }
 
 /* HYDRATES THE DEVICE'S Config STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedCFG() {
-	d := Devices[device.DESDevSerial]
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
 	device.CFG = d.CFG
 }
 
@@ -210,21 +239,56 @@ func (device *Device) ValidateCFG() {
 
 /* HYDRATES THE DEVICE'S Event STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedEVT() {
-	d := Devices[device.DESDevSerial]
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
 	device.EVT = d.EVT
 }
 
 /* HYDRATES THE DEVICE'S Sample STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedSMP() {
-	d := Devices[device.DESDevSerial]
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
 	device.SMP = d.SMP
+}
+
+/* UPDATE THE DevicesMap USING RWMutex TO PREVENT CONCURRENT MAP WRITES */
+func UpdateDevicesMap(serial string, d Device) {
+	DevicesRWMutex.Lock()
+	Devices[serial] = d
+	DevicesRWMutex.Unlock()
+}
+
+/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Admin */
+func (device *Device) UpdateMappedADM() {
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
+	d.ADM = device.ADM
+	UpdateDevicesMap(device.DESDevSerial, d)
+}
+
+/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Header */
+func (device *Device) UpdateMappedHDR() {
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
+	d.HDR = device.HDR
+	UpdateDevicesMap(device.DESDevSerial, d)
+}
+
+/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Config */
+func (device *Device) UpdateMappedCFG() {
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
+	d.CFG = device.CFG
+	UpdateDevicesMap(device.DESDevSerial, d)
+}
+
+/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Event */
+func (device *Device) UpdateMappedEVT() {
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
+	d.EVT = device.EVT
+	UpdateDevicesMap(device.DESDevSerial, d)
 }
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Sample */
 func (device *Device) UpdateMappedSMP() {
-	d := Devices[device.DESDevSerial]
+	d :=  device.ReadDevicesMap(device.DESDevSerial)
 	d.SMP = device.SMP
-	Devices[device.DESDevSerial] = d
+	UpdateDevicesMap(device.DESDevSerial, d)
 }
 
 /* RETURNS THE CMDARCHIVE NAME  */
@@ -293,7 +357,6 @@ func (device *Device) StartJob(evt Event) {
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
-	// device.GetMappedSMP()
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
@@ -370,13 +433,16 @@ func (device *Device) StartJob(evt Event) {
 		pkg.TraceErr(err)
 	}
 
+	/* WAIT FOR PENDING MQTT MESSAGES TO COMPLETE */
+	device.DESMQTTClient.WG.Wait()
+
 	/* UPDATE THE DEVICE EVENT CODE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB
 	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
 	*/
 	device.EVT = evt
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	Devices[device.DESDevSerial] = *device
+	UpdateDevicesMap(device.DESDevSerial, *device)
 
 	fmt.Printf("\n(device *Device) StartJob( ): COMPLETE: %s\n", device.JobDBC.GetDBName())
 }
@@ -384,11 +450,34 @@ func (device *Device) StartJob(evt Event) {
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
 func (device *Device) EndJob(evt Event) {
 
-	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedClients()
+	/* WAIT FOR FINAL HEADER TO BE RECEIVED */
+	fmt.Printf("\n(device *Device) EndJob( ) -> Waiting for final Header... H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
+	for device.HDR.HdrTime < evt.EvtTime {
+		/* THIS IS A SHITE SOLUTION AND LIKELY UNNECESSARY...
+
+			MQTT MESSAGES COMING FROM THE SIMULATION ARRIVE MUCH QUICKER THAN THEY WILL IN REALITY.
+			THESE MESSAGES ARE PROCESSED IN GO ROUTINES SO A SHORT MESSAGE (JOB ENDED EVENT) CAN END UP
+			BEING PROCESSED BEFORE A LARGER MESSAGE (HEADER), EVEN IF THE SHORT MESSAGE ARRIVED LAST.  
+			
+			WE'LL DO SOME TESTING ONCE THE REAL DEVICES ARE UP AND RUNNING
+		*/
+	} 
+	fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
+
+	/* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
+	device.DESMQTTClient.WG.Wait()
 
 	/* WRITE END JOB REQUEST EVENT AS RECEIVED TO JOB */
 	device.JobDBC.Write(evt)
+
+	/* UPDATE THE DEVICE EVENT CODE, DISABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB	*/
+	device.EVT = evt
+
+	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
+	device.JobDBC.Disconnect()
+
+	/* SYNC DEVICE WITH DevicesMap */
+	device.GetMappedClients()
 
 	/* CLOSE DES JOB */
 	device.Job.DESJob.DESJobRegTime = evt.EvtTime
@@ -407,55 +496,24 @@ func (device *Device) EndJob(evt Event) {
 	cmd.DESJobRegApp = evt.EvtApp
 	pkg.DES.DB.Save(cmd.DESJob)
 
-	/* WAIT FOR FINAL HEADER TO BE RECEIVED */
-	fmt.Printf("\n(device *Device) EndJob( ) -> Waiting for final Header... H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
-	for device.HDR.HdrTime < evt.EvtTime {
-		/* THIS IS A SHITE SOLUTION AND LIKELY UNNECESSARY...
-
-			MQTT MESSAGES COMING FROM THE SIMULATION ARRIVE MUCH QUICKER THAN THEY WILL IN REALITY.
-			THESE MESSAGES ARE PROCESSED IN GO ROUTINES SO A SHORT MESSAGE (JOB ENDED EVENT) CAN END UP
-			BEING PROCESSED BEFORE A LARGER MESSAGE (HEADER), EVEN IF THE SHORT MESSAGE ARRIVED LAST.  
-			
-			WE'LL DO SOME TESTING ONCE THE REAL DEVICES ARE UP AND RUNNING
-		*/
-	} 
-	fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
-
-	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
-	device.JobDBC.Disconnect()
-
-	/* ENSURE WE CATCH STRAY SAMPLES IN THE CMDARCHIVE */
+	/* ENSURE WE CATCH STRAY SIGNALS IN THE CMDARCHIVE */
 	device.Job = cmd
 	device.ConnectJobDBC()
 
 	/* RETURN DEVICE CLIENT DATA TO DEFAULT STATE */
-	device.ADM = device.Job.RegisterJob_Default_JobAdmin()
-	device.ADM.AdmTime = cmd.DESJobRegTime
-	device.ADM.AdmAddr = evt.EvtAddr
-	device.ADM.AdmUserID = evt.EvtUserID
-	device.ADM.AdmApp = evt.EvtApp
-
-	device.HDR = device.Job.RegisterJob_Default_JobHeader()
-	device.HDR.HdrTime = cmd.DESJobRegTime
-	device.HDR.HdrAddr = evt.EvtAddr
-	device.HDR.HdrUserID = evt.EvtUserID
-	device.HDR.HdrApp = evt.EvtApp
-
-	device.CFG = device.Job.RegisterJob_Default_JobConfig()
-	device.CFG.CfgTime = cmd.DESJobRegTime
-	device.CFG.CfgAddr = evt.EvtAddr
-	device.CFG.CfgUserID = evt.EvtUserID
-	device.CFG.CfgApp = evt.EvtApp
+	device.ADM.DefaultSettings_Admin(cmd.DESRegistration)
+	device.HDR.DefaultSettings_Header(cmd.DESRegistration)
+	device.CFG.DefaultSettings_Config(cmd.DESRegistration)
 
 	/* RETURN DEVICE (PHYSICAL) DATA TO DEFAULT STATE */
 	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
 	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
 	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
+	device.SMP = Sample{ SmpTime: cmd.DESJobRegTime, SmpJobName: cmd.DESJobName }
 	// pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", device)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	device.EVT = evt
-	Devices[device.DESDevSerial] = *device
+	UpdateDevicesMap(device.DESDevSerial, *device)
 
 	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", device.HDR.HdrJobName)
 }

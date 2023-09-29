@@ -1,7 +1,6 @@
 package c001v001
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -22,11 +21,11 @@ SUBSCRIBES TO ALL SIGNALS FOR A SINGLE DEVICE
 */
 type DeviceUserClient struct {
 	Device
-	outChan chan string
 	WSClientID string
-	CTX        context.Context
-	Cancel     context.CancelFunc
 	pkg.DESMQTTClient
+	DataOut chan string
+	Close chan struct{}
+	Kill chan struct{}
 }
 
 type WSMessage struct {
@@ -63,15 +62,13 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 			WSClientID: wscid,
 		} // fmt.Printf("\nHandle_ConnectDeviceUser(...) -> duc: %v\n\n", duc)
 
-		duc.outChan = make(chan string)
-		defer func() {
-			close(duc.outChan)
-			duc.outChan = nil
-		}()
+		duc.DataOut = make(chan string)
+		duc.Close = make(chan struct{})
+		duc.Kill = make(chan struct{})
 
 		duc.MQTTDeviceUserClient_Connect()
-
-		open := true
+	
+		/* LISTEN FOR MESSAGES FROM CONNECTED USER */
 		go func() {
 			for {
 				_, msg, err := c.ReadMessage()
@@ -84,7 +81,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 					/* USER HAS CLOSED THE CONNECTION */
 					fmt.Printf("WSDeviceUserClient_Connect -> go func() -> c.ReadMessage(): %s\n", string(msg))
 					duc.MQTTDeviceUserClient_Disconnect()
-					open = false
+					duc.Close <- struct{}{}
 					break
 				}
 			}
@@ -92,29 +89,50 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 		}()
 
 		/* KEEP ALIVE GO ROUTINE SEND "live" EVERY 30 SECONDS TO PREVENT DISCONNECT */
+		live := true
 		go func() {
-			for open {
-				time.Sleep(time.Second * 30) 
-				js, err := json.Marshal(&WSMessage{Type: "live", Data: ""})
-				if err != nil {
-					pkg.TraceErr(err)
+			for live {
+				select {
+
+				case <- duc.Kill:
+					live = false
+
+				default:
+					time.Sleep(time.Second * 30) 
+					js, err := json.Marshal(&WSMessage{Type: "live", Data: ""})
+					if err != nil {
+						pkg.TraceErr(err)
+					}
+					duc.DataOut <- string(js)
+					// fmt.Printf("WSDeviceUserClient_Connect -> go func() KEEP ALIVE... \n")
 				}
-				duc.outChan <- string(js)
 			}
 		}()
 
 		/* SEND MESSAGES TO CONNECTED USER */
+		open := true
 		for open {
 			select {
 
-			case data := <-duc.outChan:
+			case <- duc.Close:
+				duc.Kill <- struct{}{}
+				open = false
+
+			case data := <- duc.DataOut:
 				if err := c.WriteJSON(data); err != nil {
 					pkg.TraceErr(err)
-					duc.MQTTDeviceUserClient_Disconnect()
 				}
 
 			}
 		}
+		close(duc.Close)
+		duc.Close = nil
+
+		close(duc.Kill)
+		duc.Kill = nil
+		
+		close(duc.DataOut)
+		duc.DataOut = nil
 	}
 	return
 }
@@ -186,7 +204,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGAdmin(...) -> adm :", adm)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.outChan <- string(js)
+			duc.DataOut <- string(js)
 
 		},
 	}
@@ -213,7 +231,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader() pkg.M
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGHeader(...) -> hdr :", hdr)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.outChan <- string(js)
+			duc.DataOut <- string(js)
 
 		},
 	}
@@ -240,7 +258,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.M
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGConfig(...) -> cfg :", cfg)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.outChan <- string(js)
+			duc.DataOut <- string(js)
 
 		},
 	}
@@ -267,7 +285,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQ
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGEvent(...) -> evt :", evt)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.outChan <- string(js)
+			duc.DataOut <- string(js)
 
 		},
 	}
@@ -300,11 +318,11 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 				js, err := json.Marshal(&WSMessage{Type: "sample", Data: sample})
 				if err != nil {
 					pkg.TraceErr(err)
-				} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)
-
-				/* SEND WSMessage AS JSON STRING */
-				duc.outChan <- string(js)
-
+				} else { 
+					// pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)
+					/* SEND WSMessage AS JSON STRING */
+					duc.DataOut <- string(js)
+				}
 			}
 		},
 	}
@@ -319,7 +337,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGDiagSample() p
 		Handler: func(c phao.Client, msg phao.Message) {
 			/* WRANGLE WS DATA */
 			/* SEND WS DATA */
-			duc.outChan <- "diag_sample data..."
+			duc.DataOut <- "diag_sample data..."
 		},
 	}
 }

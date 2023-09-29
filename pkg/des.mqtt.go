@@ -18,6 +18,7 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
@@ -30,6 +31,9 @@ type DESMQTTClient struct {
 	phao.ClientOptions
 	phao.Client
 	Subs []MQTTSubscription
+
+	/* WAIT GROUP USED TO PREVENT CONCURRENT ACCESS  */
+	WG *sync.WaitGroup 
 }
 
 func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub, autoReconn bool ) (err error) {
@@ -71,10 +75,12 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub, autoReconn bool 
 	}
 
 	desm.Client = c
+	desm.WG = &sync.WaitGroup{}
 
 	return err
 }
 func (desm *DESMQTTClient) DESMQTTClient_Disconnect() (err error) {
+	desm.WG.Wait()
 	desm.Client.Disconnect(0) // Wait 10 milliseconds
 	return err
 }

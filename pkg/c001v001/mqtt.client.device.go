@@ -76,10 +76,15 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		Topic: device.MQTTTopic_SIGAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
+			device.DESMQTTClient.WG.Add(1)
+
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			if err := json.Unmarshal(msg.Payload(), &device.ADM); err != nil {
 				pkg.TraceErr(err)
 			}
+
+			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+			// device.UpdateMappedADM()
 
 			/* CALL DB WRITE IN GOROUTINE */
 			go device.CmdDBC.Write(device.ADM)
@@ -90,6 +95,9 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 				/* CALL DB WRITE IN GOROUTINE */
 				go device.JobDBC.Write(device.ADM)
 			}
+			
+			device.DESMQTTClient.WG.Done()
+
 		},
 	}
 }
@@ -102,10 +110,15 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 		Topic: device.MQTTTopic_SIGHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
+			device.DESMQTTClient.WG.Add(1)
+			
 			/* PARSE / STORE THE HEADER IN CMDARCHIVE */
 			if err := json.Unmarshal(msg.Payload(), &device.HDR); err != nil {
 				pkg.TraceErr(err)
 			}
+
+			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+			// device.UpdateMappedHDR()
 
 			/* CALL DB WRITE IN GOROUTINE */
 			go device.CmdDBC.Write(device.HDR)
@@ -116,6 +129,9 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 				/* CALL DB WRITE IN GOROUTINE */
 				go device.JobDBC.Write(device.HDR)
 			}
+
+			device.DESMQTTClient.WG.Done()
+
 		},
 	}
 }
@@ -128,10 +144,15 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 		Topic: device.MQTTTopic_SIGConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
+			device.DESMQTTClient.WG.Add(1)
+			
 			/* PARSE / STORE THE CONFIG IN CMDARCHIVE */
 			if err := json.Unmarshal(msg.Payload(), &device.CFG); err != nil {
 				pkg.TraceErr(err)
 			}
+
+			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+			// device.UpdateMappedCFG()
 
 			/* CALL DB WRITE IN GOROUTINE */
 			go device.CmdDBC.Write(device.CFG)
@@ -142,6 +163,9 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 				/* CALL DB WRITE IN GOROUTINE */
 				go device.JobDBC.Write(device.CFG)
 			}
+
+			device.DESMQTTClient.WG.Done()
+
 		},
 	}
 }
@@ -154,6 +178,8 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 		Topic: device.MQTTTopic_SIGEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
+			device.DESMQTTClient.WG.Add(1)
+
 			/* CAPTURE INCOMING EVENT IN A NEW Event STRUCT TO 
 				PREVENT PREMATURE CHANGE IN DEVICE STATE */
 			evt := Event{}
@@ -162,7 +188,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
 				pkg.TraceErr(err)
 			}
-			go device.CmdDBC.Write(evt)
+			go device.CmdDBC.Write(&evt)
 
 			/* CHECK THE RECEIVED EVENT CODE */
 			switch evt.EvtCode {
@@ -184,9 +210,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 				if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 					/* STORE THE EVENT IN THE ACTIVE JOB */
 					go device.JobDBC.Write(evt)
-					// device.JobDBC.WriteMQTT(msg.Payload(), &device.EVT)
 				}
 			}
+
+			device.DESMQTTClient.WG.Done()
+
 		},
 	}
 }
@@ -198,12 +226,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			/* TODO: MOVE WRITE SAMPLE FUCTION TO Device */
-			// go device.Job.WriteMQTTSample(msg.Payload(), &device.SMP)
-			// fmt.Printf("\n(device *Device) MQTTSubscription_DeviceClient_SIGSample() -> device.JobDBC: \n%s \n", device.JobDBC.ConnStr)
+
+			device.DESMQTTClient.WG.Add(1)
+			
+			/* TODO:  MOVE WRITE SAMPLES FUCTION TO Device */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 				// Decode the payload into an MQTTSampleMessage
-				mqtts := &MQTT_Sample{}
+				mqtts := MQTT_Sample{}
 				if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
 					pkg.TraceErr(err)
 				} // pkg.Json("DecodeMQTTSampleMessage(...) ->  msg :", msg)
@@ -216,12 +245,23 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 						pkg.TraceErr(err)
 					}
 
-					// Write the Sample to the job database
-					go device.JobDBC.Write(device.SMP)
+					/* TODO: ADD BULK INSERT ( WRITE ALL SAMPLES IN ONE TRANSACTION ) */
+					// // Write the Sample to the job database
+					// go device.JobDBC.Write(device.SMP)
 
 				}
-				// device.UpdateMappedSMP()
+				
+				/* TODO: ADD BULK INSERT ( WRITE ALL SAMPLES IN ONE TRANSACTION ) */
+				// Write the Sample to the job database
+				go device.JobDBC.Write(device.SMP)
+
+				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+				device.UpdateMappedSMP()
+	
 			}
+			
+			device.DESMQTTClient.WG.Done()
+
 		},
 	}
 }
@@ -233,7 +273,12 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGDiagSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
+			
+			device.DESMQTTClient.WG.Add(1)
+			
 			fmt.Println("(device *Device) MQTTSubscription_DeviceClient_SIGDiagSample(...) DOES NOT EXIST... DUMMY...")
+			
+			device.DESMQTTClient.WG.Done()
 		},
 	}
 }

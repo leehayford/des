@@ -26,22 +26,23 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 			"message": fmt.Sprintf("GetDesDevList(...) -> query failed:\n%s\n", err),
 			"data":    fiber.Map{"regs": regs},
 		})
-	} // pkg.Json("GetDeviceList(): DESRegistrations", regs)
+	} 
+	pkg.Json("GetDeviceList(): DESRegistrations", regs)
 
-	var wg sync.WaitGroup
-	wg.Add(len(regs)) // fmt.Printf("\nWait Group: %d\n", len(regs))
+	// var wg sync.WaitGroup
+	// wg.Add(len(regs)) // fmt.Printf("\nWait Group: %d\n", len(regs))
 
 	devices := []Device{}
 	for _, reg := range regs {
 
-		// pkg.Json("HandleGetDeviceList( ) -> reg", reg)
-		go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
+		// // pkg.Json("HandleGetDeviceList( ) -> reg", reg)
+		// go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
 
-			defer wg.Done()
+		// 	defer wg.Done()
 
-			device := Devices[r.DESDevSerial]
-			device.DESRegistration = r
-			device.GetCurrentJob()
+			device := (&Device{}).ReadDevicesMap(reg.DESDevSerial)
+			device.DESRegistration = reg
+			// device.GetCurrentJob()
 			// device.GetMappedADM()
 			// device.GetMappedHDR()
 			// device.GetMappedCFG()
@@ -49,9 +50,9 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 			// device.GetMappedSMP()
 			devices = append(devices, device)
 
-		}(reg, &wg)
+		// }(reg, &wg)
 	}
-	wg.Wait() // pkg.Json("HandleGetDeviceList( ) -> []Device{}:\n", devices)
+	// wg.Wait() // pkg.Json("HandleGetDeviceList( ) -> []Device{}:\n", devices)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
@@ -91,6 +92,8 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	} // pkg.Json("HandleStartJob(): -> c.BodyParser(&device) -> dev", device)
 
 	/* SYNC DEVICE WITH DevicesMap */
+	device.DESMQTTClient = pkg.DESMQTTClient{}
+	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	/* START NEW JOB
@@ -152,7 +155,8 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	Devices[device.DESDevSerial] = device
+	UpdateDevicesMap(device.DESDevSerial, device)
+	// Devices[device.DESDevSerial] = device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -196,6 +200,8 @@ func HandleEndJob(c *fiber.Ctx) (err error) {
 	device.GetMappedHDR()
 	device.GetMappedCFG()
 	device.GetMappedSMP()
+	device.DESMQTTClient = pkg.DESMQTTClient{}
+	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	device.EVT = Event{
@@ -219,7 +225,8 @@ func HandleEndJob(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	Devices[device.DESDevSerial] = device
+	UpdateDevicesMap(device.DESDevSerial, device)
+	// Devices[device.DESDevSerial] = device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -261,6 +268,8 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 	device.GetMappedCFG()
 	device.GetMappedEVT()
 	device.GetMappedSMP()
+	device.DESMQTTClient = pkg.DESMQTTClient{}
+	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	/* LOG ADM CHANGE REQUEST TO  CMDARCHIVE */
@@ -271,7 +280,8 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
 
 	/* UPDATE DevicesMap */
-	Devices[device.DESDevSerial] = device
+	UpdateDevicesMap(device.DESDevSerial, device)
+	// Devices[device.DESDevSerial] = device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -313,6 +323,8 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 	device.GetMappedCFG()
 	device.GetMappedEVT()
 	device.GetMappedSMP()
+	device.DESMQTTClient = pkg.DESMQTTClient{}
+	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	/* LOG HDR CHANGE REQUEST TO CMDARCHIVE */
@@ -323,7 +335,8 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
 
 	/* UPDATE DevicesMap */
-	Devices[device.DESDevSerial] = device
+	UpdateDevicesMap(device.DESDevSerial, device)
+	// Devices[device.DESDevSerial] = device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -366,6 +379,8 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 	device.ValidateCFG() 
 	device.GetMappedEVT()
 	device.GetMappedSMP()
+	device.DESMQTTClient = pkg.DESMQTTClient{}
+	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	/* LOG CFG CHANGE REQUEST TO CMDARCHIVE */
@@ -376,7 +391,8 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
 
 	/* UPDATE DevicesMap */
-	Devices[device.DESDevSerial] = device
+	UpdateDevicesMap(device.DESDevSerial, device)
+	// Devices[device.DESDevSerial] = device
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
