@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log"
 
-	// "github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -36,7 +35,7 @@ func main() {
 	defer pkg.ADB.Disconnect()
 
 	cleanDB := flag.Bool("clean", false, "Drop and recreate databases")
-	demoQty := flag.Int("demos", 5, "Create n demo devices if there are none currently") /* DEMO -> NOT FOR PRODUCTION */
+	// demoQty := flag.Int("demos", 5, "Create n demo devices if there are none currently") /* DEMO -> NOT FOR PRODUCTION */
 	flag.Parse()
 
 	if *cleanDB {
@@ -57,12 +56,12 @@ func main() {
 		pkg.TraceErr(err)
 	}
 
-	/********************************************************************************************/
-	/* DEMO DEVICES -> NOT FOR PRODUCTION */
-	fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
-	c001v001.DemoDeviceClient_ConnectAll(*demoQty)
-	defer c001v001.DemoDeviceClient_DisconnectAll()
-	/********************************************************************************************/
+	// /********************************************************************************************/
+	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
+	// fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
+	// c001v001.DemoDeviceClient_ConnectAll(*demoQty)
+	// defer c001v001.DemoDeviceClient_DisconnectAll()
+	// /********************************************************************************************/
 
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERED DEVICES */
 	/* DATABASE - C001V001 - CONNECT ALL DEVICES TO JOB DATABASES */
