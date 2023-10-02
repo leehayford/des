@@ -83,7 +83,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
 				pkg.TraceErr(err)
 			}
-			device.ADM = adm
 
 			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			// device.UpdateMappedADM()
@@ -98,6 +97,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 				go device.JobDBC.Write(device.ADM)
 			}
 			
+			device.ADM = adm
 			device.DESMQTTClient.WG.Done()
 
 		},
@@ -119,7 +119,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			if err := json.Unmarshal(msg.Payload(), &hdr); err != nil {
 				pkg.TraceErr(err)
 			}
-			device.HDR = hdr
 			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			// device.UpdateMappedHDR()
 
@@ -133,6 +132,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 				go device.JobDBC.Write(device.HDR)
 			}
 
+			device.HDR = hdr
 			device.DESMQTTClient.WG.Done()
 
 		},
@@ -154,7 +154,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
 				pkg.TraceErr(err)
 			}
-			device.CFG = cfg
 
 			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			// device.UpdateMappedCFG()
@@ -169,6 +168,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 				go device.JobDBC.Write(device.CFG)
 			}
 
+			device.CFG = cfg
 			device.DESMQTTClient.WG.Done()
 
 		},
