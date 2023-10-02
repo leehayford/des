@@ -355,8 +355,12 @@ func (device *Device) ConnectJobDBC() (err error) {
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB STARTED' EVENT FROM THE DEVICE */
 func (device *Device) StartJob(evt Event) {
 
-	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedClients()
+
+	/* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
+	device.DESMQTTClient.WG.Wait()
+
+	// /* SYNC DEVICE WITH DevicesMap */
+	// device.GetMappedClients()
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
@@ -450,22 +454,22 @@ func (device *Device) StartJob(evt Event) {
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
 func (device *Device) EndJob(evt Event) {
 
-	/* WAIT FOR FINAL HEADER TO BE RECEIVED */
-	fmt.Printf("\n(device *Device) EndJob( ) -> Waiting for final Header... H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
-	for device.HDR.HdrTime < evt.EvtTime {
-		/* THIS IS A SHITE SOLUTION AND LIKELY UNNECESSARY...
-
-			MQTT MESSAGES COMING FROM THE SIMULATION ARRIVE MUCH QUICKER THAN THEY WILL IN REALITY.
-			THESE MESSAGES ARE PROCESSED IN GO ROUTINES SO A SHORT MESSAGE (JOB ENDED EVENT) CAN END UP
-			BEING PROCESSED BEFORE A LARGER MESSAGE (HEADER), EVEN IF THE SHORT MESSAGE ARRIVED LAST.  
-			
-			WE'LL DO SOME TESTING ONCE THE REAL DEVICES ARE UP AND RUNNING
-		*/
-	} 
-	fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
-
 	/* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
 	device.DESMQTTClient.WG.Wait()
+
+	// /* WAIT FOR FINAL HEADER TO BE RECEIVED */
+	// fmt.Printf("\n(device *Device) EndJob( ) -> Waiting for final Header... H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
+	// for device.HDR.HdrTime < evt.EvtTime {
+	// 	/* THIS IS A SHITE SOLUTION AND LIKELY UNNECESSARY...
+
+	// 		MQTT MESSAGES COMING FROM THE SIMULATION ARRIVE MUCH QUICKER THAN THEY WILL IN REALITY.
+	// 		THESE MESSAGES ARE PROCESSED IN GO ROUTINES SO A SHORT MESSAGE (JOB ENDED EVENT) CAN END UP
+	// 		BEING PROCESSED BEFORE A LARGER MESSAGE (HEADER), EVEN IF THE SHORT MESSAGE ARRIVED LAST.  
+			
+	// 		WE'LL DO SOME TESTING ONCE THE REAL DEVICES ARE UP AND RUNNING
+	// 	*/
+	// } 
+	// fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
 
 	/* WRITE END JOB REQUEST EVENT AS RECEIVED TO JOB */
 	device.JobDBC.Write(evt)
@@ -476,8 +480,8 @@ func (device *Device) EndJob(evt Event) {
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 
-	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedClients()
+	// /* SYNC DEVICE WITH DevicesMap */
+	// device.GetMappedClients()
 
 	/* CLOSE DES JOB */
 	device.Job.DESJob.DESJobRegTime = evt.EvtTime
