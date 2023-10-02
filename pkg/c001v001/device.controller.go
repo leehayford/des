@@ -27,7 +27,7 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 			"data":    fiber.Map{"regs": regs},
 		})
 	} 
-	pkg.Json("GetDeviceList(): DESRegistrations", regs)
+	// pkg.Json("GetDeviceList(): DESRegistrations", regs)
 
 	// var wg sync.WaitGroup
 	// wg.Add(len(regs)) // fmt.Printf("\nWait Group: %d\n", len(regs))

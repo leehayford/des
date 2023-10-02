@@ -84,7 +84,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
 				pkg.TraceErr(err)
 			}
-			pkg.Json("(device *Device) MQTTSubscription_DeviceClient_SIGAdmin() -> adm:", adm )
 
 			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			// device.UpdateMappedADM()
@@ -235,6 +234,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			device.DESMQTTClient.WG.Add(1)
+			smp := Sample{}
 			
 			/* TODO:  MOVE WRITE SAMPLES FUCTION TO Device */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
@@ -247,8 +247,8 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 				for _, b64 := range mqtts.Data {
 
 					// Decode base64 string
-					device.SMP.SmpJobName = mqtts.DesJobName
-					if err := device.Job.DecodeMQTTSample(b64, &device.SMP); err != nil {
+					smp.SmpJobName = mqtts.DesJobName
+					if err := device.Job.DecodeMQTTSample(b64, &smp); err != nil {
 						pkg.TraceErr(err)
 					}
 
@@ -260,13 +260,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 				
 				/* TODO: ADD BULK INSERT ( WRITE ALL SAMPLES IN ONE TRANSACTION ) */
 				// Write the Sample to the job database
-				go device.JobDBC.Write(device.SMP)
+				go device.JobDBC.Write(smp)
 
-				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-				device.UpdateMappedSMP()
+				// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+				// device.UpdateMappedSMP()
 	
 			}
-			
+			device.SMP = smp
 			device.DESMQTTClient.WG.Done()
 
 		},
