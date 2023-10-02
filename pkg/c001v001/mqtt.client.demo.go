@@ -898,7 +898,7 @@ func (demo *DemoDeviceClient) Demo_Simulation(job string, mode, rate int32 ) {
 		}
 	}
 	
-	fmt.Printf("\n(demo) Demo_Simulation( ) %s waiting for job start...\n", demo.DESDevSerial)
+	fmt.Printf("\n(demo) Demo_Simulation( ) -> SIMULATION STOPPED: %s\n", demo.DESDevSerial)
 }
 
 func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time, mode int32, job string, smp *Sample) {
