@@ -88,13 +88,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			// device.UpdateMappedADM()
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go device.CmdDBC.Write(device.ADM)
+			go device.CmdDBC.Write(adm)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go device.JobDBC.Write(device.ADM)
+				go device.JobDBC.Write(adm)
 			}
 			
 			device.ADM = adm
@@ -123,13 +123,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			// device.UpdateMappedHDR()
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go device.CmdDBC.Write(device.HDR)
+			go device.CmdDBC.Write(hdr)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go device.JobDBC.Write(device.HDR)
+				go device.JobDBC.Write(hdr)
 			}
 
 			device.HDR = hdr
@@ -159,13 +159,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			// device.UpdateMappedCFG()
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go device.CmdDBC.Write(device.CFG)
+			go device.CmdDBC.Write(cfg)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go device.JobDBC.Write(device.CFG)
+				go device.JobDBC.Write(cfg)
 			}
 
 			device.CFG = cfg
