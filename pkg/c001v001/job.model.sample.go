@@ -10,6 +10,7 @@ import (
 SAMPLE - AS WRITTEN TO JOB DATABASE
 */
 type Sample struct {
+	
 	SmpTime    int64   `gorm:"not null" json:"smp_time"`
 	SmpCH4     float32 `json:"smp_ch4"`
 	SmpHiFlow  float32 `json:"smp_hi_flow"`

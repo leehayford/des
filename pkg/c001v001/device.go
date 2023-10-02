@@ -354,7 +354,7 @@ func (device *Device) ConnectJobDBC() (err error) {
 
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB STARTED' EVENT FROM THE DEVICE */
 func (device *Device) StartJob(evt Event) {
-
+	fmt.Printf("\ndevice *Device) StartJob()\n")
 
 	/* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
 	device.DESMQTTClient.WG.Wait()
@@ -384,6 +384,7 @@ func (device *Device) StartJob(evt Event) {
 		},
 	}
 
+	fmt.Printf("\ndevice *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n")
 	/* CREATE A JOB RECORD IN THE DES DATABASE */
 	if res := pkg.DES.DB.Create(&device.Job.DESJob); res.Error != nil {
 		pkg.TraceErr(res.Error)

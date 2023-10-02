@@ -3,6 +3,7 @@ package c001v001
 import (
 	"encoding/json"
 	"fmt"
+	// "time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
 
@@ -83,6 +84,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
 				pkg.TraceErr(err)
 			}
+			pkg.Json("(device *Device) MQTTSubscription_DeviceClient_SIGAdmin() -> adm:", adm )
 
 			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			// device.UpdateMappedADM()
@@ -154,7 +156,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
 				pkg.TraceErr(err)
 			}
-
 			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			// device.UpdateMappedCFG()
 
@@ -193,6 +194,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
 				pkg.TraceErr(err)
 			}
+		
 			go device.CmdDBC.Write(&evt)
 
 			/* CHECK THE RECEIVED EVENT CODE */

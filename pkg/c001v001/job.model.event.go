@@ -8,7 +8,7 @@ import (
 EVENT - AS WRITTEN TO JOB DATABASE
 */
 type Event struct {
-
+	
 	EvtTime   int64  `gorm:"not null" json:"evt_time"`
 	EvtAddr   string `json:"evt_addr"`
 	EvtUserID string `gorm:"not null; varchar(36)" json:"evt_user_id"`
@@ -23,7 +23,7 @@ type Event struct {
 /*
 EVENT - AS STORED IN DEVICE FLASH
 */
-func (evt *Event) EventToBytes() (out []byte) {
+func (evt Event) EventToBytes() (out []byte) {
 
 	out = append(out, pkg.Int64ToBytes(evt.EvtTime)...)
 	out = append(out, pkg.StringToNBytes(evt.EvtAddr, 36)...)
@@ -67,7 +67,7 @@ func (evt *Event) DefaultSettings_Event(job pkg.DESRegistration) {
 }
 
 type EventTyp struct {
-	EvtTypID   int64  `gorm:"unique; primaryKey" json:"evt_typ_id"`
+	// EvtTypID   int64  `gorm:"unique; primaryKey" json:"evt_typ_id"`
 	EvtTypCode int32  `gorm:"unique" json:"evt_typ_code"`
 	EvtTypName string `json:"evt_typ_name"`
 	EvtTypDesc string `json:"evt_typ_desc"`

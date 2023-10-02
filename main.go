@@ -15,7 +15,7 @@ License:
 package main
 
 import (
-	// "flag"
+	"flag"
 	"fmt"
 	"log"
 
@@ -35,14 +35,14 @@ func main() {
 	pkg.ADB.Connect()
 	defer pkg.ADB.Disconnect()
 
-	// cleanDB := flag.Bool("clean", false, "Drop and recreate databases")
-	// demoQty := flag.Int("demos", 5, "Create n demo devices if there are none currently") /* DEMO -> NOT FOR PRODUCTION */
-	// flag.Parse()
+	cleanDB := flag.Bool("clean", false, "Drop and recreate databases")
+	demoQty := flag.Int("demos", 5, "Create n demo devices if there are none currently") /* DEMO -> NOT FOR PRODUCTION */
+	flag.Parse()
 
-	// if *cleanDB {
-	// 	/* CLEAN DATABASE - DROP ALL */
-	// 	pkg.ADB.DropAllDatabases()
-	// }
+	if *cleanDB {
+		/* CLEAN DATABASE - DROP ALL */
+		pkg.ADB.DropAllDatabases()
+	}
 
 	/* CREATE OR MIGRATE DES DATABASE & CONNECT */
 	exists := pkg.ADB.CheckDatabaseExists(pkg.DES_DB)
@@ -57,12 +57,12 @@ func main() {
 		pkg.TraceErr(err)
 	}
 
-	// /********************************************************************************************/
-	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
-	// fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
-	// c001v001.DemoDeviceClient_ConnectAll(*demoQty)
-	// defer c001v001.DemoDeviceClient_DisconnectAll()
-	// /********************************************************************************************/
+	/********************************************************************************************/
+	/* DEMO DEVICES -> NOT FOR PRODUCTION */
+	fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
+	c001v001.DemoDeviceClient_ConnectAll(*demoQty)
+	defer c001v001.DemoDeviceClient_DisconnectAll()
+	/********************************************************************************************/
 
 	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERED DEVICES */
 	/* DATABASE - C001V001 - CONNECT ALL DEVICES TO JOB DATABASES */
