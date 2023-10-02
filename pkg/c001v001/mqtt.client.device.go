@@ -79,9 +79,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			device.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
-			if err := json.Unmarshal(msg.Payload(), &device.ADM); err != nil {
+			adm := Admin{}
+			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
 				pkg.TraceErr(err)
 			}
+			device.ADM = adm
 
 			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			// device.UpdateMappedADM()
@@ -113,10 +115,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			device.DESMQTTClient.WG.Add(1)
 			
 			/* PARSE / STORE THE HEADER IN CMDARCHIVE */
-			if err := json.Unmarshal(msg.Payload(), &device.HDR); err != nil {
+			hdr := Header{}
+			if err := json.Unmarshal(msg.Payload(), &hdr); err != nil {
 				pkg.TraceErr(err)
 			}
-
+			device.HDR = hdr
 			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			// device.UpdateMappedHDR()
 
@@ -147,9 +150,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			device.DESMQTTClient.WG.Add(1)
 			
 			/* PARSE / STORE THE CONFIG IN CMDARCHIVE */
-			if err := json.Unmarshal(msg.Payload(), &device.CFG); err != nil {
+			cfg := Config{}
+			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
 				pkg.TraceErr(err)
 			}
+			device.CFG = cfg
 
 			// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			// device.UpdateMappedCFG()
