@@ -23,6 +23,8 @@ import (
 	"github.com/golang-jwt/jwt"   // go get github.com/golang-jwt/jwt
 )
 
+/* https://codevoweb.com/how-to-properly-use-jwt-for-authentication-in-golang/ */
+
 /* AUTHENTICATE USER AND GET THEIR ROLE */
 func DesAuth(c *fiber.Ctx) (err error) {
 
@@ -54,7 +56,7 @@ func DesAuth(c *fiber.Ctx) (err error) {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "fail",
-			"message": fmt.Sprintf("invalid token: %v", err),
+			"message": fmt.Sprintf("%v", err),
 		})
 	}
 

@@ -23,7 +23,7 @@ import (
 	"github.com/golang-jwt/jwt"   // go get github.com/golang-jwt/jwt
 	"golang.org/x/crypto/bcrypt"  // go get golang.org/x/crypto/bcrypt
 )
-
+/* https://codevoweb.com/how-to-properly-use-jwt-for-authentication-in-golang/ */
 func SignUpUser(c *fiber.Ctx) error {
 	var payload *SignUpInput
 
@@ -96,36 +96,64 @@ func SignInUser(c *fiber.Ctx) error {
 		})
 	}
 
-	tokenByte := jwt.New(jwt.SigningMethodHS256)
 	now := time.Now().UTC()
-	claims := tokenByte.Claims.(jwt.MapClaims)
-	claims["sub"] = user.ID
-	claims["rol"] = user.Role
-	claims["exp"] = now.Add(JWT_EXPIRED_IN).Unix()
-	claims["iat"] = now.Unix()
-	claims["nbf"] = now.Unix()
 
+	claims := jwt.MapClaims{
+		"sub": user.ID, // SUBJECT
+		"rol": user.Role, // ROLE
+		"exp": now.Add(JWT_EXPIRED_IN).Unix(),
+		"iat": now.Unix(), // ISSUED AT
+		"nbf": now.Unix(), // NOT VALID BEFORE
+	}
+	tokenByte := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := tokenByte.SignedString([]byte(JWT_SECRET))
 	if err != nil {
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
-			"message": fmt.Sprintf("generating JWT Token failed: %v", err),
+			"message": fmt.Sprintf("failed to generate access token: %v", err),
 		})
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "token",
-		Value:    tokenString,
-		Path:     "/",
-		MaxAge:   JWT_MAXAGE * 60,
-		Secure:   false,
-		HTTPOnly: true,
-		Domain:   "localhost",
-	})
+	// c.Cookie(&fiber.Cookie{
+	// 	Name:     "token",
+	// 	Value:    tokenString,
+	// 	Path:     "/",
+	// 	Expires:   now.Add(JWT_EXPIRED_IN),
+	// 	Secure:   false,
+	// 	HTTPOnly: true,
+	// 	Domain:   "localhost",
+	// })
+
+	// refTokenByte := jwt.New(jwt.SigningMethodES256)
+	// refClaims := refTokenByte.Claims.(jwt.MapClaims)
+	// refClaims["sub"] = user.ID // SUBJECT
+	// // refClaims["rol"] = user.Role // ROLE
+	// refClaims["exp"] = now.Add(time.Duration(time.Hour * 24)).Unix()
+	// // refClaims["iat"] = now.Unix() // ISSUED AT
+	// // refClaims["nbf"] = now.Unix() // NOT VALID BEFORE
+
+	// refTokenString, err := refTokenByte.SignedString([]byte("SOMETINGELSE"))
+	// if err != nil {
+	// 	return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+	// 		"status":  "fail",
+	// 		"message": fmt.Sprintf("generate refresh token failed: %v", err),
+	// 	})
+	// }
+
+	// c.Cookie(&fiber.Cookie{
+	// 	Name:     "refresh",
+	// 	Value:    refTokenString,
+	// 	Path:     "/",
+	// 	// MaxAge:   JWT_MAXAGE * 60,
+	// 	Secure:   false,
+	// 	HTTPOnly: true,
+	// 	Domain:   "localhost",
+	// })
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"token":  tokenString,
+		// "refresh": refTokenString,
 	})
 }
 
