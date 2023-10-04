@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -23,13 +22,13 @@ type DESJob struct {
 	DESJobRegUserID string `gorm:"not null; varchar(36)" json:"des_job_reg_user_id"`
 	DESJobRegApp    string `gorm:"not null; varchar(36)" json:"des_job_reg_app"`
 
-	DESJobName  string `gorm:"not null; unique; varchar(24)" json:"des_job_name"`
-	DESJobStart int64  `gorm:"not null" json:"des_job_start"`
-	DESJobEnd   int64  `gorm:"not null" json:"des_job_end"`
-	DESJobLng float32 `json:"des_job_lng"`
-	DESJobLat float32 `json:"des_job_lat"`
-	DESJobDevID int64 `json:"des_job_dev_id"`
+	DESJobName  string  `gorm:"not null; unique; varchar(24)" json:"des_job_name"`
+	DESJobStart int64   `gorm:"not null" json:"des_job_start"`
+	DESJobEnd   int64   `gorm:"not null" json:"des_job_end"`
+	DESJobLng   float32 `json:"des_job_lng"`
+	DESJobLat   float32 `json:"des_job_lat"`
+	DESJobDevID int64   `json:"des_job_dev_id"`
 
 	DESDev DESDev `gorm:"foreignKey:DESJobDevID" json:"-"`
-	User User `gorm:"foreignKey:DESJobRegUserID" json:"-"`
+	User   User   `gorm:"foreignKey:DESJobRegUserID" json:"-"`
 }

@@ -19,14 +19,24 @@ IN THE FORM OF A DESRegistration
 func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 	fmt.Printf("\nHandleGetDeviceList( )\n")
-	regs, err := GetDeviceList()
+
+	params := pkg.DESSearchParam{
+		Token:  "",
+		LngMin: -180,
+		LngMax: 180,
+		LatMin: -90,
+		LatMax: 90,
+	}
+
+	// regs, err := GetDeviceList()
+	regs, err := pkg.SearchDESDevices(params)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": fmt.Sprintf("GetDesDevList(...) -> query failed:\n%s\n", err),
 			"data":    fiber.Map{"regs": regs},
 		})
-	} 
+	}
 	// pkg.Json("GetDeviceList(): DESRegistrations", regs)
 
 	// var wg sync.WaitGroup
@@ -34,25 +44,49 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 	devices := []Device{}
 	for _, reg := range regs {
-
-		// // pkg.Json("HandleGetDeviceList( ) -> reg", reg)
-		// go func(r pkg.DESRegistration, wg *sync.WaitGroup) {
-
-		// 	defer wg.Done()
-
-			device := (&Device{}).ReadDevicesMap(reg.DESDevSerial)
-			device.DESRegistration = reg
-			// device.GetCurrentJob()
-			// device.GetMappedADM()
-			// device.GetMappedHDR()
-			// device.GetMappedCFG()
-			// device.GetMappedEVT()
-			// device.GetMappedSMP()
-			devices = append(devices, device)
-
-		// }(reg, &wg)
+		// pkg.Json("HandleGetDeviceList( ) -> reg", reg)
+		device := (&Device{}).ReadDevicesMap(reg.DESDevSerial)
+		device.DESRegistration = reg
+		devices = append(devices, device)
 	}
-	// wg.Wait() // pkg.Json("HandleGetDeviceList( ) -> []Device{}:\n", devices)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "You are a tolerable person!",
+		"data":    fiber.Map{"devices": devices},
+	})
+}
+
+func HandleSearchDevices(c *fiber.Ctx) (err error) {
+
+	fmt.Printf("\nHandleSearchDevices( )\n")
+
+	/* TODO: CHECK USER PERMISSION */
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	params := pkg.DESSearchParam{}
+	if err = c.BodyParser(&params); err != nil {
+		pkg.TraceErr(err)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	pkg.Json("HandleSearchDevices( )", params)
+
+	/* SEARCH ACTIVE DEVICES BASED ON params */
+	regs, err := pkg.SearchDESDevices(params)
+	if err != nil {
+		pkg.TraceErr(err)
+	}
+
+	devices := []Device{}
+	for _, reg := range regs {
+		pkg.Json("HandleSearchDevices( ) -> reg", reg)
+		device := (&Device{}).ReadDevicesMap(reg.DESDevSerial)
+		device.DESRegistration = reg
+		devices = append(devices, device)
+	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
@@ -128,7 +162,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	device.CFG.CfgTime = startTime
 	device.CFG.CfgAddr = c.IP()
 	device.CFG.CfgUserID = device.DESJobRegUserID
-	device.ValidateCFG() 
+	device.ValidateCFG()
 	// pkg.Json("HandleStartJob(): -> device.CFG", device.CFG)
 
 	device.EVT = Event{
@@ -376,7 +410,7 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 	device.GetMappedHDR()
 	device.CFG.CfgTime = time.Now().UTC().UnixMilli()
 	device.CFG.CfgAddr = c.IP()
-	device.ValidateCFG() 
+	device.ValidateCFG()
 	device.GetMappedEVT()
 	device.GetMappedSMP()
 	device.DESMQTTClient = pkg.DESMQTTClient{}

@@ -56,6 +56,47 @@ func main() {
 		pkg.TraceErr(err)
 	}
 
+	// test1, err := pkg.SearchDESJobsByToken("4")
+	// if err != nil {
+	// 	pkg.TraceErr(err)
+	// }
+	// pkg.Json("main -> SearchDESJobsByToken( )", test1)
+
+	// test2, err := pkg.SearchDESJobsByRegion(-110.9, -110.7, 52.5, 52.8)
+	// test2, err := pkg.SearchDESJobsByRegion(-180, 180, -90, 90)
+	// if err != nil {
+	// 	pkg.TraceErr(err)
+	// }
+	// pkg.Json("main -> SearchDESJobsByRegion( )", test2)
+
+	// test3, err := pkg.SearchDESJobs("3", -180, 180, -90, 90)
+	// test3, err := pkg.SearchDESJobs("3", -110.9, -110.7, 52.5, 52.8)
+	// if err != nil {
+	// 	pkg.TraceErr(err)
+	// }
+	// pkg.Json("main -> SearchDESJobs( )", test3)
+
+	// params := pkg.DESSearchParam{
+	// 	Token:  "",
+	// 	LngMin: -110.9,
+	// 	LngMax: -110.7,
+	// 	LatMin: 52.5,
+	// 	LatMax: 52.8,
+	// }
+	
+	// params := pkg.DESSearchParam{
+	// 	Token:  "",
+	// 	LngMin: -180,
+	// 	LngMax: 180,
+	// 	LatMin: -90,
+	// 	LatMax: 90,
+	// }
+	// test4, err := pkg.SearchDESDevices(params)
+	// if err != nil {
+	// 	pkg.TraceErr(err)
+	// }
+	// pkg.Json("main -> SearchDESDevices( )", test4)
+
 	// /********************************************************************************************/
 	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
 	// fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
@@ -101,6 +142,7 @@ func main() {
 		router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)
 		router.Post("/header", pkg.DesAuth, c001v001.HandleSetHeader)
 		router.Post("/config", pkg.DesAuth, c001v001.HandleSetConfig)
+		router.Post("/search", c001v001.HandleSearchDevices)
 		router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
 
 		app.Use("/ws", func(c *fiber.Ctx) error {
