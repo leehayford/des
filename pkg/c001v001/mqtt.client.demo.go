@@ -146,6 +146,9 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 	/* CREATE CMDARCHIVE DATABASE */
 	pkg.ADB.CreateDatabase(strings.ToLower(demo.DESJobName))
 
+	/* CREATE DESJobSearch RECORD */
+	hdr.Create_DESJobSearch(reg)
+
 	demo.ConnectJobDBC()
 	// fmt.Printf("\nMakeDemoC001V001(): CONNECTED TO DATABASE: %s\n", demo.JobDBC.ConnStr)
 

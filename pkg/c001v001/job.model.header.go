@@ -1,6 +1,8 @@
 package c001v001
 
 import (
+	"fmt"
+
 	"github.com/leehayford/des/pkg"
 )
 
@@ -103,6 +105,52 @@ func (hdr *Header) DefaultSettings_Header(reg pkg.DESRegistration) {
 	hdr.HdrGeoLng = reg.DESJobLng // HdrGeoLng: -114.75 + rand.Float32() * ( -110.15 - 114.75 ),
 	hdr.HdrGeoLat = reg.DESJobLat // HdrGeoLat: 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
 
+}
+
+/*
+HEADER - CREATE DESJobSearch
+*/
+func (hdr *Header) SearchToken() (token string) {
+	
+	/* TODO: EVALUATE MORE CLEVER TOKENIZATION */
+	return fmt.Sprintf("%s %s %s %s %s", 
+		hdr.HdrWellCo,
+		hdr.HdrWellName,
+		hdr.HdrWellSFLoc,
+		hdr.HdrWellBHLoc,
+		hdr.HdrWellLic,
+	)
+}
+
+/*
+HEADER - CREATE DESJobSearch
+*/
+func (hdr *Header) Create_DESJobSearch(reg pkg.DESRegistration) {
+
+	s := pkg.DESJobSearch{
+		DESJobToken: hdr.SearchToken(),
+		DESJobKey: reg.DESJobID,
+	}
+
+	if res := pkg.DES.DB.Create(&s); res.Error != nil {
+		pkg.TraceErr(res.Error)
+	}
+}
+
+/*
+HEADER - UPDATE DESJobSearch
+*/
+func (hdr *Header) Update_DESJobSearch(reg pkg.DESRegistration) {
+
+	s := pkg.DESJobSearch{}
+	if res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s); res.Error != nil {
+		pkg.TraceErr(res.Error)
+	}
+	s.DESJobToken = hdr.SearchToken()
+
+	if res := pkg.DES.DB.Save(&s); res.Error != nil {
+		pkg.TraceErr(res.Error)
+	}
 }
 
 // /*

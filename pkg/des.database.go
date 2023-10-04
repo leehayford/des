@@ -178,6 +178,7 @@ func (des DESDatabase) CreateDESTables(exists bool) (err error) {
 			&User{},
 			&DESDev{},
 			&DESJob{},
+			&DESJobSearch{},
 		)
 	} else {
 		// fmt.Printf("\nCreating DES Tables: %s\n", DES.ConnStr)
@@ -185,6 +186,7 @@ func (des DESDatabase) CreateDESTables(exists bool) (err error) {
 			&User{},
 			&DESDev{},
 			&DESJob{},
+			&DESJobSearch{},
 		); err != nil {
 			return err
 		}

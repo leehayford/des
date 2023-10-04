@@ -171,7 +171,6 @@ func (device *Device) DeviceClient_Disconnect() {
 	delete(Devices, device.DESDevSerial)
 }
 
-
 /* UPDATE THE DevicesMap USING RWMutex TO PREVENT CONCURRENT MAP WRITES */
 func  (device *Device) ReadDevicesMap(serial string) (d Device) {
 	
@@ -359,9 +358,6 @@ func (device *Device) StartJob(evt Event) {
 	/* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
 	device.DESMQTTClient.WG.Wait()
 
-	// /* SYNC DEVICE WITH DevicesMap */
-	// device.GetMappedClients()
-
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 
@@ -389,6 +385,9 @@ func (device *Device) StartJob(evt Event) {
 	if res := pkg.DES.DB.Create(&device.Job.DESJob); res.Error != nil {
 		pkg.TraceErr(res.Error)
 	}
+
+	/* CREATE DESJobSearch RECORD */
+	device.HDR.Create_DESJobSearch(device.Job.DESRegistration)
 
 	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
 	if pkg.ADB.CheckDatabaseExists(device.Job.DESJobName) {
@@ -480,9 +479,6 @@ func (device *Device) EndJob(evt Event) {
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
-
-	// /* SYNC DEVICE WITH DevicesMap */
-	// device.GetMappedClients()
 
 	/* CLOSE DES JOB */
 	device.Job.DESJob.DESJobRegTime = evt.EvtTime

@@ -131,6 +131,9 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 
 				/* CALL DB WRITE IN GOROUTINE */
 				go device.JobDBC.Write(hdr)
+
+				/* UPDATE THE JOB SEARCH TEXT */
+				go hdr.Update_DESJobSearch(device.Job.DESRegistration)
 			}
 
 			device.HDR = hdr
