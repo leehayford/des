@@ -19,5 +19,5 @@ type DESJobSearch struct {
 	DESJobSearchID int64 `gorm:"unique; primaryKey" json:"des_job_search_id"`
 	DESJobToken string `gorm:"not null" json:"des_job_token"`
 	DESJobKey int64 `json:"des_job_key"`
-	DESJob `gorm:"foreignKey:DESJobKey; references:des_job_id" json:"-"`
+	DESJob `gorm:"foreignKey:DESJobKey; references:des_job_key" json:"-"`
 }
