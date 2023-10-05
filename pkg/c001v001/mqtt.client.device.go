@@ -99,6 +99,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			}
 			
 			device.ADM = adm
+			device.UpdateMappedADM()
 			device.DESMQTTClient.WG.Done()
 
 		},
@@ -137,6 +138,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			}
 
 			device.HDR = hdr
+			device.UpdateMappedHDR()
 			device.DESMQTTClient.WG.Done()
 
 		},
@@ -172,6 +174,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			}
 
 			device.CFG = cfg
+			device.UpdateMappedCFG()
 			device.DESMQTTClient.WG.Done()
 
 		},
@@ -220,6 +223,8 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 					/* STORE THE EVENT IN THE ACTIVE JOB */
 					go device.JobDBC.Write(evt)
 				}
+				device.EVT = evt
+				device.UpdateMappedEVT()
 			}
 
 			device.DESMQTTClient.WG.Done()
@@ -270,6 +275,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 	
 			}
 			device.SMP = smp
+			device.UpdateMappedSMP()
 			device.DESMQTTClient.WG.Done()
 
 		},

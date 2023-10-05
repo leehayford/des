@@ -121,6 +121,8 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 			case data := <- duc.DataOut:
 				if err := c.WriteJSON(data); err != nil {
 					pkg.TraceErr(err)
+					duc.MQTTDeviceUserClient_Disconnect()
+					duc.Close <- struct{}{}
 				}
 
 			}

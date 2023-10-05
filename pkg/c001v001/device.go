@@ -65,9 +65,18 @@ type Device struct {
 }
 
 type DevicesMap map[string]Device
-
 var Devices = make(DevicesMap)
+
+
 var DevicesRWMutex = sync.RWMutex{}
+var DevicesMapWG = sync.WaitGroup{}
+/* TODO: TEST WaitGroup vs. RWMutex ON SERVER TO PREVENT CONCURRENT MAP WRITES 
+	
+	FAILING THAT, LOOK INTO: 
+		1. Channel-based updates
+		2. Log-based, Change Data Capture ( CDC ) updates
+
+*/
 
 /* GET THE CURRENT DESRegistration FOR ALL DEVICES ON THIS DES */
 func GetDeviceList() (devices []pkg.DESRegistration, err error) {
@@ -171,11 +180,15 @@ func (device *Device) DeviceClient_Disconnect() {
 	delete(Devices, device.DESDevSerial)
 }
 
-/* UPDATE THE DevicesMap USING RWMutex TO PREVENT CONCURRENT MAP WRITES */
+/* READ THE DevicesMap 
+TODO: TEST WaitGroup vs. RWMutex ON SERVER TO PREVENT CONCURRENT MAP WRITES */
 func  (device *Device) ReadDevicesMap(serial string) (d Device) {
 	
 	DevicesRWMutex.Lock()
+	// DevicesMapWG.Wait()
+	// DevicesMapWG.Add(1)
 	d = Devices[serial]
+	// DevicesMapWG.Done()
 	DevicesRWMutex.Unlock()
 	return
 }
@@ -248,10 +261,15 @@ func (device *Device) GetMappedSMP() {
 	device.SMP = d.SMP
 }
 
-/* UPDATE THE DevicesMap USING RWMutex TO PREVENT CONCURRENT MAP WRITES */
+/* UPDATE THE DevicesMap 
+TODO: TEST WaitGroup vs. RWMutex ON SERVER TO PREVENT CONCURRENT MAP WRITES */
 func UpdateDevicesMap(serial string, d Device) {
+	
 	DevicesRWMutex.Lock()
+	// DevicesMapWG.Wait()
+	// DevicesMapWG.Add(1)
 	Devices[serial] = d
+	// DevicesMapWG.Done()
 	DevicesRWMutex.Unlock()
 }
 

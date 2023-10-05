@@ -20,16 +20,7 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 	fmt.Printf("\nHandleGetDeviceList( )\n")
 
-	params := pkg.DESSearchParam{
-		Token:  "",
-		LngMin: -180,
-		LngMax: 180,
-		LatMin: -90,
-		LatMax: 90,
-	}
-
-	// regs, err := GetDeviceList()
-	regs, err := pkg.SearchDESDevices(params)
+	regs, err := GetDeviceList()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
@@ -38,9 +29,6 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 		})
 	}
 	// pkg.Json("GetDeviceList(): DESRegistrations", regs)
-
-	// var wg sync.WaitGroup
-	// wg.Add(len(regs)) // fmt.Printf("\nWait Group: %d\n", len(regs))
 
 	devices := []Device{}
 	for _, reg := range regs {
