@@ -33,109 +33,126 @@ type WSMessage struct {
 	Data interface{} `json:"data"`
 }
 
+type AuthResponse struct {
+	Status string 	`json:"status"`
+	Message string `json:"message"`
+}
 func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	fmt.Printf("\nWSDeviceUserClient_Connect( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role == "admin" {
-
-		des_regStr, _ := url.QueryUnescape(c.Query("des_reg"))
-
-		des_reg := pkg.DESRegistration{}
-		if err := json.Unmarshal([]byte(des_regStr), &des_reg); err != nil {
-			pkg.TraceErr(err)
+	if role != "admin" && role != "viewer" {
+		/* CREATE JSON WSMessage STRUCT */
+		res := AuthResponse{
+			Status:  "fail",
+			Message: "You need permission to watch a live feed.",
 		}
-		des_reg.DESDevRegAddr = c.RemoteAddr().String()
-		des_reg.DESJobRegAddr = c.RemoteAddr().String()
+		js, err := json.Marshal(&WSMessage{Type: "auth", Data: res})
+		if err != nil {
+			pkg.TraceErr(err)
+			return
+		} 
+		c.Conn.WriteJSON(string(js))
+		return
+	}
 
-		wscid := fmt.Sprintf("%d-%s",
-			time.Now().UTC().UnixMilli() / 10,
-			des_reg.DESDevSerial,
-		) // fmt.Printf("WSDeviceUserClient_Connect -> wscid: %s\n", wscid)
+	des_regStr, _ := url.QueryUnescape(c.Query("des_reg"))
 
-		duc = DeviceUserClient{
-			Device: Device{
-				DESRegistration: des_reg,
-				Job:             Job{DESRegistration: des_reg},
-			},
-			WSClientID: wscid,
-		} // fmt.Printf("\nHandle_ConnectDeviceUser(...) -> duc: %v\n\n", duc)
+	des_reg := pkg.DESRegistration{}
+	if err := json.Unmarshal([]byte(des_regStr), &des_reg); err != nil {
+		pkg.TraceErr(err)
+	}
+	des_reg.DESDevRegAddr = c.RemoteAddr().String()
+	des_reg.DESJobRegAddr = c.RemoteAddr().String()
 
-		duc.DataOut = make(chan string)
-		duc.Close = make(chan struct{})
-		duc.Kill = make(chan struct{})
+	wscid := fmt.Sprintf("%d-%s",
+		time.Now().UTC().UnixMilli() / 10,
+		des_reg.DESDevSerial,
+	) // fmt.Printf("WSDeviceUserClient_Connect -> wscid: %s\n", wscid)
 
-		duc.MQTTDeviceUserClient_Connect()
-	
-		/* LISTEN FOR MESSAGES FROM CONNECTED USER */
-		go func() {
-			for {
-				_, msg, err := c.ReadMessage()
-				if err != nil {
-					fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() %s\n ERROR:\n%s\n", duc.DESDevSerial, err.Error())
-					pkg.TraceErr(err)
-					break
-				}
-				if string(msg) == "close" {
-					/* USER HAS CLOSED THE CONNECTION */
-					fmt.Printf("WSDeviceUserClient_Connect -> go func() -> c.ReadMessage(): %s\n", string(msg))
-					duc.MQTTDeviceUserClient_Disconnect()
-					duc.Close <- struct{}{}
-					break
-				}
+	duc = DeviceUserClient{
+		Device: Device{
+			DESRegistration: des_reg,
+			Job:             Job{DESRegistration: des_reg},
+		},
+		WSClientID: wscid,
+	} // fmt.Printf("\nHandle_ConnectDeviceUser(...) -> duc: %v\n\n", duc)
+
+	duc.DataOut = make(chan string)
+	duc.Close = make(chan struct{})
+	duc.Kill = make(chan struct{})
+
+	duc.MQTTDeviceUserClient_Connect()
+
+	/* LISTEN FOR MESSAGES FROM CONNECTED USER */
+	go func() {
+		for {
+			_, msg, err := c.ReadMessage()
+			if err != nil {
+				fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() %s\n ERROR:\n%s\n", duc.DESDevSerial, err.Error())
+				pkg.TraceErr(err)
+				break
 			}
-			fmt.Printf("WSDeviceUserClient_Connect -> go func() done\n")
-		}()
-
-		/* KEEP ALIVE GO ROUTINE SEND "live" EVERY 30 SECONDS TO PREVENT DISCONNECT */
-		live := true
-		go func() {
-			for live {
-				select {
-
-				case <- duc.Kill:
-					live = false
-
-				default:
-					time.Sleep(time.Second * 30) 
-					js, err := json.Marshal(&WSMessage{Type: "live", Data: ""})
-					if err != nil {
-						pkg.TraceErr(err)
-					}
-					duc.DataOut <- string(js)
-					// fmt.Printf("WSDeviceUserClient_Connect -> go func() KEEP ALIVE... \n")
-				}
+			if string(msg) == "close" {
+				/* USER HAS CLOSED THE CONNECTION */
+				fmt.Printf("WSDeviceUserClient_Connect -> go func() -> c.ReadMessage(): %s\n", string(msg))
+				duc.MQTTDeviceUserClient_Disconnect()
+				duc.Close <- struct{}{}
+				break
 			}
-		}()
+		}
+		fmt.Printf("WSDeviceUserClient_Connect -> go func() done\n")
+	}()
 
-		/* SEND MESSAGES TO CONNECTED USER */
-		open := true
-		for open {
+	/* KEEP ALIVE GO ROUTINE SEND "live" EVERY 30 SECONDS TO PREVENT DISCONNECT */
+	live := true
+	go func() {
+		for live {
 			select {
 
-			case <- duc.Close:
-				duc.Kill <- struct{}{}
-				open = false
+			case <- duc.Kill:
+				live = false
 
-			case data := <- duc.DataOut:
-				if err := c.WriteJSON(data); err != nil {
+			default:
+				time.Sleep(time.Second * 30) 
+				js, err := json.Marshal(&WSMessage{Type: "live", Data: ""})
+				if err != nil {
 					pkg.TraceErr(err)
-					duc.MQTTDeviceUserClient_Disconnect()
-					duc.Close <- struct{}{}
 				}
-
+				duc.DataOut <- string(js)
+				// fmt.Printf("WSDeviceUserClient_Connect -> go func() KEEP ALIVE... \n")
 			}
 		}
-		close(duc.Close)
-		duc.Close = nil
+	}()
 
-		close(duc.Kill)
-		duc.Kill = nil
-		
-		close(duc.DataOut)
-		duc.DataOut = nil
+	/* SEND MESSAGES TO CONNECTED USER */
+	open := true
+	for open {
+		select {
+
+		case <- duc.Close:
+			duc.Kill <- struct{}{}
+			open = false
+
+		case data := <- duc.DataOut:
+			if err := c.WriteJSON(data); err != nil {
+				pkg.TraceErr(err)
+				duc.MQTTDeviceUserClient_Disconnect()
+				duc.Close <- struct{}{}
+			}
+
+		}
 	}
+	close(duc.Close)
+	duc.Close = nil
+
+	close(duc.Kill)
+	duc.Kill = nil
+	
+	close(duc.DataOut)
+	duc.DataOut = nil
+
 	return
 }
 

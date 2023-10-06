@@ -124,19 +124,19 @@ func main() {
 	/* API ROUTES */
 	api := fiber.New()
 	app.Mount("/api", api)
-	app.Get("/user", pkg.GetUserList)
-	app.Get("/user/me", pkg.DesAuth, pkg.GetMe)
 
 	/* AUTH & USER ROUTES */
-	api.Route("/auth", func(router fiber.Router) {
-		router.Post("/register", pkg.SignUpUser)
+	api.Route("/user", func(router fiber.Router) {
+		router.Get("/list", pkg.GetUserList)
+		router.Post("/signup", pkg.SignUpUser)
 		router.Post("/login", pkg.SignInUser)
+		router.Get("/me", pkg.DesAuth, pkg.GetMe)
 		router.Get("/logout", pkg.DesAuth, pkg.LogoutUser)
 	})
 
 	/* C001V001 DEVICE ROUTES */
 	api.Route("/001/001/device", func(router fiber.Router) {
-		// router.Post("/register", pkg.DesAuth, (&c001v001.Device{}).HandleRegisterDevice)
+		// router.Post("/register", pkg.DesAuth, c001v001.HandleRegisterDevice)
 		router.Post("/start", pkg.DesAuth, c001v001.HandleStartJob)
 		router.Post("/end", pkg.DesAuth, c001v001.HandleEndJob)
 		router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)

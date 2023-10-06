@@ -38,13 +38,16 @@ func SignUpUser(c *fiber.Ctx) error {
 	}
 
 	if payload.Password != payload.PasswordConfirm {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": "Passwords do not match"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "fail", 
+			"message": "Passwords do not match",
+		})
 
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "fail", "message": err.Error()})
 	}
 
 	user := User{
@@ -59,10 +62,13 @@ func SignUpUser(c *fiber.Ctx) error {
 	if result.Error != nil && strings.Contains(result.Error.Error(), "duplicate key value violates unique") {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "fail", "message": "User with that email already exists"})
 	} else if result.Error != nil {
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"status": "error", "message": "Something bad happened"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Something bad happened"})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": fiber.Map{"user": user.FilterUserRecord()}})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status": "success", 
+		"data": fiber.Map{"user": user.FilterUserRecord()},
+	})
 }
 
 func SignInUser(c *fiber.Ctx) error {
