@@ -56,47 +56,6 @@ func main() {
 		pkg.TraceErr(err)
 	}
 
-	// test1, err := pkg.SearchDESJobsByToken("4")
-	// if err != nil {
-	// 	pkg.TraceErr(err)
-	// }
-	// pkg.Json("main -> SearchDESJobsByToken( )", test1)
-
-	// test2, err := pkg.SearchDESJobsByRegion(-110.9, -110.7, 52.5, 52.8)
-	// test2, err := pkg.SearchDESJobsByRegion(-180, 180, -90, 90)
-	// if err != nil {
-	// 	pkg.TraceErr(err)
-	// }
-	// pkg.Json("main -> SearchDESJobsByRegion( )", test2)
-
-	// test3, err := pkg.SearchDESJobs("3", -180, 180, -90, 90)
-	// test3, err := pkg.SearchDESJobs("3", -110.9, -110.7, 52.5, 52.8)
-	// if err != nil {
-	// 	pkg.TraceErr(err)
-	// }
-	// pkg.Json("main -> SearchDESJobs( )", test3)
-
-	// params := pkg.DESSearchParam{
-	// 	Token:  "",
-	// 	LngMin: -110.9,
-	// 	LngMax: -110.7,
-	// 	LatMin: 52.5,
-	// 	LatMax: 52.8,
-	// }
-	
-	// params := pkg.DESSearchParam{
-	// 	Token:  "",
-	// 	LngMin: -180,
-	// 	LngMax: 180,
-	// 	LatMin: -90,
-	// 	LatMax: 90,
-	// }
-	// test4, err := pkg.SearchDESDevices(params)
-	// if err != nil {
-	// 	pkg.TraceErr(err)
-	// }
-	// pkg.Json("main -> SearchDESDevices( )", test4)
-
 	// /********************************************************************************************/
 	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
 	// fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
@@ -115,7 +74,7 @@ func main() {
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
 		/* TODO: LIMIT ALLOWED ORIGINS FOR PRODUCTION DEPLOYMENT */
-		AllowOrigins:     "http://localhost:8080, http://localhost:4173, http://localhost:5173, http://localhost:58714",
+		AllowOrigins:     "https://vw1.data2desk.com, http://localhost:8080, http://localhost:4173, http://localhost:5173, http://localhost:58714",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Cache-Control",
 		AllowMethods:     "GET, POST",
 		AllowCredentials: true,
