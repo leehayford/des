@@ -1166,7 +1166,7 @@ func DemoSimFlashTest() {
 func (demo DemoDeviceClient) WriteAdmToFlash(jobName string, adm Admin) (err error) {
 
 	admBytes := adm.AdminToBytes()
-	// fmt.Printf("\nadmBytes ( %d ) : %v\n", len(admBytes), admBytes)
+	// fmt.Printf("\nadmBytes ( %d ) : %x\n", len(admBytes), admBytes)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
@@ -1219,7 +1219,7 @@ func (demo *DemoDeviceClient) GetAdmFromFlash(jobName string, adm *Admin) {
 func (demo *DemoDeviceClient) WriteHdrToFlash(jobName string, hdr Header) (err error) {
 
 	hdrBytes := hdr.HeaderToBytes()
-	// fmt.Printf("\nhdrBytes ( %d ) : %v\n", len(hdrBytes), hdrBytes)
+	// fmt.Printf("\nhdrBytes ( %d ) : %x\n", len(hdrBytes), hdrBytes)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
@@ -1272,7 +1272,7 @@ func (demo *DemoDeviceClient) GetHdrFromFlash(jobName string, hdr *Header) {
 func (demo *DemoDeviceClient) WriteCfgToFlash(jobName string, cfg Config) (err error) {
 
 	cfgBytes := cfg.ConfigToBytes()
-	// fmt.Printf("\ncfgBytes ( %d ) : %v\n", len(cfgBytes), cfgBytes)
+	// fmt.Printf("\ncfgBytes ( %d ) : %x\n", len(cfgBytes), cfgBytes)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
@@ -1325,7 +1325,7 @@ func (demo *DemoDeviceClient) GetCfgFromFlash(jobName string, cfg *Config) {
 func (demo *DemoDeviceClient) WriteEvtToFlash(jobName string, evt Event) (err error) {
 
 	evtBytes := evt.EventToBytes()
-	// fmt.Printf("\nevtBytes ( %d ) : %v\n", len(evtBytes), evtBytes)
+	// fmt.Printf("\nevtBytes ( %d ) : %x\n", len(evtBytes), evtBytes)
 
 	dir := fmt.Sprintf("demo/%s/events", jobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {

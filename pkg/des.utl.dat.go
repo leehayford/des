@@ -171,10 +171,11 @@ func StringToNBytes(str string, size int) []byte {
 	if l > size {
 		return bin[l-size:]
 	}
-	// out := bytes.Repeat([]byte{0xFF}, size)
-	// copy(out[size-l:], bin)
+	
 	out := bytes.Repeat([]byte{0x20}, size)
-	copy(out[:size-l], bin)
+	
+	copy(out[:l], bin)
+	// fmt.Printf("\n%s ( %d ) : %x\n",str , len(out), out)
 	return out
 }
 
