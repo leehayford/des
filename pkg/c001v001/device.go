@@ -513,6 +513,7 @@ func (device *Device) EndJob(evt Event) {
 	cmd.DESJobRegAddr = evt.EvtAddr
 	cmd.DESJobRegUserID = evt.EvtUserID
 	cmd.DESJobRegApp = evt.EvtApp
+	cmd.DESJob.DESJobEnd = 0 // ENSURE THE DEVICE IS DISCOVERABLE 
 	pkg.DES.DB.Save(cmd.DESJob)
 
 	/* ENSURE WE CATCH STRAY SIGNALS IN THE CMDARCHIVE */

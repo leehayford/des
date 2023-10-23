@@ -159,22 +159,31 @@ func StrBytesToString(b []byte) (out string) {
 	}
 	return
 }
-/*STRING INPUT*/
+/* STRING INPUT */
 func StringToNBytes(str string, size int) []byte {
 
 	bin := []byte(str)
 	l := len(bin)
 
 	if l == size {
-		return bin
+		/* bin ALREADY THE RIGHT SIZE, SHIP IT */
+		return bin 
 	}
 	if l > size {
-		return bin[l-size:]
+		/* bin TOO BIG, RETURN THE LAST 'size' BYTES 
+			WE COULD RETURN THE FIRST 'size' BYTES...
+		*/
+		return bin[l-size:] 
 	}
+
+	/* bin TOO SMALL*/
 	
+	/* FILL BUFFER WITH 'size' SPACES */
 	out := bytes.Repeat([]byte{0x20}, size)
 	
+	/* WRITE 'bin TO THE START OF THE BUFFER */
 	copy(out[:l], bin)
+
 	// fmt.Printf("\n%s ( %d ) : %x\n",str , len(out), out)
 	return out
 }
