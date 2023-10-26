@@ -177,7 +177,7 @@ func (device *Device) DeviceClient_Connect() {
 
 	/* ADD TO Devices MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
-	// Devices[device.DESDevSerial] = *device
+
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connected... \n\n", device.DESDevSerial)
 }
 
