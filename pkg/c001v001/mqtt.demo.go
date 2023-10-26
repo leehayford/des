@@ -937,6 +937,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 
 	/* SEND CONFIRMATION */
 	go demo.MQTTPublication_DemoDeviceClient_SIGAdmin(demo.ADM)
+	go demo.MQTTPublication_DemoDeviceClient_SIGHwID(demo.HW)
 	go demo.MQTTPublication_DemoDeviceClient_SIGHeader(demo.HDR)
 	go demo.MQTTPublication_DemoDeviceClient_SIGConfig(demo.CFG)
 	go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
