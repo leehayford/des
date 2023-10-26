@@ -87,15 +87,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go WriteADM(device.ADM, &device.CmdDBC)
-			// go device.CmdDBC.Write(adm)
+			go WriteADM(adm, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go WriteADM(device.ADM, &device.JobDBC)
-				// go device.JobDBC.Write(adm)
+				go WriteADM(adm, &device.JobDBC)
 			}
 
 			device.ADM = adm
@@ -125,15 +123,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHwID() pkg.MQTTSubscripti
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go WriteHW(device.HW, &device.CmdDBC)
-			// go device.CmdDBC.Write(hw)
+			go WriteHW(hw, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go WriteHW(device.HW, &device.JobDBC)
-				// go device.JobDBC.Write(hw)
+				go WriteHW(hw, &device.JobDBC)
 			}
 
 			device.HW = hw
@@ -163,21 +159,19 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go WriteHDR(device.HDR, &device.CmdDBC)
-			// go device.CmdDBC.Write(hdr)
+			go WriteHDR(hdr, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go WriteHDR(device.HDR, &device.JobDBC)
-				// go device.JobDBC.Write(hdr)
+				go WriteHDR(hdr, &device.JobDBC)
 
 				/* UPDATE THE JOB SEARCH TEXT */
 				go hdr.Update_DESJobSearch(device.Job.DESRegistration)
 			}
 
-			device.HDR = hdr
+			device.HDR= hdr
 
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedHDR()
@@ -204,15 +198,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go WriteCFG(device.CFG, &device.CmdDBC)
-			// go device.CmdDBC.Write(cfg)
+			go WriteCFG(cfg, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go WriteCFG(device.CFG, &device.JobDBC)
-				// go device.JobDBC.Write(cfg)
+				go WriteCFG(cfg, &device.JobDBC)
 			}
 
 			device.CFG = cfg
@@ -246,7 +238,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 
 			/* CALL DB WRITE IN GOROUTINE */
 			go WriteEVT(evt, &device.CmdDBC)
-			// go device.CmdDBC.Write(&evt)
 
 			/* CHECK THE RECEIVED EVENT CODE */
 			switch evt.EvtCode {
@@ -268,9 +259,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 				if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 					/* STORE THE EVENT IN THE ACTIVE JOB; CALL DB WRITE IN GOROUTINE */
 					go WriteEVT(evt, &device.JobDBC)
-					// go device.JobDBC.Write(evt)
 				}
+
 				device.EVT = evt
+				
+				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 				device.UpdateMappedEVT()
 			}
 
@@ -315,15 +308,15 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 
 				/* TODO: ADD BULK INSERT ( WRITE ALL SAMPLES IN ONE TRANSACTION ) */
 				// Write the Sample to the job database
-				go WriteSMP(device.SMP, &device.JobDBC)
-				// go device.JobDBC.Write(smp)
-
-				// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-				// device.UpdateMappedSMP()
+				go WriteSMP(smp, &device.JobDBC)
 
 			}
+
 			device.SMP = smp
+			
+			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedSMP()
+			
 			device.DESMQTTClient.WG.Done()
 
 		},

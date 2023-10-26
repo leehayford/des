@@ -70,6 +70,7 @@ type Device struct {
 	CmdDBC            pkg.DBClient `json:"-"` // Database Client for the CMDARCHIVE
 	JobDBC            pkg.DBClient `json:"-"` // Database Client for the active job
 	pkg.DESMQTTClient `json:"-"`   // MQTT client handling all subscriptions and publications for this device
+	
 }
 
 type DevicesMap map[string]Device
@@ -207,11 +208,9 @@ TODO: TEST WaitGroup vs. RWMutex ON SERVER TO PREVENT CONCURRENT MAP WRITES
 func (device *Device) ReadDevicesMap(serial string) (d Device) {
 
 	DevicesRWMutex.Lock()
-	// DevicesMapWG.Wait()
-	// DevicesMapWG.Add(1)
 	d = Devices[serial]
-	// DevicesMapWG.Done()
 	DevicesRWMutex.Unlock()
+
 	return
 }
 
@@ -304,8 +303,10 @@ func (device *Device) UpdateMappedHW() {
 }
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Header */
+// func (device *Device) UpdateMappedHDR(hdr Header) {
 func (device *Device) UpdateMappedHDR() {
 	d := device.ReadDevicesMap(device.DESDevSerial)
+	// d.HDR = hdr
 	d.HDR = device.HDR
 	UpdateDevicesMap(device.DESDevSerial, d)
 }
@@ -486,26 +487,27 @@ func (device *Device) StartJobRequest(src string) (err error) {
 func (device *Device) StartJob(evt Event) {
 	fmt.Printf("\n(device *Device) StartJob()\n")
 
-	/* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
-	device.DESMQTTClient.WG.Wait()
+	// /* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
+	// device.DESMQTTClient.WG.Wait()
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
-
+	hdr := device.HDR
+	
 	device.Job = Job{
 		DESRegistration: pkg.DESRegistration{
 			DESDev: device.DESDev,
 			DESJob: pkg.DESJob{
-				DESJobRegTime:   device.HDR.HdrTime,
-				DESJobRegAddr:   device.HDR.HdrAddr,
-				DESJobRegUserID: device.HDR.HdrUserID,
-				DESJobRegApp:    device.HDR.HdrApp,
+				DESJobRegTime:   hdr.HdrTime,
+				DESJobRegAddr:   hdr.HdrAddr,
+				DESJobRegUserID: hdr.HdrUserID,
+				DESJobRegApp:    hdr.HdrApp,
 
-				DESJobName:  device.HDR.HdrJobName,
-				DESJobStart: device.HDR.HdrJobStart,
+				DESJobName:  hdr.HdrJobName,
+				DESJobStart: hdr.HdrJobStart,
 				DESJobEnd:   0,
-				DESJobLng:   device.HDR.HdrGeoLng,
-				DESJobLat:   device.HDR.HdrGeoLat,
+				DESJobLng:   hdr.HdrGeoLng,
+				DESJobLat:   hdr.HdrGeoLat,
 				DESJobDevID: device.DESDevID,
 			},
 		},
@@ -518,7 +520,8 @@ func (device *Device) StartJob(evt Event) {
 	}
 
 	/* CREATE DESJobSearch RECORD */
-	device.HDR.Create_DESJobSearch(device.Job.DESRegistration)
+	hdr.Create_DESJobSearch(device.Job.DESRegistration)
+	// device.HDR.Create_DESJobSearch(device.Job.DESRegistration)
 
 	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
 	if pkg.ADB.CheckDatabaseExists(device.Job.DESJobName) {
@@ -562,7 +565,8 @@ func (device *Device) StartJob(evt Event) {
 	if err := WriteHW(device.HW, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
+	if err := WriteHDR(hdr, &device.JobDBC); err != nil {
+	// if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
 	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
@@ -630,8 +634,8 @@ func (device *Device) EndJobRequest(src string) (err error) {
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
 func (device *Device) EndJob(evt Event) {
 
-	/* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
-	device.DESMQTTClient.WG.Wait()
+	// /* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
+	// device.DESMQTTClient.WG.Wait()
 
 	// /* WAIT FOR FINAL HEADER TO BE RECEIVED */
 	// fmt.Printf("\n(device *Device) EndJob( ) -> Waiting for final Header... H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
@@ -657,13 +661,14 @@ func (device *Device) EndJob(evt Event) {
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 
+	jobName := device.Job.DESJobName
 	/* CLOSE DES JOB */
 	device.Job.DESJob.DESJobRegTime = evt.EvtTime
 	device.Job.DESJob.DESJobRegAddr = evt.EvtAddr
 	device.Job.DESJob.DESJobRegUserID = evt.EvtUserID
 	device.Job.DESJob.DESJobRegApp = evt.EvtApp
 	device.Job.DESJob.DESJobEnd = evt.EvtTime
-	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", device.HDR.HdrJobName)
+	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", jobName)
 	pkg.DES.DB.Save(device.Job.DESJob)
 
 	/* UPDATE DES CMDARCHIVE */
@@ -694,7 +699,7 @@ func (device *Device) EndJob(evt Event) {
 	/* UPDATE THE DEVICES CLIENT MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
 
-	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", device.HDR.HdrJobName)
+	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", jobName)
 }
 
 /* SET / GET JOB PARAMS *********************************************************************************/

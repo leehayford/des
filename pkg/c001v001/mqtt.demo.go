@@ -1075,7 +1075,7 @@ func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time, mode
 
 /* CREATE RANDOM SIMULATED WELL CONDITIONS */
 var maxCh4 = float32(97.99)
-var minCh4 = float32(23.99)
+var minCh4 = float32(73.99)
 
 var maxFlow = float32(239.99)
 var minFlow = float32(0.23)
@@ -1313,7 +1313,8 @@ func DemoSimFlashTest() {
 /* ADM DEMO MEMORY -> 272 BYTES -> HxD 34 x 8 */
 func (demo DemoDeviceClient) WriteAdmToFlash(jobName string, adm Admin) (err error) {
 
-	admBytes := adm.AdminToBytes()
+	// admBytes := adm.AdminToBytes()
+	admJson := pkg.MakeMQTTMessage(adm)
 	// fmt.Printf("\nadmBytes ( %d ) : %x\n", len(admBytes), admBytes)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
@@ -1321,13 +1322,14 @@ func (demo DemoDeviceClient) WriteAdmToFlash(jobName string, adm Admin) (err err
 		pkg.TraceErr(err)
 	}
 
-	f, err := os.OpenFile(fmt.Sprintf("%s/adm.bin", dir), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/adm.json", dir), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return pkg.TraceErr(err)
 	}
 	defer f.Close()
 
-	_, err = f.Write(admBytes)
+	// _, err = f.Write(admBytes)
+	_, err = f.WriteString(admJson)
 	if err != nil {
 		return pkg.TraceErr(err)
 	}

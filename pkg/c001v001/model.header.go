@@ -31,6 +31,7 @@ type Header struct {
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
 	HdrGeoLng float32 `json:"hdr_geo_lng"`
 	HdrGeoLat float32 `json:"hdr_geo_lat"`
+
 }
 func WriteHDR(hdr Header, dbc *pkg.DBClient) (err error) {
 

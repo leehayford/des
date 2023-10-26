@@ -204,8 +204,7 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} 
-	pkg.Json("HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
+	} // pkg.Json("HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
 
 	/* SEND SET ADMIN REQUEST */
 	if err = device.SetAdminRequest(c.IP()); err != nil {
@@ -213,8 +212,7 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} 
-	pkg.Json("HandleSetAdmin(): -> device.SetAdminRequest(...) -> device.ADM", device.ADM)
+	} // pkg.Json("HandleSetAdmin(): -> device.SetAdminRequest(...) -> device.ADM", device.ADM)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -336,8 +334,7 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} 
-	pkg.Json("HandleSetHeader(): -> device.SetHeaderRequest(...) -> device.HDR", device.HDR)
+	}  // pkg.Json("HandleSetHeader(): -> device.SetHeaderRequest(...) -> device.HDR", device.HDR)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -378,8 +375,7 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} 
-	pkg.Json("HandleSetConfig(): -> device.SetConfigRequest(...) -> device.CFG", device.CFG)
+	} // pkg.Json("HandleSetConfig(): -> device.SetConfigRequest(...) -> device.CFG", device.CFG)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
