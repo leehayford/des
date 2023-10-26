@@ -227,7 +227,7 @@ func DemoDeviceClient_ConnectAll(qty int) {
 		for i := 0; i < qty; i++ {
 			regs = append(regs, MakeDemoC001V001(DemoSNMaker(i), user.ID.String()))
 		}
-		// MakeDemoC001V001("RENE123456", user.ID.String())
+		MakeDemoC001V001("RENE123456", user.ID.String())
 	}
 
 	for _, reg := range regs {
@@ -853,6 +853,13 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.ADM.AdmAddr = demo.DESDevSerial
 	demo.ADM.AdmUserID = evt.EvtUserID
 	demo.ADM.AdmApp = evt.EvtApp
+
+	demo.HW.HwTime = startTime
+	demo.HW.HwAddr = demo.DESDevSerial
+	demo.HW.HwUserID = evt.EvtUserID
+	demo.HW.HwApp = evt.EvtApp
+	demo.HW.HwLogFw = "0.0.009"
+	demo.HW.HwModFw = "0.0.007"
 
 	/* WHERE JOB START HEADER WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.HDR.HdrTime != evt.EvtTime {
