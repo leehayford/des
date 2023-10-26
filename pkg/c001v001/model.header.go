@@ -32,14 +32,14 @@ type Header struct {
 	HdrGeoLng float32 `json:"hdr_geo_lng"`
 	HdrGeoLat float32 `json:"hdr_geo_lat"`
 }
-func  (hdr *Header) Write(dbc *pkg.DBClient) (err error) {
+func WriteHDR(hdr Header, dbc *pkg.DBClient) (err error) {
 
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
 		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
 	dbc.WG.Add(1)
 	hdr.HdrID = 0
-	res := dbc.Create(hdr) 
+	res := dbc.Create(&hdr) 
 	dbc.WG.Done()
 
 	return res.Error

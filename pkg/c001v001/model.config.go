@@ -37,14 +37,14 @@ type Config struct {
 	CfgDiagLog    int32 `json:"cfg_diag_log"`
 	CfgDiagTrans  int32 `json:"cfg_diag_trans"`
 }
-func  (cfg *Config) Write(dbc *pkg.DBClient) (err error) {
+func WriteCFG(cfg Config, dbc *pkg.DBClient) (err error) {
 
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
 		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
 	dbc.WG.Add(1)
 	cfg.CfgID = 0
-	res := dbc.Create(cfg) 
+	res := dbc.Create(&cfg) 
 	dbc.WG.Done()
 
 	return res.Error

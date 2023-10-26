@@ -129,7 +129,7 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 		Device: Device{
 			DESRegistration: reg,
 			ADM:             adm,
-			HW:             hw,
+			HW:              hw,
 			HDR:             hdr,
 			CFG:             cfg,
 			EVT: Event{
@@ -167,24 +167,24 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 
 	/* WRITE INITIAL JOB RECORDS */
 	for _, typ := range EVENT_TYPES {
-		typ.Write(&demo.JobDBC)
+		WriteETYP(typ, &demo.JobDBC)
 	}
-	if err := demo.ADM.Write(&demo.JobDBC); err != nil {
+	if err := WriteADM(demo.ADM, &demo.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := demo.HW.Write(&demo.JobDBC); err != nil {
+	if err := WriteHW(demo.HW, &demo.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := demo.HDR.Write(&demo.JobDBC); err != nil {
+	if err := WriteHDR(demo.HDR, &demo.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := demo.CFG.Write(&demo.JobDBC); err != nil {
+	if err := WriteCFG(demo.CFG, &demo.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := demo.EVT.Write(&demo.JobDBC); err != nil {
+	if err := WriteEVT(demo.EVT, &demo.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := demo.SMP.Write(&demo.JobDBC); err != nil {
+	if err := WriteSMP(demo.SMP, &demo.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
 
@@ -281,7 +281,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	/* RUN THE SIMULATION */
 	go demo.Demo_Simulation(demo.HDR.HdrJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
 	time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
-	
+
 	/* ENSURE WE ARE NOT SENDING DATA IF JOB WAS STOPPED BEFORE SERVER RESTART */
 	// pkg.Json("(demo *DemoDeviceClient) DemoDeviceClient_Connect( ) -> demo.DESDev", demo.DESDev)
 	// pkg.Json("(demo *DemoDeviceClient) DemoDeviceClient_Connect( ) -> demo.HDR", demo.HDR)
@@ -289,7 +289,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	if demo.EVT.EvtCode == STATUS_JOB_ENDED || demo.EVT.EvtCode == STATUS_JOB_END_REQ {
 		demo.EndDemoJob(demo.EVT)
 	}
-	
+
 	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
 }
 func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {

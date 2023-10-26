@@ -24,14 +24,14 @@ type Sample struct {
 	SmpVlvPos  uint32  `json:"smp_vlv_pos"`
 	SmpJobName string  `json:"smp_job_name"`
 }
-func  (smp *Sample) Write(dbc *pkg.DBClient) (err error) {
+func WriteSMP(smp Sample, dbc *pkg.DBClient) (err error) {
 
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
 		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
 	dbc.WG.Add(1)
 	smp.SmpID = 0
-	res := dbc.Create(smp) 
+	res := dbc.Create(&smp) 
 	dbc.WG.Done()
 
 	return res.Error
@@ -82,7 +82,7 @@ type MQTT_Sample struct {
 	Data       []string `json:"data"`
 }
 
-func (job *Job) WriteMQTTSample(msg []byte, smp *Sample) (err error) {
+func (job *Job) WriteMQTTSample(msg []byte, smp Sample) (err error) {
 
 	// Decode the payload into an MQTTSampleMessage
 	mqtts := &MQTT_Sample{}
@@ -94,12 +94,12 @@ func (job *Job) WriteMQTTSample(msg []byte, smp *Sample) (err error) {
 
 		// Decode base64 string
 		smp.SmpJobName = mqtts.DesJobName
-		if err = job.DecodeMQTTSample(b64, smp); err != nil {
+		if err = job.DecodeMQTTSample(b64, &smp); err != nil {
 			return err
 		}
 
 		// Write the Sample to the job database
-		if err = smp.Write(&job.DBClient); err != nil {
+		if err = WriteSMP(smp, &job.DBClient); err != nil {
 			return err
 		}
 

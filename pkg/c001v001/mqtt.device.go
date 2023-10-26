@@ -31,8 +31,8 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 		device.DESDevSerial,
 	)
 
-	/* CONNECT TO THE BROKER WITH 'CleanSession = false' 
-		AUTOMATICALLY RE-SUBSCRIBE ON RECONNECT AFTER */
+	/* CONNECT TO THE BROKER WITH 'CleanSession = false'
+	AUTOMATICALLY RE-SUBSCRIBE ON RECONNECT AFTER */
 	if err = device.DESMQTTClient.DESMQTTClient_Connect(false, true); err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 	}
 
 	fmt.Printf("\n(device) MQTTDeviceClient_Dicconnect( ) -> %s -> disconnected.\n", device.ClientID)
-	return 
+	return
 }
 
 /* SUBSCRIPTIONS ****************************************************************************************/
@@ -77,7 +77,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			
+
 			device.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
@@ -87,19 +87,19 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go adm.Write(&device.CmdDBC)
+			go WriteADM(device.ADM, &device.CmdDBC)
 			// go device.CmdDBC.Write(adm)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-			go adm.Write(&device.JobDBC)
+				go WriteADM(device.ADM, &device.JobDBC)
 				// go device.JobDBC.Write(adm)
 			}
-			
+
 			device.ADM = adm
-			
+
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedADM()
 			device.DESMQTTClient.WG.Done()
@@ -125,19 +125,19 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHwID() pkg.MQTTSubscripti
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go hw.Write(&device.CmdDBC)
+			go WriteHW(device.HW, &device.CmdDBC)
 			// go device.CmdDBC.Write(hw)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go hw.Write(&device.JobDBC)
+				go WriteHW(device.HW, &device.JobDBC)
 				// go device.JobDBC.Write(hw)
 			}
-			
+
 			device.HW = hw
-			
+
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedHW()
 			device.DESMQTTClient.WG.Done()
@@ -153,24 +153,24 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			
+
 			device.DESMQTTClient.WG.Add(1)
-			
+
 			/* PARSE / STORE THE HEADER IN CMDARCHIVE */
 			hdr := Header{}
 			if err := json.Unmarshal(msg.Payload(), &hdr); err != nil {
 				pkg.TraceErr(err)
 			}
-			
+
 			/* CALL DB WRITE IN GOROUTINE */
-			go hdr.Write(&device.CmdDBC)
+			go WriteHDR(device.HDR, &device.CmdDBC)
 			// go device.CmdDBC.Write(hdr)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go hdr.Write(&device.JobDBC)
+				go WriteHDR(device.HDR, &device.JobDBC)
 				// go device.JobDBC.Write(hdr)
 
 				/* UPDATE THE JOB SEARCH TEXT */
@@ -178,7 +178,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			}
 
 			device.HDR = hdr
-			
+
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedHDR()
 			device.DESMQTTClient.WG.Done()
@@ -194,9 +194,9 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			
+
 			device.DESMQTTClient.WG.Add(1)
-			
+
 			/* PARSE / STORE THE CONFIG IN CMDARCHIVE */
 			cfg := Config{}
 			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
@@ -204,14 +204,14 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go cfg.Write(&device.CmdDBC)
+			go WriteCFG(device.CFG, &device.CmdDBC)
 			// go device.CmdDBC.Write(cfg)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go cfg.Write(&device.JobDBC)
+				go WriteCFG(device.CFG, &device.JobDBC)
 				// go device.JobDBC.Write(cfg)
 			}
 
@@ -232,20 +232,20 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			
+
 			device.DESMQTTClient.WG.Add(1)
 
-			/* CAPTURE INCOMING EVENT IN A NEW Event STRUCT TO 
-				PREVENT PREMATURE CHANGE IN DEVICE STATE */
+			/* CAPTURE INCOMING EVENT IN A NEW Event STRUCT TO
+			PREVENT PREMATURE CHANGE IN DEVICE STATE */
 			evt := Event{}
 
 			/* PARSE / STORE THE EVENT IN CMDARCHIVE */
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
 				pkg.TraceErr(err)
 			}
-		
+
 			/* CALL DB WRITE IN GOROUTINE */
-			go evt.Write(&device.CmdDBC)
+			go WriteEVT(evt, &device.CmdDBC)
 			// go device.CmdDBC.Write(&evt)
 
 			/* CHECK THE RECEIVED EVENT CODE */
@@ -267,7 +267,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 				TO SEE IF WE SHOULD WRITE TO THE ACTIVE JOB */
 				if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 					/* STORE THE EVENT IN THE ACTIVE JOB; CALL DB WRITE IN GOROUTINE */
-					go evt.Write(&device.JobDBC)
+					go WriteEVT(evt, &device.JobDBC)
 					// go device.JobDBC.Write(evt)
 				}
 				device.EVT = evt
@@ -287,10 +287,10 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			
+
 			device.DESMQTTClient.WG.Add(1)
 			smp := Sample{}
-			
+
 			/* TODO:  MOVE WRITE SAMPLES FUCTION TO Device */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
 				// Decode the payload into an MQTTSampleMessage
@@ -312,15 +312,15 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 					// go device.JobDBC.Write(device.SMP)
 
 				}
-				
+
 				/* TODO: ADD BULK INSERT ( WRITE ALL SAMPLES IN ONE TRANSACTION ) */
 				// Write the Sample to the job database
-				go smp.Write(&device.CmdDBC)	
+				go WriteSMP(device.SMP, &device.JobDBC)
 				// go device.JobDBC.Write(smp)
 
 				// /* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 				// device.UpdateMappedSMP()
-	
+
 			}
 			device.SMP = smp
 			device.UpdateMappedSMP()
@@ -337,11 +337,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGDiagSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			
+
 			device.DESMQTTClient.WG.Add(1)
-			
+
 			fmt.Println("(device *Device) MQTTSubscription_DeviceClient_SIGDiagSample(...) DOES NOT EXIST... DUMMY...")
-			
+
 			device.DESMQTTClient.WG.Done()
 		},
 	}
@@ -428,8 +428,8 @@ func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) {
 func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) {
 
 	cmd := pkg.MQTTPublication{
-		Topic:    device.MQTTTopic_CMDEvent(),
-		Message:  pkg.MakeMQTTMessage(evt),
+		Topic:   device.MQTTTopic_CMDEvent(),
+		Message: pkg.MakeMQTTMessage(evt),
 		// Message:  pkg.MakeMQTTMessage(evt.FilterEvtRecord()),
 		Retained: false,
 		WaitMS:   0,
@@ -443,21 +443,20 @@ func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) {
 THESE ARE USED BY ALL TYPES OF CLIENTS: Device, User, Demo */
 
 func (device *Device) MQTTTopic_DeviceRoot() (root string) {
-	return fmt.Sprintf("%s/%s/%s", device.DESDevClass, device.DESDevVersion, device.DESDevSerial )
+	return fmt.Sprintf("%s/%s/%s", device.DESDevClass, device.DESDevVersion, device.DESDevSerial)
 }
 
 func (device *Device) MQTTTopic_CMDRoot() (root string) {
-	return fmt.Sprintf("%s/cmd", device.MQTTTopic_DeviceRoot() )
+	return fmt.Sprintf("%s/cmd", device.MQTTTopic_DeviceRoot())
 }
 
 func (device *Device) MQTTTopic_SIGRoot() (root string) {
-	return fmt.Sprintf("%s/sig", device.MQTTTopic_DeviceRoot() )
+	return fmt.Sprintf("%s/sig", device.MQTTTopic_DeviceRoot())
 }
 
 func (device *Device) MQTTTopic_CMDReport(baseTopic string) (topic string) {
 	return fmt.Sprintf("%s/report", baseTopic)
 }
-
 
 /* MQTT TOPICS - SIGNAL */
 func (device *Device) MQTTTopic_SIGAdmin() (topic string) {

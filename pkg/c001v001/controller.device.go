@@ -550,25 +550,25 @@ func (device *Device) StartJob(evt Event) {
 			}
 
 			for _, typ := range EVENT_TYPES {
-				typ.Write(&device.JobDBC)
+				WriteETYP(typ, &device.JobDBC)
 			}
 		}
 	}
 
 	/* WRITE INITIAL JOB RECORDS */
-	if err := device.ADM.Write(&device.JobDBC); err != nil {
+	if err := WriteADM(device.ADM, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := device.HW.Write(&device.JobDBC); err != nil {
+	if err := WriteHW(device.HW, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := device.HDR.Write(&device.JobDBC); err != nil {
+	if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := device.CFG.Write(&device.JobDBC); err != nil {
+	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := evt.Write(&device.JobDBC); err != nil {
+	if err := WriteEVT(evt, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
 
@@ -615,7 +615,7 @@ func (device *Device) EndJobRequest(src string) (err error) {
 	device.CmdDBC.Create(&device.EVT)
 
 	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
-	device.EVT .EvtID = 0
+	device.EVT.EvtID = 0
 	device.JobDBC.Create(&device.EVT)
 
 	/* MQTT PUB CMD: EVT */
@@ -648,7 +648,7 @@ func (device *Device) EndJob(evt Event) {
 	// fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
 
 	/* WRITE END JOB REQUEST EVENT AS RECEIVED TO JOB */
-	evt.Write(&device.JobDBC)
+	WriteEVT(evt, &device.JobDBC)
 	// device.JobDBC.Write(evt)
 
 	/* UPDATE THE DEVICE EVENT CODE, DISABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB	*/
@@ -706,7 +706,7 @@ func (device *Device) SetAdminRequest(src string) (err error) {
 	device.ADM.AdmTime = time.Now().UTC().UnixMilli()
 	device.ADM.AdmAddr = src
 	device.ADM.Validate() // fmt.Printf("\nHandleSetAdmin( ) -> ADM Validated")
-	device.GetMappedHW() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped HW gotten")
+	device.GetMappedHW()  // fmt.Printf("\nHandleSetAdmin( ) -> Mapped HW gotten")
 	device.GetMappedHDR() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped HDR gotten")
 	device.GetMappedCFG() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped CFG gotten")
 	device.GetMappedEVT() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped EVT gotten")

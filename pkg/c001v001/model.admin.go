@@ -56,14 +56,14 @@ type Admin struct {
 	AdmLFSDiffMin  float32 `json:"adm_lfs_diff_min"`  // 2.0 psi
 	AdmLFSDiffMax  float32 `json:"adm_lfs_diff_max"`  // 10.0 psi
 }
-func  (adm *Admin) Write(dbc *pkg.DBClient) (err error) {
+func WriteADM(adm Admin, dbc *pkg.DBClient) (err error) {
 
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
 		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
 	dbc.WG.Add(1)
 	adm.AdmID = 0
-	res := dbc.Create(adm) 
+	res := dbc.Create(&adm) 
 	dbc.WG.Done()
 
 	return res.Error

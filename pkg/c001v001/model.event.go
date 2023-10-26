@@ -8,8 +8,8 @@ import (
 EVENT - AS WRITTEN TO JOB DATABASE
 */
 type Event struct {
-	EvtID int64 `gorm:"unique; primaryKey" json:"-"`	
-	
+	EvtID int64 `gorm:"unique; primaryKey" json:"-"`
+
 	EvtTime   int64  `gorm:"not null" json:"evt_time"`
 	EvtAddr   string `json:"evt_addr"`
 	EvtUserID string `gorm:"not null; varchar(36)" json:"evt_user_id"`
@@ -20,19 +20,19 @@ type Event struct {
 	EvtMsg   string   `json:"evt_msg"`
 	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:evt_typ_code" json:"-"`
 }
-func  (evt *Event) Write(dbc *pkg.DBClient) (err error) {
 
-	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
-		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+func WriteEVT(evt Event, dbc *pkg.DBClient) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
+	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
 	dbc.WG.Add(1)
 	evt.EvtID = 0
-	res := dbc.Create(evt) 
+	res := dbc.Create(&evt)
 	dbc.WG.Done()
 
 	return res.Error
 }
-
 
 /*
 EVENT - AS STORED IN DEVICE FLASH
@@ -71,7 +71,7 @@ func (evt *Event) EventFromBytes(b []byte) {
 EVENT - DEFAULT VALUES
 */
 func (evt *Event) DefaultSettings_Event(job pkg.DESRegistration) {
-	evt.EvtTime =  job.DESJobRegTime
+	evt.EvtTime = job.DESJobRegTime
 	evt.EvtAddr = job.DESJobRegAddr
 	evt.EvtUserID = job.DESJobRegUserID
 	evt.EvtApp = job.DESJobRegApp
@@ -86,21 +86,22 @@ type EventTyp struct {
 	EvtTypName string `json:"evt_typ_name"`
 	EvtTypDesc string `json:"evt_typ_desc"`
 }
-func  (etyp *EventTyp) Write(dbc *pkg.DBClient) (err error) {
 
-	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
-		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+func WriteETYP(etyp EventTyp, dbc *pkg.DBClient) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
+	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
 	dbc.WG.Add(1)
 	etyp.EvtTypID = 0
-	res := dbc.Create(etyp) 
+	res := dbc.Create(&etyp)
 	dbc.WG.Done()
 
 	return res.Error
 }
 
 /* TODO: TEST MAP IMPLEMENTATION */
-// type EventTypesMap map[string]EventTyp 
+// type EventTypesMap map[string]EventTyp
 // var EventTypes = make(EventTypesMap)
 // func LoadEventTypes() {
 // 	EventTypes["req_reg"] = EventTyp{EvtTypCode: STATUS_DES_REG_REQ, EvtTypName: "DEVICE REGISTRATION REQUESTED"}
@@ -117,21 +118,19 @@ var EVENT_TYPES = []EventTyp{
 	{EvtTypCode: STATUS_JOB_STARTED, EvtTypName: "JOB STARTED"},
 	{EvtTypCode: STATUS_JOB_END_REQ, EvtTypName: "END JOB REQUESTED"},
 
-// 	/*OPERATIONAL ALARM EVENT TYPES 1000 -1999 */
-// 	{EvtTypCode: 1000, EvtTypName: "ALARM HIGH BATTERY CURRENT"},
-// 	{EvtTypCode: 1001, EvtTypName: "ALARM LOW BATTERY VOLTAGE"},
-// 	{EvtTypCode: 1002, EvtTypName: "ALARM HIGH MOTOR CURRENT"},
-// 	{EvtTypCode: 1003, EvtTypName: "ALARM HIGH PRESSURE"},
-// 	{EvtTypCode: 1004, EvtTypName: "ALARM HIGH FLOW"},
+	// 	/*OPERATIONAL ALARM EVENT TYPES 1000 -1999 */
+	// 	{EvtTypCode: 1000, EvtTypName: "ALARM HIGH BATTERY CURRENT"},
+	// 	{EvtTypCode: 1001, EvtTypName: "ALARM LOW BATTERY VOLTAGE"},
+	// 	{EvtTypCode: 1002, EvtTypName: "ALARM HIGH MOTOR CURRENT"},
+	// 	{EvtTypCode: 1003, EvtTypName: "ALARM HIGH PRESSURE"},
+	// 	{EvtTypCode: 1004, EvtTypName: "ALARM HIGH FLOW"},
 
-// 	/* OPERATIONAL STATUS EVENT TYPES 2000 - 2999 */
-// 	{EvtTypCode: 2000, EvtTypName: "CONFIGURATION CHANGED"},
-// 	{EvtTypCode: 2001, EvtTypName: "SHUT-IN PRESSURE STABILIZED"},
-// 	{EvtTypCode: 2002, EvtTypName: "MODE VENT"},
-// 	{EvtTypCode: 2003, EvtTypName: "MODE BUILD"},
-// 	{EvtTypCode: 2004, EvtTypName: "MODE HIGH FLOW"},
-// 	{EvtTypCode: 2005, EvtTypName: "MODE LOW FLOW"},
+	// 	/* OPERATIONAL STATUS EVENT TYPES 2000 - 2999 */
+	// 	{EvtTypCode: 2000, EvtTypName: "CONFIGURATION CHANGED"},
+	// 	{EvtTypCode: 2001, EvtTypName: "SHUT-IN PRESSURE STABILIZED"},
+	// 	{EvtTypCode: 2002, EvtTypName: "MODE VENT"},
+	// 	{EvtTypCode: 2003, EvtTypName: "MODE BUILD"},
+	// 	{EvtTypCode: 2004, EvtTypName: "MODE HIGH FLOW"},
+	// 	{EvtTypCode: 2005, EvtTypName: "MODE LOW FLOW"},
 
 }
-
-

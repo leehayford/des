@@ -23,14 +23,14 @@ type HwID struct {
 	HwLogFw  string `gorm:"not null; varchar(10)" json:"hw_log_fw"`
 	HwModFw  string `gorm:"not null; varchar(10)" json:"hw_mod_fw"`
 }
-func  (hw *HwID) Write(dbc *pkg.DBClient) (err error) {
+func WriteHW(hw HwID, dbc *pkg.DBClient) (err error) {
 
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
 		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
 	dbc.WG.Add(1)
 	hw.HwID = 0
-	res := dbc.Create(hw) 
+	res := dbc.Create(&hw) 
 	dbc.WG.Done()
 
 	return res.Error
