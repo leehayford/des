@@ -337,7 +337,7 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 			"message": err.Error(),
 		})
 	} 
-	pkg.Json("HandleStartJob(): -> device.SetHeaderRequest(...) -> device.HDR", device.HDR)
+	pkg.Json("HandleSetHeader(): -> device.SetHeaderRequest(...) -> device.HDR", device.HDR)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -379,7 +379,7 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 			"message": err.Error(),
 		})
 	} 
-	pkg.Json("HandleStartJob(): -> device.SetConfigRequest(...) -> device.CFG", device.CFG)
+	pkg.Json("HandleSetConfig(): -> device.SetConfigRequest(...) -> device.CFG", device.CFG)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",

@@ -716,14 +716,12 @@ func (device *Device) SetAdminRequest(src string) (err error) {
 	device.GetMappedClients() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped Clients gotten")
 
 	/* LOG ADM CHANGE REQUEST TO  CMDARCHIVE */
-	fmt.Printf("\nHandleSetAdmin( ) -> Writing ADM to CmdDBC")
-	// device.ADM.AdmID = 0
-	device.CmdDBC.Create(&device.ADM)
-	fmt.Printf("\nHandleSetAdmin( ) -> ADM Written")
+	adm := device.ADM
+	device.CmdDBC.Create(&adm)
 
 	/* MQTT PUB CMD: ADM */
 	fmt.Printf("\nHandleSetAdmin( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
+	device.MQTTPublication_DeviceClient_CMDAdmin(adm)
 
 	/* UPDATE DevicesMap */
 	UpdateDevicesMap(device.DESDevSerial, *device)
@@ -837,11 +835,12 @@ func (device *Device) SetHeaderRequest(src string) (err error) {
 	device.GetMappedClients()
 
 	/* LOG HDR CHANGE REQUEST TO CMDARCHIVE */
-	device.CmdDBC.Create(&device.HDR)
+	hdr := device.HDR
+	device.CmdDBC.Create(&hdr)
 
 	/* MQTT PUB CMD: HDR */
 	fmt.Printf("\nHandleSetHeader( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
+	device.MQTTPublication_DeviceClient_CMDHeader(hdr)
 
 	/* UPDATE DevicesMap */
 	UpdateDevicesMap(device.DESDevSerial, *device)
@@ -868,11 +867,12 @@ func (device *Device) SetConfigRequest(src string) (err error) {
 	device.GetMappedClients()
 
 	/* LOG CFG CHANGE REQUEST TO CMDARCHIVE */
-	device.CmdDBC.Create(&device.CFG)
+	cfg := device.CFG
+	device.CmdDBC.Create(&cfg)
 
 	/* MQTT PUB CMD: CFG */
 	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
+	device.MQTTPublication_DeviceClient_CMDConfig(cfg)
 
 	/* UPDATE DevicesMap */
 	UpdateDevicesMap(device.DESDevSerial, *device)

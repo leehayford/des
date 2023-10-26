@@ -77,7 +77,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
+			
 			device.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
@@ -153,7 +153,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
+			
 			device.DESMQTTClient.WG.Add(1)
 			
 			/* PARSE / STORE THE HEADER IN CMDARCHIVE */
@@ -194,7 +194,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
+			
 			device.DESMQTTClient.WG.Add(1)
 			
 			/* PARSE / STORE THE CONFIG IN CMDARCHIVE */
@@ -232,7 +232,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
+			
 			device.DESMQTTClient.WG.Add(1)
 
 			/* CAPTURE INCOMING EVENT IN A NEW Event STRUCT TO 
@@ -287,7 +287,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
+			
 			device.DESMQTTClient.WG.Add(1)
 			smp := Sample{}
 			
