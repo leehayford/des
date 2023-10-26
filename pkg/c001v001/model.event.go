@@ -8,6 +8,7 @@ import (
 EVENT - AS WRITTEN TO JOB DATABASE
 */
 type Event struct {
+	EvtID int64 `gorm:"unique; primaryKey" json:"-"`	
 	
 	EvtTime   int64  `gorm:"not null" json:"evt_time"`
 	EvtAddr   string `json:"evt_addr"`
@@ -19,6 +20,19 @@ type Event struct {
 	EvtMsg   string   `json:"evt_msg"`
 	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:evt_typ_code" json:"-"`
 }
+func  (evt *Event) Write(dbc *pkg.DBClient) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
+		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	*/
+	dbc.WG.Add(1)
+	evt.EvtID = 0
+	res := dbc.Create(evt) 
+	dbc.WG.Done()
+
+	return res.Error
+}
+
 
 /*
 EVENT - AS STORED IN DEVICE FLASH
@@ -67,11 +81,31 @@ func (evt *Event) DefaultSettings_Event(job pkg.DESRegistration) {
 }
 
 type EventTyp struct {
-	// EvtTypID   int64  `gorm:"unique; primaryKey" json:"evt_typ_id"`
+	EvtTypID   int64  `gorm:"unique; primaryKey" json:"evt_typ_id"`
 	EvtTypCode int32  `gorm:"unique" json:"evt_typ_code"`
 	EvtTypName string `json:"evt_typ_name"`
 	EvtTypDesc string `json:"evt_typ_desc"`
 }
+func  (etyp *EventTyp) Write(dbc *pkg.DBClient) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
+		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	*/
+	dbc.WG.Add(1)
+	etyp.EvtTypID = 0
+	res := dbc.Create(etyp) 
+	dbc.WG.Done()
+
+	return res.Error
+}
+
+/* TODO: TEST MAP IMPLEMENTATION */
+// type EventTypesMap map[string]EventTyp 
+// var EventTypes = make(EventTypesMap)
+// func LoadEventTypes() {
+// 	EventTypes["req_reg"] = EventTyp{EvtTypCode: STATUS_DES_REG_REQ, EvtTypName: "DEVICE REGISTRATION REQUESTED"}
+// 	EventTypes["reg"] = EventTyp{EvtTypCode: STATUS_DES_REGISTERED, EvtTypName: "DEVICE REGISTERED"}
+// }
 
 var EVENT_TYPES = []EventTyp{
 

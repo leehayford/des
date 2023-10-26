@@ -131,5 +131,6 @@ func MakeMQTTMessage(mqtt interface{}) (msg string) {
 	if err != nil {
 		TraceErr(err)
 	}
+	// fmt.Printf("\n%s\n", string(js))
 	return string(js)
 }

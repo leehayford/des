@@ -10,27 +10,41 @@ import (
 HEADER AS WRITTEN TO JOB DATABASE
 */
 type Header struct {
+	HdrID int64 `gorm:"unique; primaryKey" json:"-"`	
 
 	HdrTime   int64  `gorm:"not null" json:"hdr_time"`
-	HdrAddr   string `json:"hdr_addr"`
+	HdrAddr   string `gorm:"varchar(36)" json:"hdr_addr"`
 	HdrUserID string `gorm:"not null; varchar(36)" json:"hdr_user_id"`
-	HdrApp    string `gorm:"not null; varchar(36)" json:"hdr_app"`
+	HdrApp    string `gorm:"varchar(36)" json:"hdr_app"`
 
 	HdrJobName  string `gorm:"not null; varchar(24)" json:"hdr_job_name"`
 	HdrJobStart int64  `json:"hdr_job_start"`
 	HdrJobEnd   int64  `json:"hdr_job_end"`
 
 	/*WELL INFORMATION*/
-	HdrWellCo    string `json:"hdr_well_co"`
-	HdrWellName  string `json:"hdr_well_name"`
-	HdrWellSFLoc string `json:"hdr_well_sf_loc"`
-	HdrWellBHLoc string `json:"hdr_well_bh_loc"`
-	HdrWellLic   string `json:"hdr_well_lic"`
+	HdrWellCo    string `gorm:"varchar(32)" json:"hdr_well_co"`
+	HdrWellName  string `gorm:"varchar(32)" json:"hdr_well_name"`
+	HdrWellSFLoc string `gorm:"varchar(32)" json:"hdr_well_sf_loc"`
+	HdrWellBHLoc string `gorm:"varchar(32)" json:"hdr_well_bh_loc"`
+	HdrWellLic   string `gorm:"varchar(32)" json:"hdr_well_lic"`
 
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
 	HdrGeoLng float32 `json:"hdr_geo_lng"`
 	HdrGeoLat float32 `json:"hdr_geo_lat"`
 }
+func  (hdr *Header) Write(dbc *pkg.DBClient) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
+		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	*/
+	dbc.WG.Add(1)
+	hdr.HdrID = 0
+	res := dbc.Create(hdr) 
+	dbc.WG.Done()
+
+	return res.Error
+}
+
 
 /*
 HEADER - AS STORED IN DEVICE FLASH
@@ -79,7 +93,7 @@ func (hdr *Header) HeaderFromBytes(b []byte) {
 		HdrGeoLng: pkg.BytesToFloat32_L(b[316:320]),
 		HdrGeoLat: pkg.BytesToFloat32_L(b[320:324]),
 	}
-	//  pkg.Json("(demo *DemoDeviceClient)MakeHdrFromBytes() -> hdr", hdr)
+	//  pkg.Json("(demo *DemoDeviceClient)HeaderFromBytes() -> hdr", hdr)
 	return
 }
 
@@ -104,6 +118,25 @@ func (hdr *Header) DefaultSettings_Header(reg pkg.DESRegistration) {
 
 	hdr.HdrGeoLng = reg.DESJobLng // HdrGeoLng: -114.75 + rand.Float32() * ( -110.15 - 114.75 ),
 	hdr.HdrGeoLat = reg.DESJobLat // HdrGeoLat: 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
+
+}
+
+/*
+HARDWARE IDs - VALIDATE FIELDS
+*/
+func (hdr *Header) Validate() {
+	/* TODO: SET ACCEPTABLE LIMITS FOR THE REST OF THE CONFIG SETTINGS */
+
+	hdr.HdrAddr = pkg.ValidateStringLength(hdr.HdrAddr, 36)
+	hdr.HdrUserID = pkg.ValidateStringLength(hdr.HdrUserID, 36)
+	hdr.HdrApp = pkg.ValidateStringLength(hdr.HdrApp, 36)
+	
+	hdr.HdrJobName = pkg.ValidateStringLength(hdr.HdrJobName, 10)
+	hdr.HdrWellCo = pkg.ValidateStringLength(hdr.HdrWellCo, 32)
+	hdr.HdrWellName = pkg.ValidateStringLength(hdr.HdrWellName, 32)
+	hdr.HdrWellSFLoc = pkg.ValidateStringLength(hdr.HdrWellSFLoc, 32)
+	hdr.HdrWellBHLoc = pkg.ValidateStringLength(hdr.HdrWellBHLoc, 32)
+	hdr.HdrWellLic = pkg.ValidateStringLength(hdr.HdrWellLic, 32)
 
 }
 

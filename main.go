@@ -35,7 +35,8 @@ func main() {
 	defer pkg.ADB.Disconnect()
 
 	cleanDB := flag.Bool("clean", false, "Drop and recreate databases")
-	// demoQty := flag.Int("demos", 5, "Create n demo devices if there are none currently") /* DEMO -> NOT FOR PRODUCTION */
+	sim := flag.Bool("sim", false, "Run as device simulator only")
+	demoQty := flag.Int("demos", 5, "Create n demo devices if there are none currently") /* DEMO -> NOT FOR PRODUCTION */
 	flag.Parse()
 
 	if *cleanDB {
@@ -56,70 +57,80 @@ func main() {
 		pkg.TraceErr(err)
 	}
 
-	// /********************************************************************************************/
-	// /* DEMO DEVICES -> NOT FOR PRODUCTION */
-	// fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
-	// c001v001.DemoDeviceClient_ConnectAll(*demoQty)
-	// defer c001v001.DemoDeviceClient_DisconnectAll()
-	// /********************************************************************************************/
-
-	/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERED DEVICES */
-	/* DATABASE - C001V001 - CONNECT ALL DEVICES TO JOB DATABASES */
-	fmt.Println("\n\nConnecting all C001V001 Device Clients...")
-	c001v001.DeviceClient_ConnectAll()
-	defer c001v001.DeviceClient_DisconnectAll()
-
-	/* MAIN SER$VER */
+	/* MAIN SERVER */
 	app := fiber.New()
-	app.Use(logger.New())
-	app.Use(cors.New(cors.Config{
-		/* TODO: LIMIT ALLOWED ORIGINS FOR PRODUCTION DEPLOYMENT */
-		AllowOrigins:     "https://vw1.data2desk.com, http://localhost:8080, http://localhost:4173, http://localhost:5173, http://localhost:58714",
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Cache-Control",
-		AllowMethods:     "GET, POST",
-		AllowCredentials: true,
-	}))
+	api := fiber.New()
+
+	if *sim {
+
+		/********************************************************************************************/
+		/* DEMO DEVICES -> NOT FOR PRODUCTION */
+		fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
+		c001v001.DemoDeviceClient_ConnectAll(*demoQty)
+		defer c001v001.DemoDeviceClient_DisconnectAll()
+		/********************************************************************************************/
+
+	} else {
+
+		/* MQTT - C001V001 - SUBSCRIBE TO ALL REGISTERED DEVICES */
+		/* DATABASE - C001V001 - CONNECT ALL DEVICES TO JOB DATABASES */
+		fmt.Println("\n\nConnecting all C001V001 Device Clients...")
+		c001v001.DeviceClient_ConnectAll()
+		defer c001v001.DeviceClient_DisconnectAll()
+
+		/* MAIN SERVER - LOGGING AND CORS */
+		app.Use(logger.New())
+		app.Use(cors.New(cors.Config{
+			/* TODO: LIMIT ALLOWED ORIGINS FOR PRODUCTION DEPLOYMENT */
+			AllowOrigins:     "https://vw1.data2desk.com, http://localhost:8080, http://localhost:4173, http://localhost:5173, http://localhost:58714",
+			AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Cache-Control",
+			AllowMethods:     "GET, POST",
+			AllowCredentials: true,
+		}))
+
+		/* AUTH & USER ROUTES */
+		api.Route("/user", func(router fiber.Router) {
+			router.Post("/signup", pkg.SignUpUser)
+			router.Post("/login", pkg.SignInUser)
+			router.Get("/list", pkg.GetUserList) /* TODO: AUTH */
+			router.Get("/me", pkg.DesAuth, pkg.GetMe)
+			router.Get("/logout", pkg.DesAuth, pkg.LogoutUser)
+		})
+
+		/* C001V001 DEVICE ROUTES */
+		api.Route("/001/001/device", func(router fiber.Router) {
+			// router.Post("/register", pkg.DesAuth, c001v001.HandleRegisterDevice)
+			router.Post("/start", pkg.DesAuth, c001v001.HandleStartJob)
+			router.Post("/end", pkg.DesAuth, c001v001.HandleEndJob)
+			router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)
+			router.Post("/header", pkg.DesAuth, c001v001.HandleSetHeader)
+			router.Post("/config", pkg.DesAuth, c001v001.HandleSetConfig)
+			router.Post("/search", pkg.DesAuth, c001v001.HandleSearchDevices)
+			router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
+
+			app.Use("/ws", func(c *fiber.Ctx) error {
+				if websocket.IsWebSocketUpgrade(c) {
+					c.Locals("allowed", true)
+					return c.Next()
+				}
+				return fiber.ErrUpgradeRequired
+			})
+			router.Get("/ws", pkg.DesAuth, websocket.New(
+				(&c001v001.DeviceUserClient{}).WSDeviceUserClient_Connect,
+			))
+		})
+
+		/* C001V001 JOB / REPORTING ROUTES */
+		api.Route("/001/001/job", func(router fiber.Router) {
+			router.Get("/event/list", c001v001.HandleGetEventTypeLists)
+			
+			router.Get("/list", pkg.DesAuth, c001v001.HandleGetJobList)
+		})
+
+	}
 
 	/* API ROUTES */
-	api := fiber.New()
 	app.Mount("/api", api)
-
-	/* AUTH & USER ROUTES */
-	api.Route("/user", func(router fiber.Router) {
-		router.Get("/list", pkg.GetUserList)
-		router.Post("/signup", pkg.SignUpUser)
-		router.Post("/login", pkg.SignInUser)
-		router.Get("/me", pkg.DesAuth, pkg.GetMe)
-		router.Get("/logout", pkg.DesAuth, pkg.LogoutUser)
-	})
-
-	/* C001V001 DEVICE ROUTES */
-	api.Route("/001/001/device", func(router fiber.Router) {
-		// router.Post("/register", pkg.DesAuth, c001v001.HandleRegisterDevice)
-		router.Post("/start", pkg.DesAuth, c001v001.HandleStartJob)
-		router.Post("/end", pkg.DesAuth, c001v001.HandleEndJob)
-		router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)
-		router.Post("/header", pkg.DesAuth, c001v001.HandleSetHeader)
-		router.Post("/config", pkg.DesAuth, c001v001.HandleSetConfig)
-		router.Post("/search", c001v001.HandleSearchDevices)
-		router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
-
-		app.Use("/ws", func(c *fiber.Ctx) error {
-			if websocket.IsWebSocketUpgrade(c) {
-				c.Locals("allowed", true)
-				return c.Next()
-			}
-			return fiber.ErrUpgradeRequired
-		})
-		router.Get("/ws", pkg.DesAuth, websocket.New(
-			(&c001v001.DeviceUserClient{}).WSDeviceUserClient_Connect,
-		))
-	})
-
-	/* C001V001 JOB ROUTES */
-	api.Route("/001/001/job", func(router fiber.Router) {
-		router.Get("/event/list", c001v001.HandleGetEventTypeLists)
-	})
 
 	api.All("*", func(c *fiber.Ctx) error {
 		path := c.Path()
@@ -128,6 +139,6 @@ func main() {
 			"message": fmt.Sprintf("Path: %v does not exists on this server", path),
 		})
 	})
-
-	log.Fatal(app.Listen("127.0.0.1:8007"))
+	
+	log.Fatal(app.Listen(pkg.APP_HOST))
 }

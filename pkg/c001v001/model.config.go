@@ -8,11 +8,12 @@ import (
 CONFIG - AS WRITTEN TO JOB DATABASE
 */
 type Config struct {
+	CfgID int64 `gorm:"unique; primaryKey" json:"-"`	
 
 	CfgTime   int64  `gorm:"not null" json:"cfg_time"`
-	CfgAddr   string `json:"cfg_addr"`
+	CfgAddr   string `gorm:"varchar(36)" json:"cfg_addr"`
 	CfgUserID string `gorm:"not null; varchar(36)" json:"cfg_user_id"`
-	CfgApp    string `gorm:"not null; varchar(36)" json:"cfg_app"`
+	CfgApp    string `gorm:"varchar(36)" json:"cfg_app"`
 
 	/*JOB*/
 	CfgSCVD     float32 `json:"cfg_scvd"`
@@ -35,6 +36,18 @@ type Config struct {
 	CfgDiagSample int32 `json:"cfg_diag_sample"`
 	CfgDiagLog    int32 `json:"cfg_diag_log"`
 	CfgDiagTrans  int32 `json:"cfg_diag_trans"`
+}
+func  (cfg *Config) Write(dbc *pkg.DBClient) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
+		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	*/
+	dbc.WG.Add(1)
+	cfg.CfgID = 0
+	res := dbc.Create(cfg) 
+	dbc.WG.Done()
+
+	return res.Error
 }
 
 /*
@@ -105,14 +118,14 @@ func (cfg *Config) DefaultSettings_Config(reg pkg.DESRegistration) {
 	cfg.CfgTime = reg.DESJobRegTime
 	cfg.CfgAddr = reg.DESJobRegAddr
 	cfg.CfgUserID = reg.DESJobRegUserID
-	cfg.CfgApp =  reg.DESJobRegApp
+	cfg.CfgApp = reg.DESJobRegApp
 
 	/* JOB */
-	cfg.CfgSCVD = 596.8 // m
-	cfg.CfgSCVDMult = 10.5  // kPa / m
+	cfg.CfgSCVD = 596.8    // m
+	cfg.CfgSCVDMult = 10.5 // kPa / m
 	cfg.CfgSSPRate = 1.95  // kPa / hour
-	cfg.CfgSSPDur = 6.0   // hour
-	cfg.CfgHiSCVF = 201.4 //  L/min
+	cfg.CfgSSPDur = 6.0    // hour
+	cfg.CfgHiSCVF = 201.4  //  L/min
 	cfg.CfgFlowTog = 1.85  // L/min
 
 	/* VALVE */
@@ -121,11 +134,42 @@ func (cfg *Config) DefaultSettings_Config(reg pkg.DESRegistration) {
 
 	/* OP PERIODS*/
 	cfg.CfgOpSample = 1000 // millisecond
-	cfg.CfgOpLog = 1000 // millisecond
-	cfg.CfgOpTrans = 1000 // millisecond
+	cfg.CfgOpLog = 1000    // millisecond
+	cfg.CfgOpTrans = 1000  // millisecond
 
 	/* DIAG PERIODS */
-	cfg.CfgDiagSample = 10000  // millisecond
-	cfg.CfgDiagLog = 100000 // millisecond
+	cfg.CfgDiagSample = 10000 // millisecond
+	cfg.CfgDiagLog = 100000   // millisecond
 	cfg.CfgDiagTrans = 600000 // millisecond
+}
+
+/*
+CONFIG - VALIDATE FIELDS
+*/
+func (cfg *Config) Validate() {
+	/* TODO: SET ACCEPTABLE LIMITS FOR THE REST OF THE CONFIG SETTINGS */
+
+	cfg.CfgAddr = pkg.ValidateStringLength(cfg.CfgAddr, 36)
+	cfg.CfgUserID = pkg.ValidateStringLength(cfg.CfgUserID, 36)
+	cfg.CfgApp = pkg.ValidateStringLength(cfg.CfgApp, 36)
+
+	/* ENSURE THE SAMPLE / LOG / TRANS RATES HAVE BEEN SET WITHIN ACCEPTABLE LIMITS */
+	if cfg.CfgOpSample < MIN_SAMPLE_PERIOD {
+		cfg.CfgOpSample = MIN_SAMPLE_PERIOD
+	}
+	if cfg.CfgOpLog < cfg.CfgOpSample {
+		cfg.CfgOpLog = cfg.CfgOpSample
+	}
+	if cfg.CfgOpTrans < cfg.CfgOpSample {
+		cfg.CfgOpTrans = cfg.CfgOpSample
+	}
+	if cfg.CfgDiagSample < MIN_SAMPLE_PERIOD {
+		cfg.CfgDiagSample = MIN_SAMPLE_PERIOD
+	}
+	if cfg.CfgDiagLog < cfg.CfgDiagSample {
+		cfg.CfgDiagLog = cfg.CfgDiagSample
+	}
+	if cfg.CfgDiagTrans < cfg.CfgDiagSample {
+		cfg.CfgDiagTrans = cfg.CfgDiagSample
+	}
 }

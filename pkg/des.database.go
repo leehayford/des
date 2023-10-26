@@ -33,6 +33,9 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+/* TYPE DEFINITION TO ALLOW GORM TO WORK WITH JSONB DATA */
+type JSONB map[string]interface{}
+
 /*
 	DATABASE CLIENT
 
@@ -104,17 +107,6 @@ func (dbc DBClient) Disconnect() (err error) {
 	fmt.Printf("\n(dbc *DBClient) Disconnect() -> %s -> connection closed. \n", dbc.GetDBName())
 	dbc = DBClient{}
 	return
-}
-func (dbc *DBClient) Write(model interface{}) (err error) {
-
-	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
-		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
-	*/
-	dbc.WG.Add(1)
-	res := dbc.Create(model) 
-	dbc.WG.Done()
-
-	return res.Error
 }
 
 

@@ -10,6 +10,7 @@ import (
 SAMPLE - AS WRITTEN TO JOB DATABASE
 */
 type Sample struct {
+	SmpID int64 `gorm:"unique; primaryKey" json:"-"`	
 	
 	SmpTime    int64   `gorm:"not null" json:"smp_time"`
 	SmpCH4     float32 `json:"smp_ch4"`
@@ -22,6 +23,18 @@ type Sample struct {
 	SmpVlvTgt  uint32  `json:"smp_vlv_tgt"`
 	SmpVlvPos  uint32  `json:"smp_vlv_pos"`
 	SmpJobName string  `json:"smp_job_name"`
+}
+func  (smp *Sample) Write(dbc *pkg.DBClient) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
+		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	*/
+	dbc.WG.Add(1)
+	smp.SmpID = 0
+	res := dbc.Create(smp) 
+	dbc.WG.Done()
+
+	return res.Error
 }
 
 /*
@@ -86,7 +99,7 @@ func (job *Job) WriteMQTTSample(msg []byte, smp *Sample) (err error) {
 		}
 
 		// Write the Sample to the job database
-		if err = job.Write(smp); err != nil {
+		if err = smp.Write(&job.DBClient); err != nil {
 			return err
 		}
 

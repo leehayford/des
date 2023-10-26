@@ -2,41 +2,42 @@ package c001v001
 
 import (
 	"fmt"
-	"sync"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/leehayford/des/pkg"
 )
 
-/*
+/* NOT TESTED
 	RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
 
-ALOZNG WITH THE ACTIVE JOB FOR EACH DEVICE
-IN THE FORM OF A DESRegistration
+	ALONG WITH THE ACTIVE JOB FOR EACH DEVICE
+	IN THE FORM OF A DESRegistration
 */
 func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 	fmt.Printf("\nHandleGetDeviceList( )\n")
 
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to view device list",
+		})
+	}
+
 	regs, err := GetDeviceList()
 	if err != nil {
+		pkg.TraceErr(err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": fmt.Sprintf("GetDesDevList(...) -> query failed:\n%s\n", err),
 			"data":    fiber.Map{"regs": regs},
 		})
 	}
-	// pkg.Json("GetDeviceList(): DESRegistrations", regs)
 
-	devices := []Device{}
-	for _, reg := range regs {
-		// pkg.Json("HandleGetDeviceList( ) -> reg", reg)
-		device := (&Device{}).ReadDevicesMap(reg.DESDevSerial)
-		device.DESRegistration = reg
-		devices = append(devices, device)
-	}
+	devices := GetDevices(regs)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
@@ -45,11 +46,19 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	})
 }
 
+/* NOT TESTED --> CURRENTLY HANDLED ON FRONT END...*/
 func HandleSearchDevices(c *fiber.Ctx) (err error) {
 
 	fmt.Printf("\nHandleSearchDevices( )\n")
 
-	/* TODO: CHECK USER PERMISSION */
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to search devices",
+		})
+	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	params := pkg.DESSearchParam{}
@@ -59,22 +68,20 @@ func HandleSearchDevices(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}
-	pkg.Json("HandleSearchDevices( )", params)
+	} // pkg.Json("HandleSearchDevices( )", params)
 
 	/* SEARCH ACTIVE DEVICES BASED ON params */
 	regs, err := pkg.SearchDESDevices(params)
 	if err != nil {
 		pkg.TraceErr(err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": fmt.Sprintf("pkg.SearchDESDevices(...) -> query failed:\n%s\n", err),
+			"data":    fiber.Map{"regs": regs},
+		})
 	}
 
-	devices := []Device{}
-	for _, reg := range regs {
-		pkg.Json("HandleSearchDevices( ) -> reg", reg)
-		device := (&Device{}).ReadDevicesMap(reg.DESDevSerial)
-		device.DESRegistration = reg
-		devices = append(devices, device)
-	}
+	devices := GetDevices(regs)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
@@ -111,74 +118,15 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("HandleStartJob(): -> c.BodyParser(&device) -> dev", device)
+	} // pkg.Json("HandleStartJob(): -> c.BodyParser(&device) -> device", device)
 
-	/* SYNC DEVICE WITH DevicesMap */
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
-	device.GetMappedClients()
-
-	/* START NEW JOB
-	MAKE ADM, HDR, CFG, EVT ( START JOB )
-	ENSURE ADM, HDR, CFG, & EVT HAVE THE SAME TIME STAMP / SIGNATURE
-	*/
-	startTime := time.Now().UTC().UnixMilli()
-
-	device.DESRegistration.DESJobRegTime = startTime
-	// device.Job.DESRegistration = device.DESRegistration
-
-	device.ADM.AdmTime = startTime
-	device.ADM.AdmAddr = c.IP()
-	device.ADM.AdmUserID = device.DESJobRegUserID
-	device.ADM.AdmDefHost = pkg.MQTT_HOST
-	device.ADM.AdmDefPort = pkg.MQTT_PORT
-	device.ADM.AdmOpHost = pkg.MQTT_HOST
-	device.ADM.AdmOpPort = pkg.MQTT_PORT
-	device.ADM.AdmSerial = device.DESDevSerial
-	// pkg.Json("HandleStartJob(): -> device.ADM", device.ADM)
-
-	device.HDR.HdrTime = startTime
-	device.HDR.HdrAddr = c.IP()
-	device.HDR.HdrUserID = device.DESJobRegUserID
-	device.HDR.HdrJobName = device.CmdArchiveName()
-	device.HDR.HdrJobStart = startTime // This is displays the time/date of the request while pending
-	device.HDR.HdrJobEnd = -1          // This means there is a pending request for the device to start a new job
-	device.HDR.HdrGeoLng = -180
-	device.HDR.HdrGeoLat = 90
-	// pkg.Json("HandleStartJob(): -> device.HDR", device.HDR)
-
-	device.CFG.CfgTime = startTime
-	device.CFG.CfgAddr = c.IP()
-	device.CFG.CfgUserID = device.DESJobRegUserID
-	device.ValidateCFG()
-	// pkg.Json("HandleStartJob(): -> device.CFG", device.CFG)
-
-	device.EVT = Event{
-		EvtTime:   startTime,
-		EvtAddr:   c.IP(),
-		EvtUserID: device.DESJobRegUserID,
-		EvtApp:    device.DESJobRegApp,
-		EvtCode:   STATUS_JOB_START_REQ,
-		EvtTitle:  "Job Start Request",
-		EvtMsg:    "Job start sequence initiated.",
-	}
-
-	/* LOG START JOB REQUEST TO CMDARCHIVE */
-	device.CmdDBC.Create(&device.ADM)
-	device.CmdDBC.Create(&device.HDR)
-	device.CmdDBC.Create(&device.CFG)
-	device.CmdDBC.Create(&device.EVT)
-
-	// /* MQTT PUB CMD: ADM, HDR, CFG, EVT */
-	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
-	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
-	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
-	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
-
-	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, device)
-	// Devices[device.DESDevSerial] = device
+	/* SEND START JOB REQUEST */
+	if err = device.StartJobRequest(c.IP()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleStartJob(): -> device.StartJobRequest(...) -> device", device)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -217,38 +165,13 @@ func HandleEndJob(c *fiber.Ctx) (err error) {
 		})
 	} // pkg.Json("(dev *Device) HandleEndJob(): -> c.BodyParser(&device) -> dev", device)
 
-	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedADM()
-	device.GetMappedHDR()
-	device.GetMappedCFG()
-	device.GetMappedSMP()
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
-	device.GetMappedClients()
-
-	device.EVT = Event{
-		EvtTime:   time.Now().UTC().UnixMilli(),
-		EvtAddr:   c.IP(),
-		EvtUserID: device.DESJobRegUserID,
-		EvtApp:    device.DESJobRegApp,
-		EvtCode:   STATUS_JOB_END_REQ,
-		EvtTitle:  "Job End Request",
-		EvtMsg:    "Job end sequence initiated.",
-	}
-
-	/* LOG END JOB REQUEST TO CMDARCHIVE */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.CmdArchiveName())
-	device.CmdDBC.Create(&device.EVT)
-
-	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
-	device.JobDBC.Create(&device.EVT)
-
-	/* MQTT PUB CMD: EVT */
-	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
-
-	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, device)
-	// Devices[device.DESDevSerial] = device
+	/* SEND END JOB REQUEST */
+	if err = device.EndJobRequest(c.IP()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleStartJob(): -> device.EndJobRequest(...) -> device", device)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -281,34 +204,103 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
+	} 
+	pkg.Json("HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
 
-	/* SYNC DEVICE WITH DevicesMap */
-	device.ADM.AdmTime = time.Now().UTC().UnixMilli()
-	device.ADM.AdmAddr = c.IP()
-	device.GetMappedHDR()
-	device.GetMappedCFG()
-	device.GetMappedEVT()
-	device.GetMappedSMP()
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
-	device.GetMappedClients()
-
-	/* LOG ADM CHANGE REQUEST TO  CMDARCHIVE */
-	device.CmdDBC.Create(device.ADM)
-
-	/* MQTT PUB CMD: ADM */
-	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
-
-	/* UPDATE DevicesMap */
-	UpdateDevicesMap(device.DESDevSerial, device)
-	// Devices[device.DESDevSerial] = device
+	/* SEND SET ADMIN REQUEST */
+	if err = device.SetAdminRequest(c.IP()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} 
+	pkg.Json("HandleSetAdmin(): -> device.SetAdminRequest(...) -> device.ADM", device.ADM)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
 		"data":    fiber.Map{"device": &device},
 		"message": "C001V001 SET ADMIN Reqest sent to device.",
+	})
+}
+/* TODO: DO NOT USE 
+TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS 
+*/
+func  HandleGetAdmin(c *fiber.Ctx) (err error) {
+
+	fmt.Printf("\nHandleGetAdmin( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to see device administration data.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} 
+	pkg.Json("HandleGetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
+
+	/* SEND GET ADMIN REQUEST */
+	if err = device.GetAdminRequest(c.IP()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleGetAdmin(): -> device.GetAdminRequest(...) -> device", device)
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":  "success",
+		"data":    fiber.Map{"device": &device},
+		"message": "C001V001 GET ADMIN Reqest sent to device.",
+	})
+}
+
+/* TODO: DO NOT USE 
+TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS 
+*/
+func  HandleGetHwID(c *fiber.Ctx) (err error) {
+
+	fmt.Printf("\nHandleGetHwID( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to see device hardware ID data.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} 
+	pkg.Json("HandleGetHwID(): -> c.BodyParser(&device) -> device.HW", device.HW)
+
+	/* SEND GET HARDWARE ID REQUEST */
+	if err = device.GetHwIDRequest(c.IP()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleGetHwID(): -> device.GetHwIDRequest(...) -> device", device)
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":  "success",
+		"data":    fiber.Map{"device": &device},
+		"message": "C001V001 GET ADMIN Reqest sent to device.",
 	})
 }
 
@@ -338,27 +330,14 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 		})
 	} // pkg.Json("HandleSetHeader(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
 
-	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedADM()
-	device.HDR.HdrTime = time.Now().UTC().UnixMilli()
-	device.HDR.HdrAddr = c.IP()
-	device.GetMappedCFG()
-	device.GetMappedEVT()
-	device.GetMappedSMP()
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
-	device.GetMappedClients()
-
-	/* LOG HDR CHANGE REQUEST TO CMDARCHIVE */
-	device.CmdDBC.Create(device.HDR)
-
-	/* MQTT PUB CMD: HDR */
-	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
-
-	/* UPDATE DevicesMap */
-	UpdateDevicesMap(device.DESDevSerial, device)
-	// Devices[device.DESDevSerial] = device
+	/* SEND SET HEADER REQUEST */
+	if err = device.SetHeaderRequest(c.IP()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} 
+	pkg.Json("HandleStartJob(): -> device.SetHeaderRequest(...) -> device.HDR", device.HDR)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -393,28 +372,14 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 		})
 	} // pkg.Json("HandleSetConfig(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
 
-	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedADM()
-	device.GetMappedHDR()
-	device.CFG.CfgTime = time.Now().UTC().UnixMilli()
-	device.CFG.CfgAddr = c.IP()
-	device.ValidateCFG()
-	device.GetMappedEVT()
-	device.GetMappedSMP()
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
-	device.GetMappedClients()
-
-	/* LOG CFG CHANGE REQUEST TO CMDARCHIVE */
-	device.CmdDBC.Create(device.CFG)
-
-	/* MQTT PUB CMD: CFG */
-	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
-
-	/* UPDATE DevicesMap */
-	UpdateDevicesMap(device.DESDevSerial, device)
-	// Devices[device.DESDevSerial] = device
+	/* SEND SET CONFIG REQUEST */
+	if err = device.SetConfigRequest(c.IP()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} 
+	pkg.Json("HandleStartJob(): -> device.SetConfigRequest(...) -> device.CFG", device.CFG)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",

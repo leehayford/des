@@ -8,22 +8,18 @@ import (
 ADMIN - AS WRITTEN TO JOB DATABASE
 */
 type Admin struct {
+	AdmID int64 `gorm:"unique; primaryKey" json:"-"`	
 
 	AdmTime   int64  `gorm:"not null" json:"adm_time"`
-	AdmAddr   string `json:"adm_addr"`
+	AdmAddr   string `gorm:"varchar(36)" json:"adm_addr"`
 	AdmUserID string `gorm:"not null; varchar(36)" json:"adm_user_id"`
-	AdmApp    string `gorm:"not null; varchar(36)" json:"adm_app"`
+	AdmApp    string `gorm:"varchar(36)" json:"adm_app"`
 
 	/*BROKER*/
-	AdmDefHost string `json:"adm_def_host"`
+	AdmDefHost string `gorm:"varchar(32)" json:"adm_def_host"`
 	AdmDefPort int32  `json:"adm_def_port"`
-	AdmOpHost  string `json:"adm_op_host"`
+	AdmOpHost  string `gorm:"varchar(32)" json:"adm_op_host"`
 	AdmOpPort  int32  `json:"adm_op_port"`
-
-	/*DEVICE*/
-	AdmSerial  string `gorm:"not null; varchar(10)" json:"adm_serial"`
-	AdmVersion string `gorm:"not null; varchar(3)" json:"adm_version"`
-	AdmClass   string `gorm:"not null; varchar(3)" json:"adm_class"`
 
 	/*BATTERY ALARMS*/
 	AdmBatHiAmp  float32 `json:"adm_bat_hi_amp"`
@@ -60,6 +56,19 @@ type Admin struct {
 	AdmLFSDiffMin  float32 `json:"adm_lfs_diff_min"`  // 2.0 psi
 	AdmLFSDiffMax  float32 `json:"adm_lfs_diff_max"`  // 10.0 psi
 }
+func  (adm *Admin) Write(dbc *pkg.DBClient) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
+		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	*/
+	dbc.WG.Add(1)
+	adm.AdmID = 0
+	res := dbc.Create(adm) 
+	dbc.WG.Done()
+
+	return res.Error
+}
+
 
 /*
 ADMIN - AS STORED IN DEVICE FLASH
@@ -75,10 +84,6 @@ func (adm Admin) AdminToBytes() (out []byte) {
 	out = append(out, pkg.Int32ToBytes(adm.AdmDefPort)...)
 	out = append(out, pkg.StringToNBytes(adm.AdmOpHost, 32)...)
 	out = append(out, pkg.Int32ToBytes(adm.AdmOpPort)...)
-
-	out = append(out, pkg.StringToNBytes(adm.AdmSerial, 10)...)
-	out = append(out, pkg.StringToNBytes(adm.AdmVersion, 3)...)
-	out = append(out, pkg.StringToNBytes(adm.AdmClass, 3)...)
 
 	out = append(out, pkg.Float32ToBytes(adm.AdmBatHiAmp)...)
 	out = append(out, pkg.Float32ToBytes(adm.AdmBatLoVolt)...)
@@ -121,34 +126,30 @@ func (adm *Admin) AdminFromBytes(b []byte) {
 		AdmOpHost:  pkg.StrBytesToString(b[152:184]),
 		AdmOpPort:  pkg.BytesToInt32_L(b[184:188]),
 
-		AdmSerial:  pkg.StrBytesToString(b[188:198]),
-		AdmVersion: pkg.StrBytesToString(b[198:201]),
-		AdmClass:   pkg.StrBytesToString(b[201:204]),
+		AdmBatHiAmp:  pkg.BytesToFloat32_L(b[188:192]),
+		AdmBatLoVolt: pkg.BytesToFloat32_L(b[192:196]),
 
-		AdmBatHiAmp:  pkg.BytesToFloat32_L(b[204:208]),
-		AdmBatLoVolt: pkg.BytesToFloat32_L(b[208:212]),
+		AdmMotHiAmp: pkg.BytesToFloat32_L(b[196:200]),
 
-		AdmMotHiAmp: pkg.BytesToFloat32_L(b[212:216]),
+		AdmHFSFlow:     pkg.BytesToFloat32_L(b[200:204]),
+		AdmHFSFlowMin:  pkg.BytesToFloat32_L(b[204:208]),
+		AdmHFSFlowMax:  pkg.BytesToFloat32_L(b[208:212]),
+		AdmHFSPress:    pkg.BytesToFloat32_L(b[212:216]),
+		AdmHFSPressMin: pkg.BytesToFloat32_L(b[216:220]),
+		AdmHFSPressMax: pkg.BytesToFloat32_L(b[220:224]),
+		AdmHFSDiff:     pkg.BytesToFloat32_L(b[224:228]),
+		AdmHFSDiffMin:  pkg.BytesToFloat32_L(b[228:232]),
+		AdmHFSDiffMax:  pkg.BytesToFloat32_L(b[232:236]),
 
-		AdmHFSFlow:     pkg.BytesToFloat32_L(b[216:220]),
-		AdmHFSFlowMin:  pkg.BytesToFloat32_L(b[220:224]),
-		AdmHFSFlowMax:  pkg.BytesToFloat32_L(b[224:228]),
-		AdmHFSPress:    pkg.BytesToFloat32_L(b[228:232]),
-		AdmHFSPressMin: pkg.BytesToFloat32_L(b[232:236]),
-		AdmHFSPressMax: pkg.BytesToFloat32_L(b[236:240]),
-		AdmHFSDiff:     pkg.BytesToFloat32_L(b[240:244]),
-		AdmHFSDiffMin:  pkg.BytesToFloat32_L(b[244:248]),
-		AdmHFSDiffMax:  pkg.BytesToFloat32_L(b[248:252]),
-
-		AdmLFSFlow:     pkg.BytesToFloat32_L(b[252:256]),
-		AdmLFSFlowMin:  pkg.BytesToFloat32_L(b[256:260]),
-		AdmLFSFlowMax:  pkg.BytesToFloat32_L(b[260:264]),
-		AdmLFSPress:    pkg.BytesToFloat32_L(b[264:268]),
-		AdmLFSPressMin: pkg.BytesToFloat32_L(b[268:272]),
-		AdmLFSPressMax: pkg.BytesToFloat32_L(b[272:276]),
-		AdmLFSDiff:     pkg.BytesToFloat32_L(b[276:280]),
-		AdmLFSDiffMin:  pkg.BytesToFloat32_L(b[280:284]),
-		AdmLFSDiffMax:  pkg.BytesToFloat32_L(b[284:288]),
+		AdmLFSFlow:     pkg.BytesToFloat32_L(b[236:240]),
+		AdmLFSFlowMin:  pkg.BytesToFloat32_L(b[240:244]),
+		AdmLFSFlowMax:  pkg.BytesToFloat32_L(b[244:248]),
+		AdmLFSPress:    pkg.BytesToFloat32_L(b[248:252]),
+		AdmLFSPressMin: pkg.BytesToFloat32_L(b[252:256]),
+		AdmLFSPressMax: pkg.BytesToFloat32_L(b[256:260]),
+		AdmLFSDiff:     pkg.BytesToFloat32_L(b[260:264]),
+		AdmLFSDiffMin:  pkg.BytesToFloat32_L(b[264:268]),
+		AdmLFSDiffMax:  pkg.BytesToFloat32_L(b[268:272]),
 	}
 	//  pkg.Json("(demo *DemoDeviceClient)MakeAdmFromBytes() -> adm", adm)
 	return
@@ -169,11 +170,6 @@ func (adm *Admin) DefaultSettings_Admin(reg pkg.DESRegistration) {
 		adm.AdmDefPort = pkg.MQTT_PORT
 		adm.AdmOpHost = pkg.MQTT_HOST
 		adm.AdmOpPort = pkg.MQTT_PORT
-
-		/* DEVICE */
-		adm.AdmClass =  DEVICE_CLASS
-		adm.AdmVersion = DEVICE_VERSION
-		adm.AdmSerial =  reg.DESDevSerial
 
 		/* BATTERY */
 		adm.AdmBatHiAmp = 2.5  // Amps
@@ -209,5 +205,19 @@ func (adm *Admin) DefaultSettings_Admin(reg pkg.DESRegistration) {
 		adm.AdmLFSDiff =     9.0  // 9.0 psi
 		adm.AdmLFSDiffMin =  2.0  // 2.0 psi
 		adm.AdmLFSDiffMax =  10.0 // 10.0 psi
-	
+}
+
+/*
+ADMIN - VALIDATE FIELDS
+*/
+func (adm *Admin) Validate() {
+	/* TODO: SET ACCEPTABLE LIMITS FOR THE REST OF THE CONFIG SETTINGS */
+
+	adm.AdmAddr = pkg.ValidateStringLength(adm.AdmAddr, 36)
+	adm.AdmUserID = pkg.ValidateStringLength(adm.AdmUserID, 36)
+	adm.AdmApp = pkg.ValidateStringLength(adm.AdmApp, 36)
+
+	adm.AdmDefHost = pkg.ValidateStringLength(adm.AdmApp, 32)
+	adm.AdmOpHost = pkg.ValidateStringLength(adm.AdmApp, 32)
+
 }

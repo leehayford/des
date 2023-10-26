@@ -26,6 +26,23 @@ func (job *Job) JDB() *pkg.DBClient {
 	return &pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(job.DESJobName))}
 }
 
+/* GET THE DESRegistration FOR ALL DEVICES ON THIS DES */
+func GetJobList() (jobs []pkg.DESRegistration, err error) {
+
+	qry := pkg.DES.DB.
+		Table("des_jobs").
+		Select("des_jobs.*, djs.*, des_devs.*").
+		Joins("des_job_searches djs ON des_jobs.des_job_id = djs.des_job_key").
+		Joins("JOIN des_devs ON des_jobs.des_job_dev_id = des_devs.des_dev_id").
+		Order("des_devs.des_dev_id ASC, des_jobs.des_job_start DESC")
+
+	res := qry.Scan(&jobs)
+	err = res.Error
+	return
+}
+
+
+
 type XYPoint struct {
 	X int64   `json:"x"`
 	Y float32 `json:"y"`

@@ -187,6 +187,15 @@ func StringToNBytes(str string, size int) []byte {
 	// fmt.Printf("\n%s ( %d ) : %x\n",str , len(out), out)
 	return out
 }
+func ValidateStringLength(str string, size int) (out string) {
+
+	if len(str) > size {
+		/* str TOO BIG, RETURN THE  FIRST 'size' CHARS... */
+		return str[:size] 
+	}
+	/* str ALREADY THE RIGHT SIZE, SHIP IT */
+	return str
+}
 
 // func Float32ToHex(f float32)
 

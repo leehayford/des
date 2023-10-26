@@ -8,7 +8,6 @@ import (
 	"net/url"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
-	// "github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/websocket/v2"
 
 	"github.com/leehayford/des/pkg"
@@ -174,6 +173,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 	// duc.DESMQTTClient.ClientOptions.ClientID)
 
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().Sub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_SIGHwID().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGHeader().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGConfig().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().Sub(duc.DESMQTTClient)
@@ -187,6 +187,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().UnSub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_SIGHwID().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGHeader().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGConfig().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().UnSub(duc.DESMQTTClient)
@@ -198,7 +199,6 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	fmt.Printf("\n(duc) MQTTDeviceUserClient_Disconnect( ): Complete -> ClientID: %s\n", duc.ClientID)
 }
-
 
 /* SUBSCRIPTIONS ****************************************************************************************/
 
@@ -221,6 +221,33 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 			if err != nil {
 				pkg.TraceErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGAdmin(...) -> adm :", adm)
+
+			/* SEND WSMessage AS JSON STRING */
+			duc.DataOut <- string(js)
+
+		},
+	}
+}
+
+/* SUBSCRIPTIONS -> HARDWARE ID  */
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHwID() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: duc.MQTTTopic_SIGHwID(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* DECODE MESSAGE PAYLOAD TO HwID STRUCT */
+			hw := HwID{}
+			if err := json.Unmarshal(msg.Payload(), &hw); err != nil {
+				pkg.TraceErr(err)
+			}
+
+			/* CREATE JSON WSMessage STRUCT */
+			js, err := json.Marshal(&WSMessage{Type: "hwid", Data: hw})
+			if err != nil {
+				pkg.TraceErr(err)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGHwID(...) -> hw :", hw)
 
 			/* SEND WSMessage AS JSON STRING */
 			duc.DataOut <- string(js)
@@ -360,7 +387,6 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGDiagSample() p
 		},
 	}
 }
-
 
 /* PUBLICATIONS ******************************************************************************************/
 /* NONE; WE DON'T DO THAT; 
