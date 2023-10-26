@@ -165,6 +165,7 @@ func (device *Device) DeviceClient_Connect() {
 	}
 
 	device.JobDBC.Last(&device.ADM)
+	device.JobDBC.Last(&device.HW)
 	device.JobDBC.Last(&device.HDR)
 	device.JobDBC.Last(&device.CFG)
 	device.JobDBC.Last(&device.SMP)
