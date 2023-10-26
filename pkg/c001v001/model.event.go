@@ -17,7 +17,7 @@ type Event struct {
 
 	EvtCode  int32    `json:"evt_code"`
 	EvtTitle string   `gorm:"varchar(36)" json:"evt_title"`
-	EvtMsg   string   `json:"evt_msg"`
+	EvtMsg   string   `gorm:"varchar(128)" json:"evt_msg"`
 	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:evt_typ_code" json:"-"`
 }
 
@@ -78,6 +78,20 @@ func (evt *Event) DefaultSettings_Event(job pkg.DESRegistration) {
 	evt.EvtCode = STATUS_DES_REG_REQ
 	evt.EvtTitle = "A Device is Born"
 	evt.EvtMsg = `Congratulations, it's a class 001, version 001 device! This text is here to take up space. Normal people would use the function that shits out latin but I don't; partly because I don't remember what it is and partly because I don't feel like looking it up.`
+}
+
+/*
+HARDWARE IDs - VALIDATE FIELDS
+*/
+func (evt *Event) Validate() {
+	/* TODO: SET ACCEPTABLE LIMITS FOR THE REST OF THE CONFIG SETTINGS */
+
+	evt.EvtAddr = pkg.ValidateStringLength(evt.EvtAddr, 36)
+	evt.EvtUserID = pkg.ValidateStringLength(evt.EvtUserID, 36)
+	evt.EvtApp = pkg.ValidateStringLength(evt.EvtApp, 36)
+	
+	evt.EvtTitle = pkg.ValidateStringLength(evt.EvtTitle, 36)
+	evt.EvtMsg = pkg.ValidateStringLength(evt.EvtMsg, 128)
 }
 
 type EventTyp struct {

@@ -1310,10 +1310,10 @@ func DemoSimFlashTest() {
 	f.Close()
 }
 
-/* ADM DEMO MEMORY -> 272 BYTES -> HxD 34 x 8 */
+
+/* ADM DEMO MEMORY -> JSON*/
 func (demo DemoDeviceClient) WriteAdmToFlash(jobName string, adm Admin) (err error) {
 
-	// admBytes := adm.AdminToBytes()
 	admJson := pkg.MakeMQTTMessage(adm)
 	// fmt.Printf("\nadmBytes ( %d ) : %x\n", len(admBytes), admBytes)
 
@@ -1328,7 +1328,6 @@ func (demo DemoDeviceClient) WriteAdmToFlash(jobName string, adm Admin) (err err
 	}
 	defer f.Close()
 
-	// _, err = f.Write(admBytes)
 	_, err = f.WriteString(admJson)
 	if err != nil {
 		return pkg.TraceErr(err)
@@ -1337,7 +1336,32 @@ func (demo DemoDeviceClient) WriteAdmToFlash(jobName string, adm Admin) (err err
 	f.Close()
 	return
 }
-func (demo *DemoDeviceClient) ReadAdmFromFlash(jobName string) (adm []byte, err error) {
+/* ADM DEMO MEMORY -> 272 BYTES -> HxD 34 x 8 */
+func (demo DemoDeviceClient) WriteAdmToFlashHex(jobName string, adm Admin) (err error) {
+
+	admBytes := adm.AdminToBytes()
+	// fmt.Printf("\nadmBytes ( %d ) : %x\n", len(admBytes), admBytes)
+
+	dir := fmt.Sprintf("demo/%s", jobName)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		pkg.TraceErr(err)
+	}
+
+	f, err := os.OpenFile(fmt.Sprintf("%s/adm.bin", dir), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+	defer f.Close()
+
+	_, err = f.Write(admBytes)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+
+	f.Close()
+	return
+}
+func (demo *DemoDeviceClient) ReadAdmFromFlashHex(jobName string) (adm []byte, err error) {
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/adm.bin", dir), os.O_RDONLY, 0600)
@@ -1357,16 +1381,41 @@ func (demo *DemoDeviceClient) ReadAdmFromFlash(jobName string) (adm []byte, err 
 	f.Close()
 	return
 }
-func (demo *DemoDeviceClient) GetAdmFromFlash(jobName string, adm *Admin) {
-	b, err := demo.ReadAdmFromFlash(jobName)
+func (demo *DemoDeviceClient) GetAdmFromFlashHex(jobName string, adm *Admin) {
+	b, err := demo.ReadAdmFromFlashHex(jobName)
 	if err != nil {
 		pkg.TraceErr(err)
 	}
 	adm.AdminFromBytes(b)
 }
 
-/* HW DEMO MEMORY -> 152 BYTES -> HxD 38 x 4 */
+/* HW DEMO MEMORY -> JSON */
 func (demo DemoDeviceClient) WriteHwIDToFlash(jobName string, hw HwID) (err error) {
+
+	hwJson := pkg.MakeMQTTMessage(hw)
+	// fmt.Printf("\nhwBytes ( %d ) : %x\n", len(hwBytes), hwBytes)
+
+	dir := fmt.Sprintf("demo/%s", jobName)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		pkg.TraceErr(err)
+	}
+
+	f, err := os.OpenFile(fmt.Sprintf("%s/hw.json", dir), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(hwJson)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+
+	f.Close()
+	return
+}
+/* HW DEMO MEMORY -> 152 BYTES -> HxD 38 x 4 */
+func (demo DemoDeviceClient) WriteHwIDToFlashHex(jobName string, hw HwID) (err error) {
 
 	hwBytes := hw.HwIDToBytes()
 	// fmt.Printf("\nhwBytes ( %d ) : %x\n", len(hwBytes), hwBytes)
@@ -1390,7 +1439,7 @@ func (demo DemoDeviceClient) WriteHwIDToFlash(jobName string, hw HwID) (err erro
 	f.Close()
 	return
 }
-func (demo *DemoDeviceClient) ReadHwIDFromFlash(jobName string) (hw []byte, err error) {
+func (demo *DemoDeviceClient) ReadHwIDFromFlashHex(jobName string) (hw []byte, err error) {
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/hw.bin", dir), os.O_RDONLY, 0600)
@@ -1410,16 +1459,41 @@ func (demo *DemoDeviceClient) ReadHwIDFromFlash(jobName string) (hw []byte, err 
 	f.Close()
 	return
 }
-func (demo *DemoDeviceClient) GetHwIDFromFlash(jobName string, hw *HwID) {
-	b, err := demo.ReadAdmFromFlash(jobName)
+func (demo *DemoDeviceClient) GetHwIDFromFlashHex(jobName string, hw *HwID) {
+	b, err := demo.ReadHwIDFromFlashHex(jobName)
 	if err != nil {
 		pkg.TraceErr(err)
 	}
 	hw.HwIDFromBytes(b)
 }
 
-/* HDR DEMO MEMORY -> 324 BYTES -> HxD 54 x 6 */
+/* HDR DEMO MEMORY -> JSON */
 func (demo *DemoDeviceClient) WriteHdrToFlash(jobName string, hdr Header) (err error) {
+
+	hdrJson := pkg.MakeMQTTMessage(hdr)
+	// fmt.Printf("\nhdrBytes ( %d ) : %x\n", len(hdrBytes), hdrBytes)
+
+	dir := fmt.Sprintf("demo/%s", jobName)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		pkg.TraceErr(err)
+	}
+
+	f, err := os.OpenFile(fmt.Sprintf("%s/hdr.json", dir), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(hdrJson)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+
+	f.Close()
+	return
+}
+/* HDR DEMO MEMORY -> 324 BYTES -> HxD 54 x 6 */
+func (demo *DemoDeviceClient) WriteHdrToFlashHex(jobName string, hdr Header) (err error) {
 
 	hdrBytes := hdr.HeaderToBytes()
 	// fmt.Printf("\nhdrBytes ( %d ) : %x\n", len(hdrBytes), hdrBytes)
@@ -1443,7 +1517,7 @@ func (demo *DemoDeviceClient) WriteHdrToFlash(jobName string, hdr Header) (err e
 	f.Close()
 	return
 }
-func (demo *DemoDeviceClient) ReadHdrFromFlash(jobName string) (hdr []byte, err error) {
+func (demo *DemoDeviceClient) ReadHdrFromFlashHex(jobName string) (hdr []byte, err error) {
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/hdr.bin", dir), os.O_RDONLY, 0600)
@@ -1463,16 +1537,41 @@ func (demo *DemoDeviceClient) ReadHdrFromFlash(jobName string) (hdr []byte, err 
 	f.Close()
 	return
 }
-func (demo *DemoDeviceClient) GetHdrFromFlash(jobName string, hdr *Header) {
-	b, err := demo.ReadHdrFromFlash(jobName)
+func (demo *DemoDeviceClient) GetHdrFromFlashHex(jobName string, hdr *Header) {
+	b, err := demo.ReadHdrFromFlashHex(jobName)
 	if err != nil {
 		pkg.TraceErr(err)
 	}
 	hdr.HeaderFromBytes(b)
 }
 
-/* CFG DEMO MEMORY -> 172 BYTES -> HxD 43 x 4 */
+/* CFG DEMO MEMORY -> JSON */
 func (demo *DemoDeviceClient) WriteCfgToFlash(jobName string, cfg Config) (err error) {
+
+	cfgJson := pkg.MakeMQTTMessage(cfg)
+	// fmt.Printf("\ncfgBytes ( %d ) : %x\n", len(cfgBytes), cfgBytes)
+
+	dir := fmt.Sprintf("demo/%s", jobName)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		pkg.TraceErr(err)
+	}
+
+	f, err := os.OpenFile(fmt.Sprintf("%s/cfg.json", dir), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(cfgJson)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+
+	f.Close()
+	return
+}
+/* CFG DEMO MEMORY -> 172 BYTES -> HxD 43 x 4 */
+func (demo *DemoDeviceClient) WriteCfgToFlashHex(jobName string, cfg Config) (err error) {
 
 	cfgBytes := cfg.ConfigToBytes()
 	// fmt.Printf("\ncfgBytes ( %d ) : %x\n", len(cfgBytes), cfgBytes)
@@ -1496,7 +1595,7 @@ func (demo *DemoDeviceClient) WriteCfgToFlash(jobName string, cfg Config) (err e
 	f.Close()
 	return
 }
-func (demo *DemoDeviceClient) ReadCfgFromFlash(jobName string) (cfg []byte, err error) {
+func (demo *DemoDeviceClient) ReadCfgFromFlashHex(jobName string) (cfg []byte, err error) {
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/cfg.bin", dir), os.O_RDONLY, 0600)
@@ -1516,16 +1615,41 @@ func (demo *DemoDeviceClient) ReadCfgFromFlash(jobName string) (cfg []byte, err 
 	f.Close()
 	return
 }
-func (demo *DemoDeviceClient) GetCfgFromFlash(jobName string, cfg *Config) {
-	b, err := demo.ReadCfgFromFlash(jobName)
+func (demo *DemoDeviceClient) GetCfgFromFlashHex(jobName string, cfg *Config) {
+	b, err := demo.ReadCfgFromFlashHex(jobName)
 	if err != nil {
 		pkg.TraceErr(err)
 	}
 	cfg.ConfigFromBytes(b)
 }
 
-/* EVT DEMO MEMORY -> 156 BYTES + MESSAGE -> HxD 29  x 4 (Code @  116 dec*/
+/* EVT DEMO MEMORY -> JSON */
 func (demo *DemoDeviceClient) WriteEvtToFlash(jobName string, evt Event) (err error) {
+
+	evtJson := pkg.MakeMQTTMessage(evt)
+	// fmt.Printf("\nevtBytes ( %d ) : %x\n", len(evtBytes), evtBytes)
+
+	dir := fmt.Sprintf("demo/%s/events", jobName)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		pkg.TraceErr(err)
+	}
+
+	f, err := os.OpenFile(fmt.Sprintf("%s/%d.json", dir, evt.EvtTime), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(evtJson)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+
+	f.Close()
+	return
+}
+/* EVT DEMO MEMORY -> 156 BYTES + MESSAGE(128) -> HxD 29  x 4 (Code @  116 dec*/
+func (demo *DemoDeviceClient) WriteEvtToFlashHex(jobName string, evt Event) (err error) {
 
 	evtBytes := evt.EventToBytes()
 	// fmt.Printf("\nevtBytes ( %d ) : %x\n", len(evtBytes), evtBytes)
@@ -1549,7 +1673,7 @@ func (demo *DemoDeviceClient) WriteEvtToFlash(jobName string, evt Event) (err er
 	f.Close()
 	return
 }
-func (demo *DemoDeviceClient) ReadEvtFromFlash(jobName string, time int64) (evt []byte, err error) {
+func (demo *DemoDeviceClient) ReadEvtFromFlashHex(jobName string, time int64) (evt []byte, err error) {
 
 	dir := fmt.Sprintf("demo/%s/events", jobName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/%d.bin", dir, time), os.O_RDONLY, 0600)
@@ -1568,14 +1692,14 @@ func (demo *DemoDeviceClient) ReadEvtFromFlash(jobName string, time int64) (evt 
 	f.Close()
 	return
 }
-func (demo *DemoDeviceClient) GetEvtFromFlash(jobName string, time int64, evt *Event) {
-	b, err := demo.ReadEvtFromFlash(jobName, time)
+func (demo *DemoDeviceClient) GetEvtFromFlashHex(jobName string, time int64, evt *Event) {
+	b, err := demo.ReadEvtFromFlashHex(jobName, time)
 	if err != nil {
 		pkg.TraceErr(err)
 	}
 	evt.EventFromBytes(b)
 }
-func (demo *DemoDeviceClient) ReadEvtDir(jobName string) (evts []Event) {
+func (demo *DemoDeviceClient) ReadEvtDirHex(jobName string) (evts []Event) {
 	fs, err := ioutil.ReadDir(fmt.Sprintf("demo/%s/events", jobName))
 	if err != nil {
 		pkg.TraceErr(err)
@@ -1587,7 +1711,7 @@ func (demo *DemoDeviceClient) ReadEvtDir(jobName string) (evts []Event) {
 			pkg.TraceErr(err)
 		} else {
 			evt := &Event{}
-			demo.GetEvtFromFlash(jobName, i, evt) // pkg.Json("(demo *DemoDeviceClient) ReadEvtDir( )", evt)
+			demo.GetEvtFromFlashHex(jobName, i, evt) // pkg.Json("(demo *DemoDeviceClient) ReadEvtDir( )", evt)
 			evts = append(evts, *evt)
 		}
 	}
