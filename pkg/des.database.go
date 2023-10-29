@@ -34,7 +34,7 @@ import (
 )
 
 /* TYPE DEFINITION TO ALLOW GORM TO WORK WITH JSONB DATA */
-type JSONB map[string]interface{}
+// type JSONB map[string]interface{}
 
 /*
 	DATABASE CLIENT
@@ -45,7 +45,8 @@ type DBClient struct {
 	ConnStr string
 	*gorm.DB
 
-	/* WAIT GROUP USED TO PREVENT CONCURRENT ACCESS  */
+	/* TODO: FINISH IMPLEMENTATION & TESTING 
+	WAIT GROUP USED TO PREVENT CONCURRENT ACCESS  OF MAPPED DEVICE STATE */
 	WG *sync.WaitGroup 
 }
 func (dbc *DBClient) GetDBName() string {

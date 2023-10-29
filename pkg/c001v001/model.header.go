@@ -163,6 +163,7 @@ func (hdr *Header) Create_DESJobSearch(reg pkg.DESRegistration) {
 
 	s := pkg.DESJobSearch{
 		DESJobToken: hdr.SearchToken(),
+		DESJobJson: pkg.ModelToJSONString(hdr),
 		DESJobKey: reg.DESJobID,
 	}
 
@@ -181,6 +182,7 @@ func (hdr *Header) Update_DESJobSearch(reg pkg.DESRegistration) {
 		pkg.TraceErr(res.Error)
 	}
 	s.DESJobToken = hdr.SearchToken()
+	s.DESJobJson = pkg.ModelToJSONString(hdr)
 
 	if res := pkg.DES.DB.Save(&s); res.Error != nil {
 		pkg.TraceErr(res.Error)

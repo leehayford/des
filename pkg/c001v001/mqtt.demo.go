@@ -143,7 +143,6 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 				EvtMsg:   "Created with STATUS_JOB_ENDED event to ensure this newly registered demo device is ready to start a new demo job.",
 			},
 			SMP: Sample{SmpTime: t, SmpJobName: des_job.DESJobName},
-			Job: Job{DESRegistration: reg},
 		},
 	}
 	/* CREATE CMDARCHIVE DATABASE */
@@ -233,7 +232,6 @@ func DemoDeviceClient_ConnectAll(qty int) {
 	for _, reg := range regs {
 		demo := DemoDeviceClient{}
 		demo.Device.DESRegistration = reg
-		demo.Device.Job = Job{DESRegistration: reg}
 		demo.DESMQTTClient = pkg.DESMQTTClient{}
 		demo.DemoDeviceClient_Connect()
 	}
@@ -393,13 +391,13 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 			if demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
-				demo.WriteAdmToFlash(demo.Job.DESJobName, adm_rec)
+				demo.WriteAdmToFlash(demo.DESJobName, adm_rec) 
 
 				/* UPDATE TIME ONLY WHEN LOGGING */
 				adm.AdmTime = time.Now().UTC().UnixMilli()
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
-				demo.WriteAdmToFlash(demo.Job.DESJobName, adm)
+				demo.WriteAdmToFlash(demo.DESJobName, adm) 
 			}
 
 			/* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -465,13 +463,13 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHwID() pkg.MQ
 			if demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
-				demo.WriteHwIDToFlash(demo.Job.DESJobName, hw_rec)
+				demo.WriteHwIDToFlash(demo.DESJobName, hw_rec) 
 
 				/* UPDATE TIME ONLY WHEN LOGGING */
 				hw.HwTime = time.Now().UTC().UnixMilli()
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
-				demo.WriteHwIDToFlash(demo.Job.DESJobName, hw)
+				demo.WriteHwIDToFlash(demo.DESJobName, hw) 
 			}
 
 			/* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -537,13 +535,13 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 			if demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
-				demo.WriteHdrToFlash(demo.Job.DESJobName, hdr_rec)
+				demo.WriteHdrToFlash(demo.DESJobName, hdr_rec) 
 
 				/* UPDATE TIME ONLY WHEN LOGGING */
 				hdr.HdrTime = time.Now().UTC().UnixMilli()
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
-				demo.WriteHdrToFlash(demo.Job.DESJobName, hdr)
+				demo.WriteHdrToFlash(demo.DESJobName, hdr) 
 			}
 
 			/* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -589,7 +587,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 			if demo.EVT.EvtCode > STATUS_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
-				demo.WriteCfgToFlash(demo.Job.DESJobName, cfg_rec)
+				demo.WriteCfgToFlash(demo.DESJobName, cfg_rec) 
 
 				/* UPDATE TIME( ONLY WHEN LOGGING) */
 				cfg.CfgTime = time.Now().UTC().UnixMilli()
@@ -606,7 +604,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 				}
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' */
-				demo.WriteCfgToFlash(demo.Job.DESJobName, cfg)
+				demo.WriteCfgToFlash(demo.DESJobName, cfg) 
 			}
 
 			/* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -672,13 +670,13 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 				if state > STATUS_JOB_START_REQ {
 
 					/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
-					demo.WriteEvtToFlash(demo.Job.DESJobName, evt_rec)
+					demo.WriteEvtToFlash(demo.DESJobName, evt_rec) 
 
 					/* UPDATE TIME( ONLY WHEN LOGGING) */
 					evt.EvtTime = time.Now().UTC().UnixMilli()
 
 					/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
-					demo.WriteEvtToFlash(demo.Job.DESJobName, evt) // TODO: REMOVE .Job
+					demo.WriteEvtToFlash(demo.DESJobName, evt) 
 				}
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -706,7 +704,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGAdmin(adm Admi
 	sig := pkg.MQTTPublication{
 
 		Topic:   demo.MQTTTopic_SIGAdmin(),
-		Message: pkg.MakeMQTTMessage(adm),
+		Message: pkg.ModelToJSONString(adm),
 		// Message:  pkg.MakeMQTTMessage(adm.FilterAdmRecord()),
 		Retained: false,
 		WaitMS:   0,
@@ -724,7 +722,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGHwID(hw HwID) 
 	sig := pkg.MQTTPublication{
 
 		Topic:   demo.MQTTTopic_SIGHwID(),
-		Message: pkg.MakeMQTTMessage(hw),
+		Message: pkg.ModelToJSONString(hw),
 		// Message:  pkg.MakeMQTTMessage(hw.FilterAdmRecord()),
 		Retained: false,
 		WaitMS:   0,
@@ -742,7 +740,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGHeader(hdr Hea
 	sig := pkg.MQTTPublication{
 
 		Topic:   demo.MQTTTopic_SIGHeader(),
-		Message: pkg.MakeMQTTMessage(hdr),
+		Message: pkg.ModelToJSONString(hdr),
 		// Message:  pkg.MakeMQTTMessage(hdr.FilterHdrRecord()),
 		Retained: false,
 		WaitMS:   0,
@@ -760,7 +758,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGConfig(cfg Con
 	sig := pkg.MQTTPublication{
 
 		Topic:   demo.MQTTTopic_SIGConfig(),
-		Message: pkg.MakeMQTTMessage(cfg),
+		Message: pkg.ModelToJSONString(cfg),
 		// Message:  pkg.MakeMQTTMessage(cfg.FilterCfgRecord()),
 		Retained: false,
 		WaitMS:   0,
@@ -778,7 +776,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGEvent(evt Even
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGEvent(),
-		Message:  pkg.MakeMQTTMessage(evt),
+		Message:  pkg.ModelToJSONString(evt),
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -905,29 +903,11 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.WriteEvtToFlash(demo.CmdArchiveName(), evt)
 
 	/* WRITE TO FLASH - JOB */
-	demo.Job = Job{
-		DESRegistration: pkg.DESRegistration{
-			DESDev: demo.DESDev,
-			DESJob: pkg.DESJob{
-				DESJobRegTime:   startTime,
-				DESJobRegAddr:   evt.EvtAddr,
-				DESJobRegUserID: evt.EvtUserID,
-				DESJobRegApp:    evt.EvtApp,
-
-				DESJobName:  demo.HDR.HdrJobName,
-				DESJobStart: startTime,
-				DESJobEnd:   0,
-				DESJobLng:   demo.HDR.HdrGeoLng,
-				DESJobLat:   demo.HDR.HdrGeoLat,
-				DESJobDevID: demo.DESDevID,
-			},
-		},
-	}
-	demo.WriteAdmToFlash(demo.Job.DESJobName, demo.ADM)
-	demo.WriteHwIDToFlash(demo.Job.DESJobName, demo.HW)
-	demo.WriteHdrToFlash(demo.Job.DESJobName, demo.HDR)
-	demo.WriteCfgToFlash(demo.Job.DESJobName, demo.CFG)
-	demo.WriteEvtToFlash(demo.Job.DESJobName, evt)
+	demo.WriteAdmToFlash(demo.DESJobName, demo.ADM) 
+	demo.WriteHwIDToFlash(demo.DESJobName, demo.HW) 
+	demo.WriteHdrToFlash(demo.DESJobName, demo.HDR) 
+	demo.WriteCfgToFlash(demo.DESJobName, demo.CFG) 
+	demo.WriteEvtToFlash(demo.DESJobName, evt) 
 
 	/* LOAD VALUE INTO SIM 'RAM'
 	UPDATE THE DEVICE EVENT CODE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB
@@ -984,8 +964,8 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	demo.WriteHdrToFlash(demo.CmdArchiveName(), demo.HDR)
 
 	/* WRITE TO FLASH - JOB */
-	demo.WriteEvtToFlash(demo.Job.DESJobName, evt)
-	demo.WriteHdrToFlash(demo.Job.DESJobName, demo.HDR)
+	demo.WriteEvtToFlash(demo.DESJobName, evt) 
+	demo.WriteHdrToFlash(demo.DESJobName, demo.HDR) 
 
 	/* SEND CONFIRMATION */
 	go demo.MQTTPublication_DemoDeviceClient_SIGHeader(demo.HDR)
@@ -1318,11 +1298,10 @@ func DemoSimFlashTest() {
 	f.Close()
 }
 
-
 /* ADM DEMO MEMORY -> JSON*/
 func (demo DemoDeviceClient) WriteAdmToFlash(jobName string, adm Admin) (err error) {
 
-	admJson := pkg.MakeMQTTMessage(adm)
+	admJson := pkg.ModelToJSONString(adm)
 	// fmt.Printf("\nadmBytes ( %d ) : %x\n", len(admBytes), admBytes)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
@@ -1344,6 +1323,7 @@ func (demo DemoDeviceClient) WriteAdmToFlash(jobName string, adm Admin) (err err
 	f.Close()
 	return
 }
+
 /* ADM DEMO MEMORY -> 272 BYTES -> HxD 34 x 8 */
 func (demo DemoDeviceClient) WriteAdmToFlashHex(jobName string, adm Admin) (err error) {
 
@@ -1400,7 +1380,7 @@ func (demo *DemoDeviceClient) GetAdmFromFlashHex(jobName string, adm *Admin) {
 /* HW DEMO MEMORY -> JSON */
 func (demo DemoDeviceClient) WriteHwIDToFlash(jobName string, hw HwID) (err error) {
 
-	hwJson := pkg.MakeMQTTMessage(hw)
+	hwJson := pkg.ModelToJSONString(hw)
 	// fmt.Printf("\nhwBytes ( %d ) : %x\n", len(hwBytes), hwBytes)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
@@ -1422,6 +1402,7 @@ func (demo DemoDeviceClient) WriteHwIDToFlash(jobName string, hw HwID) (err erro
 	f.Close()
 	return
 }
+
 /* HW DEMO MEMORY -> 152 BYTES -> HxD 38 x 4 */
 func (demo DemoDeviceClient) WriteHwIDToFlashHex(jobName string, hw HwID) (err error) {
 
@@ -1478,7 +1459,7 @@ func (demo *DemoDeviceClient) GetHwIDFromFlashHex(jobName string, hw *HwID) {
 /* HDR DEMO MEMORY -> JSON */
 func (demo *DemoDeviceClient) WriteHdrToFlash(jobName string, hdr Header) (err error) {
 
-	hdrJson := pkg.MakeMQTTMessage(hdr)
+	hdrJson := pkg.ModelToJSONString(hdr)
 	// fmt.Printf("\nhdrBytes ( %d ) : %x\n", len(hdrBytes), hdrBytes)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
@@ -1500,6 +1481,7 @@ func (demo *DemoDeviceClient) WriteHdrToFlash(jobName string, hdr Header) (err e
 	f.Close()
 	return
 }
+
 /* HDR DEMO MEMORY -> 324 BYTES -> HxD 54 x 6 */
 func (demo *DemoDeviceClient) WriteHdrToFlashHex(jobName string, hdr Header) (err error) {
 
@@ -1556,7 +1538,7 @@ func (demo *DemoDeviceClient) GetHdrFromFlashHex(jobName string, hdr *Header) {
 /* CFG DEMO MEMORY -> JSON */
 func (demo *DemoDeviceClient) WriteCfgToFlash(jobName string, cfg Config) (err error) {
 
-	cfgJson := pkg.MakeMQTTMessage(cfg)
+	cfgJson := pkg.ModelToJSONString(cfg)
 	// fmt.Printf("\ncfgBytes ( %d ) : %x\n", len(cfgBytes), cfgBytes)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
@@ -1578,6 +1560,7 @@ func (demo *DemoDeviceClient) WriteCfgToFlash(jobName string, cfg Config) (err e
 	f.Close()
 	return
 }
+
 /* CFG DEMO MEMORY -> 172 BYTES -> HxD 43 x 4 */
 func (demo *DemoDeviceClient) WriteCfgToFlashHex(jobName string, cfg Config) (err error) {
 
@@ -1634,7 +1617,7 @@ func (demo *DemoDeviceClient) GetCfgFromFlashHex(jobName string, cfg *Config) {
 /* EVT DEMO MEMORY -> JSON */
 func (demo *DemoDeviceClient) WriteEvtToFlash(jobName string, evt Event) (err error) {
 
-	evtJson := pkg.MakeMQTTMessage(evt)
+	evtJson := pkg.ModelToJSONString(evt)
 	// fmt.Printf("\nevtBytes ( %d ) : %x\n", len(evtBytes), evtBytes)
 
 	dir := fmt.Sprintf("demo/%s/events", jobName)
@@ -1656,6 +1639,7 @@ func (demo *DemoDeviceClient) WriteEvtToFlash(jobName string, evt Event) (err er
 	f.Close()
 	return
 }
+
 /* EVT DEMO MEMORY -> 156 BYTES + MESSAGE(128) -> HxD 29  x 4 (Code @  116 dec*/
 func (demo *DemoDeviceClient) WriteEvtToFlashHex(jobName string, evt Event) (err error) {
 

@@ -16,18 +16,36 @@ func HandleGetJobList(c *fiber.Ctx) (err error) {
 
 	fmt.Printf("\nHandleGetJobList( )\n")
 
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to view job list",
+		})
+	}
+
 	regs, err := GetJobList()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
-			"message": fmt.Sprintf("GetDesDevList(...) -> query failed:\n%s\n", err),
-			"data":    fiber.Map{"regs": regs},
+			"message": fmt.Sprintf("GetJobList(...) -> query failed:\n%s\n", err),
+			"data":    fiber.Map{"jobs": regs},
 		})
 	}
+
+	jobs := GetJobs(regs)
+	if len(jobs) == 0 {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": fmt.Sprintf("GetJobList(...) -> NO JOBS.\n"),
+		})
+	}
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"devices": regs},
+		"data":    fiber.Map{"jobs": jobs},
 	})
 }
 

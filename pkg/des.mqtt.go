@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -32,11 +31,12 @@ type DESMQTTClient struct {
 	phao.Client
 	Subs []MQTTSubscription
 
-	/* WAIT GROUP USED TO PREVENT CONCURRENT ACCESS  */
-	WG *sync.WaitGroup 
+	/* TODO: FINISH IMPLEMENTATION & TESTING
+	WAIT GROUP USED TO PREVENT CONCURRENT ACCESS  OF MAPPED DEVICE STATE */
+	WG *sync.WaitGroup
 }
 
-func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub, autoReconn bool ) (err error) {
+func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) (err error) {
 
 	/* CREATE MQTT CLEITN OPTIONS */
 	desm.ClientOptions = *phao.NewClientOptions()
@@ -50,7 +50,7 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect( falseToResub, autoReconn bool 
 	desm.SetCleanSession(falseToResub) // FALSE to ensure subscriptions are active on reconnect
 	desm.SetMaxReconnectInterval(time.Second * 10)
 	desm.OnConnect = func(c phao.Client) {
-		fmt.Printf("\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connected...\n", desm.MQTTClientID,)
+		fmt.Printf("\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connected...\n", desm.MQTTClientID)
 	}
 	desm.OnConnectionLost = func(c phao.Client, err error) {
 		fmt.Printf(
@@ -125,9 +125,19 @@ func (pub MQTTPublication) Pub(client DESMQTTClient) {
 	}
 }
 
-func MakeMQTTMessage(mqtt interface{}) (msg string) {
+func ModelToJSONB(mod interface{}) (jsonb []byte) {
 
-	js, err := json.Marshal(mqtt)
+	jsonb, err := json.Marshal(mod)
+	if err != nil {
+		TraceErr(err)
+	}
+	// fmt.Printf("\n%s\n", string(jsonb))
+	return 
+}
+
+func ModelToJSONString(mod interface{}) (msg string) {
+
+	js, err := json.Marshal(mod)
 	if err != nil {
 		TraceErr(err)
 	}

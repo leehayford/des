@@ -168,10 +168,10 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 				go WriteHDR(hdr, &device.JobDBC)
 
 				/* UPDATE THE JOB SEARCH TEXT */
-				go hdr.Update_DESJobSearch(device.Job.DESRegistration)
+				go hdr.Update_DESJobSearch(device.DESRegistration) 
 			}
 
-			device.HDR= hdr
+			device.HDR = hdr
 
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedHDR()
@@ -262,7 +262,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 				}
 
 				device.EVT = evt
-				
+
 				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 				device.UpdateMappedEVT()
 			}
@@ -282,7 +282,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			device.DESMQTTClient.WG.Add(1)
-			smp := Sample{}
+			smp := &Sample{}
 
 			/* TODO:  MOVE WRITE SAMPLES FUCTION TO Device */
 			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
@@ -296,7 +296,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 
 					// Decode base64 string
 					smp.SmpJobName = mqtts.DesJobName
-					if err := device.Job.DecodeMQTTSample(b64, &smp); err != nil {
+					if err := smp.DecodeMQTTSample(b64); err != nil {
 						pkg.TraceErr(err)
 					}
 
@@ -308,15 +308,15 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 
 				/* TODO: ADD BULK INSERT ( WRITE ALL SAMPLES IN ONE TRANSACTION ) */
 				// Write the Sample to the job database
-				go WriteSMP(smp, &device.JobDBC)
+				go WriteSMP(*smp, &device.JobDBC)
 
 			}
 
-			device.SMP = smp
-			
+			device.SMP = *smp
+
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedSMP()
-			
+
 			device.DESMQTTClient.WG.Done()
 
 		},
@@ -347,7 +347,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 
 	cmd := pkg.MQTTPublication{
 		Topic:   device.MQTTTopic_CMDAdmin(),
-		Message: pkg.MakeMQTTMessage(adm),
+		Message: pkg.ModelToJSONString(adm),
 		// Message:  pkg.MakeMQTTMessage(adm.FilterAdmRecord()),
 		Retained: false,
 		WaitMS:   0,
@@ -362,7 +362,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDAdminReport(adm Admin) {
 
 	cmd := pkg.MQTTPublication{
 		Topic:   device.MQTTTopic_CMDReport(device.MQTTTopic_CMDAdmin()),
-		Message: pkg.MakeMQTTMessage(adm),
+		Message: pkg.ModelToJSONString(adm),
 		// Message:  pkg.MakeMQTTMessage(adm.FilterAdmRecord()),
 		Retained: false,
 		WaitMS:   0,
@@ -377,7 +377,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDHwID(hw HwID) {
 
 	cmd := pkg.MQTTPublication{
 		Topic:   device.MQTTTopic_CMDHwID(),
-		Message: pkg.MakeMQTTMessage(hw),
+		Message: pkg.ModelToJSONString(hw),
 		// Message:  pkg.MakeMQTTMessage(adm.FilterHwIDRecord()),
 		Retained: false,
 		WaitMS:   0,
@@ -392,7 +392,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) {
 
 	cmd := pkg.MQTTPublication{
 		Topic:   device.MQTTTopic_CMDHeader(),
-		Message: pkg.MakeMQTTMessage(hdr),
+		Message: pkg.ModelToJSONString(hdr),
 		// Message:  pkg.MakeMQTTMessage(hdr.FilterHdrRecord()),
 		Retained: false,
 		WaitMS:   0,
@@ -407,7 +407,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) {
 
 	cmd := pkg.MQTTPublication{
 		Topic:   device.MQTTTopic_CMDConfig(),
-		Message: pkg.MakeMQTTMessage(cfg),
+		Message: pkg.ModelToJSONString(cfg),
 		// Message:  pkg.MakeMQTTMessage(cfg.FilterCfgRecord()),
 		Retained: false,
 		WaitMS:   0,
@@ -422,7 +422,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) {
 
 	cmd := pkg.MQTTPublication{
 		Topic:   device.MQTTTopic_CMDEvent(),
-		Message: pkg.MakeMQTTMessage(evt),
+		Message: pkg.ModelToJSONString(evt),
 		// Message:  pkg.MakeMQTTMessage(evt.FilterEvtRecord()),
 		Retained: false,
 		WaitMS:   0,

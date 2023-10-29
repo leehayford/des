@@ -61,12 +61,6 @@ type Device struct {
 	CFG                 Config       `json:"cfg"` // Last known Config value
 	EVT                 Event        `json:"evt"` // Last known Event value
 	SMP                 Sample       `json:"smp"` // Last known Sample value
-
-	/****************************************************************************************************/
-	/* TODO: REMOVE Job STRUCT FROM DEVICE SO Job CAN BE DEDICATED TO REPORTING */
-	Job `json:"job"` // The active job for this device ( CMDARCHIVE when between jobs )
-	/****************************************************************************************************/
-
 	CmdDBC            pkg.DBClient `json:"-"` // Database Client for the CMDARCHIVE
 	JobDBC            pkg.DBClient `json:"-"` // Database Client for the active job
 	pkg.DESMQTTClient `json:"-"`   // MQTT client handling all subscriptions and publications for this device
@@ -101,6 +95,14 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
 		Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
 		Order("des_devs.des_dev_serial DESC")
+		
+	// qry := pkg.DES.DB.
+	// 	Table("des_jobs").
+	// 	Select("des_devs.*, des_jobs.*, des_job_searches.*").
+	// 	Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
+	// 	Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
+	// 	Joins("JOIN des_job_searches ON des_jobs.des_job_id = des_job_searches.des_job_key").
+	// 	Order("des_devs.des_dev_serial DESC")
 
 	res := qry.Scan(&devices)
 	// pkg.Json("GetDeviceList(): DESRegistrations", res)
@@ -131,7 +133,6 @@ func DeviceClient_ConnectAll() {
 	for _, reg := range regs {
 		device := Device{}
 		device.DESRegistration = reg
-		device.Job = Job{DESRegistration: reg}
 		device.DESMQTTClient = pkg.DESMQTTClient{}
 		device.DeviceClient_Connect()
 	}
@@ -390,7 +391,7 @@ func (device *Device) GetCurrentJob() {
 
 /* CONNECTS THE ACTIVE JOB DBClient TO THE ACTIVE JOB DATABASE */
 func (device *Device) ConnectJobDBC() (err error) {
-	device.JobDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.Job.DESJobName))}
+	device.JobDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.DESJobName))}
 	return device.JobDBC.Connect()
 }
 
@@ -495,42 +496,36 @@ func (device *Device) StartJob(evt Event) {
 	device.JobDBC.Disconnect()
 	hdr := device.HDR
 	
-	device.Job = Job{
-		DESRegistration: pkg.DESRegistration{
-			DESDev: device.DESDev,
-			DESJob: pkg.DESJob{
-				DESJobRegTime:   hdr.HdrTime,
-				DESJobRegAddr:   hdr.HdrAddr,
-				DESJobRegUserID: hdr.HdrUserID,
-				DESJobRegApp:    hdr.HdrApp,
+	device.DESJob = pkg.DESJob{ 
+		DESJobRegTime:   hdr.HdrTime,
+		DESJobRegAddr:   hdr.HdrAddr,
+		DESJobRegUserID: hdr.HdrUserID,
+		DESJobRegApp:    hdr.HdrApp,
 
-				DESJobName:  hdr.HdrJobName,
-				DESJobStart: hdr.HdrJobStart,
-				DESJobEnd:   0,
-				DESJobLng:   hdr.HdrGeoLng,
-				DESJobLat:   hdr.HdrGeoLat,
-				DESJobDevID: device.DESDevID,
-			},
-		},
+		DESJobName:  hdr.HdrJobName,
+		DESJobStart: hdr.HdrJobStart,
+		DESJobEnd:   0,
+		DESJobLng:   hdr.HdrGeoLng,
+		DESJobLat:   hdr.HdrGeoLat,
+		DESJobDevID: device.DESDevID,
 	}
 
 	fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n")
 	/* CREATE A JOB RECORD IN THE DES DATABASE */
-	if res := pkg.DES.DB.Create(&device.Job.DESJob); res.Error != nil {
+	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil { 
 		pkg.TraceErr(res.Error)
 	}
 
 	/* CREATE DESJobSearch RECORD */
-	hdr.Create_DESJobSearch(device.Job.DESRegistration)
-	// device.HDR.Create_DESJobSearch(device.Job.DESRegistration)
+	hdr.Create_DESJobSearch(device.DESRegistration) 
 
 	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
-	if pkg.ADB.CheckDatabaseExists(device.Job.DESJobName) {
+	if pkg.ADB.CheckDatabaseExists(device.DESJobName) { 
 		device.JobDBC = device.CmdDBC
 		fmt.Printf("\n(device *Device) StartJob( ): DATABASE ALREADY EXISTS! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
 	} else {
 		/* CREATE NEW JOB DATABASE */
-		pkg.ADB.CreateDatabase(device.Job.DESJobName)
+		pkg.ADB.CreateDatabase(device.DESJobName) 
 
 		/* CONNECT TO THE NEW ACTIVE JOB DATABASE, ON FAILURE, LOG TO CMDARCHIVE */
 		if err := device.ConnectJobDBC(); err != nil {
@@ -631,6 +626,21 @@ func (device *Device) EndJobRequest(src string) (err error) {
 	UpdateDevicesMap(device.DESDevSerial, *device)
 	return
 }
+/*
+HEADER - UPDATE DESJobSearch
+*/
+func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
+
+	s := pkg.DESJobSearch{}
+	if res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s); res.Error != nil {
+		pkg.TraceErr(res.Error)
+	}
+	s.DESJobJson = pkg.ModelToJSONString(device)
+
+	if res := pkg.DES.DB.Save(&s); res.Error != nil {
+		pkg.TraceErr(res.Error)
+	}
+}
 
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
 func (device *Device) EndJob(evt Event) {
@@ -662,15 +672,17 @@ func (device *Device) EndJob(evt Event) {
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 
-	jobName := device.Job.DESJobName
+	jobName := device.DESJobName 
 	/* CLOSE DES JOB */
-	device.Job.DESJob.DESJobRegTime = evt.EvtTime
-	device.Job.DESJob.DESJobRegAddr = evt.EvtAddr
-	device.Job.DESJob.DESJobRegUserID = evt.EvtUserID
-	device.Job.DESJob.DESJobRegApp = evt.EvtApp
-	device.Job.DESJob.DESJobEnd = evt.EvtTime
+	device.DESJob.DESJobRegTime = evt.EvtTime 
+	device.DESJob.DESJobRegAddr = evt.EvtAddr 
+	device.DESJob.DESJobRegUserID = evt.EvtUserID 
+	device.DESJob.DESJobRegApp = evt.EvtApp 
+	device.DESJob.DESJobEnd = evt.EvtTime 
 	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", jobName)
-	pkg.DES.DB.Save(device.Job.DESJob)
+	pkg.DES.DB.Save(device.DESJob) 
+
+	device.Update_DESJobSearch(device.DESRegistration) 
 
 	/* UPDATE DES CMDARCHIVE */
 	cmd := device.GetCmdArchiveDESRegistration()
@@ -681,8 +693,8 @@ func (device *Device) EndJob(evt Event) {
 	cmd.DESJob.DESJobEnd = 0 // ENSURE THE DEVICE IS DISCOVERABLE
 	pkg.DES.DB.Save(cmd.DESJob)
 
-	/* ENSURE WE CATCH STRAY SIGNALS IN THE CMDARCHIVE */
-	device.Job = cmd
+	/* ENSURE WE CATCH STRAY SAMPLES IN THE CMDARCHIVE */
+	device.DESJob = cmd.DESJob 
 	device.ConnectJobDBC()
 
 	/* RETURN DEVICE CLIENT DATA TO DEFAULT STATE */

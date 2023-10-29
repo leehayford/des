@@ -1,7 +1,7 @@
 package c001v001
 
 import (
-	"encoding/json"
+	// "encoding/json"
 
 	"github.com/leehayford/des/pkg"
 )
@@ -82,33 +82,33 @@ type MQTT_Sample struct {
 	Data       []string `json:"data"`
 }
 
-func (job *Job) WriteMQTTSample(msg []byte, smp Sample) (err error) {
+// func (job *Job) WriteMQTTSample(msg []byte, smp Sample) (err error) {
 
-	// Decode the payload into an MQTTSampleMessage
-	mqtts := &MQTT_Sample{}
-	if err = json.Unmarshal(msg, &mqtts); err != nil {
-		return pkg.TraceErr(err)
-	} // pkg.Json("DecodeMQTTSampleMessage(...) ->  msg :", msg)
+// 	// Decode the payload into an MQTTSampleMessage
+// 	mqtts := &MQTT_Sample{}
+// 	if err = json.Unmarshal(msg, &mqtts); err != nil {
+// 		return pkg.TraceErr(err)
+// 	} // pkg.Json("DecodeMQTTSampleMessage(...) ->  msg :", msg)
 
-	for _, b64 := range mqtts.Data {
+// 	for _, b64 := range mqtts.Data {
 
-		// Decode base64 string
-		smp.SmpJobName = mqtts.DesJobName
-		if err = job.DecodeMQTTSample(b64, &smp); err != nil {
-			return err
-		}
+// 		// Decode base64 string
+// 		smp.SmpJobName = mqtts.DesJobName
+// 		if err = smp.DecodeMQTTSample(b64); err != nil {
+// 			return err
+// 		}
 
-		// Write the Sample to the job database
-		if err = WriteSMP(smp, &job.DBClient); err != nil {
-			return err
-		}
+// 		// Write the Sample to the job database
+// 		if err = WriteSMP(smp, &job.DBClient); err != nil {
+// 			return err
+// 		}
 
-	}
+// 	}
 
-	return err
-}
+// 	return err
+// }
 
-func (job *Job) DecodeMQTTSample(b64 string, smp *Sample) (err error) {
+func (smp *Sample) DecodeMQTTSample(b64 string) (err error) {
 
 	bytes := pkg.Base64ToBytes(b64)
 

@@ -32,7 +32,7 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 		pkg.TraceErr(err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
-			"message": fmt.Sprintf("GetDesDevList(...) -> query failed:\n%s\n", err),
+			"message": fmt.Sprintf("GetDeviceList(...) -> query failed:\n%s\n", err),
 			"data":    fiber.Map{"regs": regs},
 		})
 	}

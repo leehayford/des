@@ -73,7 +73,6 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	duc = DeviceUserClient{
 		Device: Device{
 			DESRegistration: des_reg,
-			Job:             Job{DESRegistration: des_reg},
 		},
 		WSClientID: wscid,
 	} // fmt.Printf("\nHandle_ConnectDeviceUser(...) -> duc: %v\n\n", duc)
@@ -355,8 +354,8 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 			for _, b64 := range mqtts.Data {
 
 				/* DECODE BASE 64 STRING TO Sample */
-				sample := Sample{SmpJobName: mqtts.DesJobName}
-				if err := duc.Job.DecodeMQTTSample(b64, &sample); err != nil {
+				sample := &Sample{SmpJobName: mqtts.DesJobName}
+				if err := sample.DecodeMQTTSample(b64); err != nil {
 					pkg.TraceErr(err)
 				}
 

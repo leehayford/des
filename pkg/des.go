@@ -25,13 +25,14 @@ import (
 type DESRegistration struct {
 	DESDev //`json:"des_dev"`
 	DESJob //`json:"des_job"`
+	DESJobSearch
 }
 
 /* TODO: LOOK INTO USING JSON FIELD FOR TOKEN... */
 type DESJobSearch struct {
 	DESJobSearchID int64  `gorm:"unique; primaryKey" json:"des_job_search_id"`
 	DESJobToken    string `gorm:"not null" json:"des_job_token"`
-	DESJobJson JSONB `gorm:"type:jsonb" json:"des_job_json"`
+	DESJobJson string `json:"des_job_json"`
 	DESJobKey      int64  `json:"des_job_key"`
 	DESJob         DESJob `gorm:"foreignKey:DESJobKey; references:des_job_id" json:"-"`
 }
