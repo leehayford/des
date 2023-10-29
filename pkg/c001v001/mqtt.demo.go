@@ -825,9 +825,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	startTime := time.Now().UTC().UnixMilli()
 
 	/* USED INCASE WE NEED TO CREATE DEFAULT SETTINGS */
-	reg := pkg.DESRegistration{
-		DESDev: demo.DESDev,
-		DESJob: pkg.DESJob{
+	demo.DESJob = pkg.DESJob{
 			DESJobRegTime:   startTime,
 			DESJobRegAddr:   demo.DESDevSerial,
 			DESJobRegUserID: evt.EvtUserID,
@@ -839,13 +837,12 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 			DESJobLng:   -114.75 + rand.Float32()*(-110.15+114.75),
 			DESJobLat:   51.85 + rand.Float32()*(54.35-51.85),
 			DESJobDevID: demo.DESDevID,
-		},
 	}
 
 	/* WHERE JOB START ADMIN WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.ADM.AdmTime != evt.EvtTime {
 		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT ADMIN.\n")
-		demo.ADM.DefaultSettings_Admin(reg)
+		demo.ADM.DefaultSettings_Admin(demo.DESRegistration)
 	}
 	demo.ADM.AdmTime = startTime
 	demo.ADM.AdmAddr = demo.DESDevSerial
@@ -862,7 +859,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	/* WHERE JOB START HEADER WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.HDR.HdrTime != evt.EvtTime {
 		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT HEADER\n")
-		demo.HDR.DefaultSettings_Header(reg)
+		demo.HDR.DefaultSettings_Header(demo.DESRegistration)
 	}
 	demo.HDR.HdrTime = startTime
 	demo.HDR.HdrAddr = demo.DESDevSerial
@@ -880,7 +877,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	/* WHERE JOB START CONFIG WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.CFG.CfgTime != evt.EvtTime {
 		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT CONFIG.\n")
-		demo.CFG.DefaultSettings_Config(reg)
+		demo.CFG.DefaultSettings_Config(demo.DESRegistration)
 	}
 	demo.CFG.CfgTime = startTime
 	demo.CFG.CfgAddr = demo.DESDevSerial
