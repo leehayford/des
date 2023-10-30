@@ -92,6 +92,9 @@ func BytesToInt64(bytes []byte) int64 {
 func BytesToInt64_L(bytes []byte) int64 {
 	return int64(binary.LittleEndian.Uint64(bytes))
 }
+func BytesToUint64_L(bytes []byte) uint64 {
+	return binary.LittleEndian.Uint64(bytes)
+}
 
 func BytesToFloat32(bytes []byte) float32 {
 	return math.Float32frombits(BytesToUInt32(bytes))
@@ -99,6 +102,10 @@ func BytesToFloat32(bytes []byte) float32 {
 func BytesToFloat32_L(bytes []byte) float32 {
 	return math.Float32frombits(BytesToUInt32_L(bytes))
 }
+func BytesToFloat64_L(bytes []byte) float64 {
+	return math.Float64frombits(BytesToUint64_L(bytes))
+}
+
 
 func BytesToBase64(bytes []byte) string {
 	// usage := BytesToBase64([]byte("whatever"))
@@ -134,6 +141,15 @@ func Int16ToBytes(in int16) []byte {
 }
 
 func Float32ToBytes(in float32) []byte {
+
+	var b bytes.Buffer
+	if err := binary.Write(&b, binary.LittleEndian, in); err != nil {
+		TraceErr(err)
+	}
+	return b.Bytes()
+}
+
+func Float64ToBytes(in float64) []byte {
 
 	var b bytes.Buffer
 	if err := binary.Write(&b, binary.LittleEndian, in); err != nil {

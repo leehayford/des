@@ -90,7 +90,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			go WriteADM(adm, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
+			if device.EVT.EvtCode > OP_CODE_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteADM(adm, &device.JobDBC)
@@ -126,7 +126,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHwID() pkg.MQTTSubscripti
 			go WriteHW(hw, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
+			if device.EVT.EvtCode > OP_CODE_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteHW(hw, &device.JobDBC)
@@ -162,13 +162,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			go WriteHDR(hdr, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
+			if device.EVT.EvtCode > OP_CODE_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteHDR(hdr, &device.JobDBC)
 
 				/* UPDATE THE JOB SEARCH TEXT */
-				go hdr.Update_DESJobSearch(device.DESRegistration) 
+				go hdr.Update_DESJobSearch(device.DESRegistration)
 			}
 
 			device.HDR = hdr
@@ -201,7 +201,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			go WriteCFG(cfg, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST EVENT */
-			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
+			if device.EVT.EvtCode > OP_CODE_JOB_START_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteCFG(cfg, &device.JobDBC)
@@ -248,17 +248,17 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			/* REGISTRATION EVENT: USED TO ASSIGN THIS DEVICE TO
 			A DIFFERENT DATA EXCHANGE SERVER */
 
-			case STATUS_JOB_ENDED:
+			case OP_CODE_JOB_ENDED:
 				go device.EndJob(evt)
 
-			case STATUS_JOB_STARTED:
+			case OP_CODE_JOB_STARTED:
 				go device.StartJob(evt)
 
 			default:
 
 				/* CHECK THE ORIGINAL DEVICE STATE EVENT CODE
 				TO SEE IF WE SHOULD WRITE TO THE ACTIVE JOB */
-				if device.EVT.EvtCode > STATUS_JOB_START_REQ {
+				if device.EVT.EvtCode > OP_CODE_JOB_START_REQ {
 					/* STORE THE EVENT IN THE ACTIVE JOB; CALL DB WRITE IN GOROUTINE */
 					go WriteEVT(evt, &device.JobDBC)
 				}
@@ -287,7 +287,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 			smp := &Sample{}
 
 			/* TODO:  MOVE WRITE SAMPLES FUCTION TO Device */
-			if device.EVT.EvtCode > STATUS_JOB_START_REQ {
+			if device.EVT.EvtCode > OP_CODE_JOB_START_REQ {
 				// Decode the payload into an MQTTSampleMessage
 				mqtts := MQTT_Sample{}
 				if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {

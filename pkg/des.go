@@ -122,10 +122,10 @@ func SearchDESDevices(p DESSearchParam) (regs []DESRegistration, err error) {
 
 type DESSearchParam struct {
 	Token  string  `json:"token"`
-	LngMin float32 `json:"lng_min"`
-	LngMax float32 `json:"lng_max"`
-	LatMin float32 `json:"lat_min"`
-	LatMax float32 `json:"lat_max"`
+	LngMin float64 `json:"lng_min"`
+	LngMax float64 `json:"lng_max"`
+	LatMin float64 `json:"lat_min"`
+	LatMax float64 `json:"lat_max"`
 }
 
 /* TODO: LOOK INTO USING JSON FIELD FOR TOKEN... */

@@ -12,23 +12,27 @@ import (
 const DEVICE_CLASS = "001"
 const DEVICE_VERSION = "001"
 
-/* STATUS ( Event.EvtCode ) ****************************************************************************/
-const STATUS_DES_REG_REQ int32 = 0    // USER REQUEST -> CHANGE DEVICE'S OPERATIONAL DATA EXCHANGE SERVER
-const STATUS_DES_REGISTERED int32 = 1 // DEVICE RESPONSE -> SENT TO NEW DATA EXCHANGE SERVER
-const STATUS_JOB_ENDED int32 = 2      // DEVICE RESPONSE -> JOB ENDED
-const STATUS_JOB_START_REQ int32 = 3  // USER REQUEST -> START JOB
+/* OPERATION CODES ( Event.EvtCode 0 : 999 ) *******************************************************/
+const OP_CODE_DES_REG_REQ int32 = 0    // USER REQUEST -> CHANGE DEVICE'S OPERATIONAL DATA EXCHANGE SERVER
+const OP_CODE_DES_REGISTERED int32 = 1 // DEVICE RESPONSE -> SENT TO NEW DATA EXCHANGE SERVER
+const OP_CODE_JOB_ENDED int32 = 2      // DEVICE RESPONSE -> JOB ENDED
+const OP_CODE_JOB_START_REQ int32 = 3  // USER REQUEST -> START JOB
+const OP_CODE_JOB_STARTED int32 = 4 // DEVICE RESPONSE -> JOB STARTED
+const OP_CODE_JOB_END_REQ int32 = 5 // USER REQUEST -> END JOB
+/* END OPERATION CODES  ( Event.EvtCode ) *********************************************************/
 
-/* STATUS > JOB_START_REQ MEANS WE ARE LOGGING TO AN ACTIVE JOB */
-const STATUS_JOB_STARTED int32 = 4 // DEVICE RESPONSE -> JOB STARTED
-const STATUS_JOB_END_REQ int32 = 5 // USER REQUEST -> END JOB
-
-/* TODO: TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS */
-// const STATUS_ADM_REQ int32 = 6 // USER REQUEST -> GET CURRENT ADM
-// const STATUS_HWID_REQ int32 = 7 // USER REQUEST -> GET CURRENT HWID
-// const STATUS_HDR_REQ int32 = 8 // USER REQUEST -> GET CURRENT HDR
-// const STATUS_CFG_REQ int32 = 9 // USER REQUEST -> GET CURRENT CFG
-
-/* END STATUS ( Event.EvtCode ) ***********************************************************************/
+/* STATUS CODES ( Event.EvtCode 1000 : 1999 ) *******************************************************/
+const STATUS_BAT_HIGH_AMP int32 = 1000
+const STATUS_BAT_LOW_VOLT int32 = 1001
+const STATUS_MOT_HIGH_AMP int32 = 1002
+const STATUS_MAX_PRESSURE int32 = 1003
+const STATUS_HFS_MAX_FLOW int32 = 1004
+const STATUS_HFS_MAX_PRESS int32 = 1005
+const STATUS_HFS_MAX_DIFF int32 = 1006
+const STATUS_LFS_MAX_FLOW int32 = 1007
+const STATUS_LFS_MAX_PRESS int32 = 1008
+const STATUS_LFS_MAX_DIFF int32 = 1009
+/* END STATUS CODES ( Event.EvtCode ) **************************************************************/
 
 /* VALVE POSITIONS ***********************************************************************************/
 const MODE_BUILD int32 = 0
@@ -61,10 +65,10 @@ type Device struct {
 	CFG                 Config       `json:"cfg"` // Last known Config value
 	EVT                 Event        `json:"evt"` // Last known Event value
 	SMP                 Sample       `json:"smp"` // Last known Sample value
-	CmdDBC            pkg.DBClient `json:"-"` // Database Client for the CMDARCHIVE
-	JobDBC            pkg.DBClient `json:"-"` // Database Client for the active job
-	pkg.DESMQTTClient `json:"-"`   // MQTT client handling all subscriptions and publications for this device
-	
+	CmdDBC              pkg.DBClient `json:"-"`   // Database Client for the CMDARCHIVE
+	JobDBC              pkg.DBClient `json:"-"`   // Database Client for the active job
+	pkg.DESMQTTClient   `json:"-"`   // MQTT client handling all subscriptions and publications for this device
+
 }
 
 type DevicesMap map[string]Device
@@ -95,7 +99,7 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
 		Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
 		Order("des_devs.des_dev_serial DESC")
-		
+
 	// qry := pkg.DES.DB.
 	// 	Table("des_jobs").
 	// 	Select("des_devs.*, des_jobs.*, des_job_searches.*").
@@ -459,7 +463,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 		EvtAddr:   src,
 		EvtUserID: device.DESJobRegUserID,
 		EvtApp:    device.DESJobRegApp,
-		EvtCode:   STATUS_JOB_START_REQ,
+		EvtCode:   OP_CODE_JOB_START_REQ,
 		EvtTitle:  "START JOB REQUEST",
 		EvtMsg:    "",
 	}
@@ -495,8 +499,8 @@ func (device *Device) StartJob(evt Event) {
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 	hdr := device.HDR
-	
-	device.DESJob = pkg.DESJob{ 
+
+	device.DESJob = pkg.DESJob{
 		DESJobRegTime:   hdr.HdrTime,
 		DESJobRegAddr:   hdr.HdrAddr,
 		DESJobRegUserID: hdr.HdrUserID,
@@ -512,20 +516,20 @@ func (device *Device) StartJob(evt Event) {
 
 	fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n")
 	/* CREATE A JOB RECORD IN THE DES DATABASE */
-	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil { 
+	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
 		pkg.TraceErr(res.Error)
 	}
 
 	/* CREATE DESJobSearch RECORD */
-	hdr.Create_DESJobSearch(device.DESRegistration) 
+	hdr.Create_DESJobSearch(device.DESRegistration)
 
 	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
-	if pkg.ADB.CheckDatabaseExists(device.DESJobName) { 
+	if pkg.ADB.CheckDatabaseExists(device.DESJobName) {
 		device.JobDBC = device.CmdDBC
 		fmt.Printf("\n(device *Device) StartJob( ): DATABASE ALREADY EXISTS! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
 	} else {
 		/* CREATE NEW JOB DATABASE */
-		pkg.ADB.CreateDatabase(device.DESJobName) 
+		pkg.ADB.CreateDatabase(device.DESJobName)
 
 		/* CONNECT TO THE NEW ACTIVE JOB DATABASE, ON FAILURE, LOG TO CMDARCHIVE */
 		if err := device.ConnectJobDBC(); err != nil {
@@ -562,7 +566,7 @@ func (device *Device) StartJob(evt Event) {
 		pkg.TraceErr(err)
 	}
 	if err := WriteHDR(hdr, &device.JobDBC); err != nil {
-	// if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
+		// if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
 	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
@@ -606,7 +610,7 @@ func (device *Device) EndJobRequest(src string) (err error) {
 		EvtAddr:   src,
 		EvtUserID: device.DESJobRegUserID,
 		EvtApp:    device.DESJobRegApp,
-		EvtCode:   STATUS_JOB_END_REQ,
+		EvtCode:   OP_CODE_JOB_END_REQ,
 		EvtTitle:  "END JOB REQUEST",
 		EvtMsg:    "",
 	}
@@ -626,6 +630,7 @@ func (device *Device) EndJobRequest(src string) (err error) {
 	UpdateDevicesMap(device.DESDevSerial, *device)
 	return
 }
+
 /*
 HEADER - UPDATE DESJobSearch
 */
@@ -672,17 +677,17 @@ func (device *Device) EndJob(evt Event) {
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 
-	jobName := device.DESJobName 
+	jobName := device.DESJobName
 	/* CLOSE DES JOB */
-	device.DESJob.DESJobRegTime = evt.EvtTime 
-	device.DESJob.DESJobRegAddr = evt.EvtAddr 
-	device.DESJob.DESJobRegUserID = evt.EvtUserID 
-	device.DESJob.DESJobRegApp = evt.EvtApp 
-	device.DESJob.DESJobEnd = evt.EvtTime 
+	device.DESJob.DESJobRegTime = evt.EvtTime
+	device.DESJob.DESJobRegAddr = evt.EvtAddr
+	device.DESJob.DESJobRegUserID = evt.EvtUserID
+	device.DESJob.DESJobRegApp = evt.EvtApp
+	device.DESJob.DESJobEnd = evt.EvtTime
 	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", jobName)
-	pkg.DES.DB.Save(device.DESJob) 
+	pkg.DES.DB.Save(device.DESJob)
 
-	device.Update_DESJobSearch(device.DESRegistration) 
+	device.Update_DESJobSearch(device.DESRegistration)
 
 	/* UPDATE DES CMDARCHIVE */
 	cmd := device.GetCmdArchiveDESRegistration()
@@ -694,7 +699,7 @@ func (device *Device) EndJob(evt Event) {
 	pkg.DES.DB.Save(cmd.DESJob)
 
 	/* ENSURE WE CATCH STRAY SAMPLES IN THE CMDARCHIVE */
-	device.DESJob = cmd.DESJob 
+	device.DESJob = cmd.DESJob
 	device.ConnectJobDBC()
 
 	/* RETURN DEVICE CLIENT DATA TO DEFAULT STATE */

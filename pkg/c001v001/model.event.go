@@ -76,7 +76,7 @@ func (evt *Event) DefaultSettings_Event(job pkg.DESRegistration) {
 	evt.EvtAddr = job.DESJobRegAddr
 	evt.EvtUserID = job.DESJobRegUserID
 	evt.EvtApp = job.DESJobRegApp
-	evt.EvtCode = STATUS_DES_REG_REQ
+	evt.EvtCode = OP_CODE_DES_REG_REQ
 	evt.EvtTitle = "A Device is Born"
 	evt.EvtMsg = `Congratulations, it's a class 001, version 001 device! This text is here to take up space. Normal people would use the function that shits out latin but I don't; partly because I don't remember what it is and partly because I don't feel like looking it up.`
 }
@@ -90,7 +90,7 @@ func (evt *Event) Validate() {
 	evt.EvtAddr = pkg.ValidateStringLength(evt.EvtAddr, 36)
 	evt.EvtUserID = pkg.ValidateStringLength(evt.EvtUserID, 36)
 	evt.EvtApp = pkg.ValidateStringLength(evt.EvtApp, 36)
-	
+
 	evt.EvtTitle = pkg.ValidateStringLength(evt.EvtTitle, 36)
 	evt.EvtMsg = pkg.ValidateStringLength(evt.EvtMsg, 128)
 }
@@ -125,24 +125,27 @@ func WriteETYP(etyp EventTyp, dbc *pkg.DBClient) (err error) {
 
 var EVENT_TYPES = []EventTyp{
 
-	/* DEVICE CONTROL EVENT TYPES: 0 - 999 */
-	{EvtTypCode: STATUS_DES_REG_REQ, EvtTypName: "DEVICE REGISTRATION REQUESTED"},
-	{EvtTypCode: STATUS_DES_REGISTERED, EvtTypName: "DEVICE REGISTERED"},
-	{EvtTypCode: STATUS_JOB_ENDED, EvtTypName: "JOB ENDED"},
-	{EvtTypCode: STATUS_JOB_START_REQ, EvtTypName: "START JOB REQUESTED"},
-	{EvtTypCode: STATUS_JOB_STARTED, EvtTypName: "JOB STARTED"},
-	{EvtTypCode: STATUS_JOB_END_REQ, EvtTypName: "END JOB REQUESTED"},
+	/* DEVICE OPERATION EVENT TYPES: 0 - 999 */
+	{EvtTypCode: OP_CODE_DES_REG_REQ, EvtTypName: "DEVICE REGISTRATION REQUESTED"},
+	{EvtTypCode: OP_CODE_DES_REGISTERED, EvtTypName: "DEVICE REGISTERED"},
+	{EvtTypCode: OP_CODE_JOB_ENDED, EvtTypName: "JOB ENDED"},
+	{EvtTypCode: OP_CODE_JOB_START_REQ, EvtTypName: "START JOB REQUESTED"},
+	{EvtTypCode: OP_CODE_JOB_STARTED, EvtTypName: "JOB STARTED"},
+	{EvtTypCode: OP_CODE_JOB_END_REQ, EvtTypName: "END JOB REQUESTED"},
 
-	// 	/*OPERATIONAL ALARM EVENT TYPES 1000 -1999 */
-	// 	{EvtTypCode: 1000, EvtTypName: "ALARM HIGH BATTERY CURRENT"},
-	// 	{EvtTypCode: 1001, EvtTypName: "ALARM LOW BATTERY VOLTAGE"},
-	// 	{EvtTypCode: 1002, EvtTypName: "ALARM HIGH MOTOR CURRENT"},
-	// 	{EvtTypCode: 1003, EvtTypName: "ALARM HIGH PRESSURE"},
-	// 	{EvtTypCode: 1004, EvtTypName: "ALARM HIGH FLOW"},
+	/* ALARM EVENT TYPES 1000 -1999 */
+	{EvtTypCode: STATUS_BAT_HIGH_AMP, EvtTypName: "ALARM HIGH BATTERY CURRENT"},
+	{EvtTypCode: STATUS_BAT_LOW_VOLT, EvtTypName: "ALARM LOW BATTERY VOLTAGE"},
+	{EvtTypCode: STATUS_MOT_HIGH_AMP, EvtTypName: "ALARM HIGH MOTOR CURRENT"},
+	{EvtTypCode: STATUS_MAX_PRESSURE, EvtTypName: "ALARM MAX PRESSURE"},
+	{EvtTypCode: STATUS_HFS_MAX_FLOW, EvtTypName: "ALARM HFS MAX FLOW"},
+	{EvtTypCode: STATUS_HFS_MAX_PRESS, EvtTypName: "ALARM HFS MAX PRESSURE"},
+	{EvtTypCode: STATUS_HFS_MAX_DIFF, EvtTypName: "ALARM HFS MAX DIFF-PRESSURE"},
+	{EvtTypCode: STATUS_LFS_MAX_FLOW, EvtTypName: "ALARM LFS MAX FLOW"},
+	{EvtTypCode: STATUS_LFS_MAX_PRESS, EvtTypName: "ALARM LFS MAX PRESSURE"},
+	{EvtTypCode: STATUS_LFS_MAX_DIFF, EvtTypName: "ALARM LFS MAX DIFF-PRESSURE"},
 
-	// 	/* OPERATIONAL EVENT TYPES 2000 - 2999 */
+	// 	/* ANNOTATION EVENT TYPES 2000 - 65535 */
 	{EvtTypCode: 2000, EvtTypName: "OPERATOR COMMENT"},
-
-	// 	/* REPORTING EVENT TYPES 3000 - 4999 */
-	{EvtTypCode: 3000, EvtTypName: "REPORT COMMENT"},
+	{EvtTypCode: 2001, EvtTypName: "REPORT COMMENT"},
 }

@@ -29,8 +29,8 @@ type Header struct {
 	HdrWellLic   string `gorm:"varchar(32)" json:"hdr_well_lic"`
 
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
-	HdrGeoLng float32 `json:"hdr_geo_lng"`
-	HdrGeoLat float32 `json:"hdr_geo_lat"`
+	HdrGeoLng float64 `json:"hdr_geo_lng"`
+	HdrGeoLat float64 `json:"hdr_geo_lat"`
 
 }
 func WriteHDR(hdr Header, dbc *pkg.DBClient) (err error) {
@@ -67,8 +67,8 @@ func (hdr Header) HeaderToBytes() (out []byte) {
 	out = append(out, pkg.StringToNBytes(hdr.HdrWellBHLoc, 32)...)
 	out = append(out, pkg.StringToNBytes(hdr.HdrWellLic, 32)...)
 
-	out = append(out, pkg.Float32ToBytes(hdr.HdrGeoLng)...)
-	out = append(out, pkg.Float32ToBytes(hdr.HdrGeoLat)...)
+	out = append(out, pkg.Float64ToBytes(hdr.HdrGeoLng)...)
+	out = append(out, pkg.Float64ToBytes(hdr.HdrGeoLat)...)
 
 	return
 }
@@ -91,8 +91,8 @@ func (hdr *Header) HeaderFromBytes(b []byte) {
 		HdrWellBHLoc: pkg.StrBytesToString(b[252:284]),
 		HdrWellLic:   pkg.StrBytesToString(b[284:316]),
 
-		HdrGeoLng: pkg.BytesToFloat32_L(b[316:320]),
-		HdrGeoLat: pkg.BytesToFloat32_L(b[320:324]),
+		HdrGeoLng: pkg.BytesToFloat64_L(b[316:324]),
+		HdrGeoLat: pkg.BytesToFloat64_L(b[324:332]),
 	}
 	//  pkg.Json("(demo *DemoDeviceClient)HeaderFromBytes() -> hdr", hdr)
 	return
@@ -117,8 +117,8 @@ func (hdr *Header) DefaultSettings_Header(reg pkg.DESRegistration) {
 	hdr.HdrWellBHLoc = ""
 	hdr.HdrWellLic = ""
 
-	hdr.HdrGeoLng = reg.DESJobLng // HdrGeoLng: -114.75 + rand.Float32() * ( -110.15 - 114.75 ),
-	hdr.HdrGeoLat = reg.DESJobLat // HdrGeoLat: 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
+	hdr.HdrGeoLng = reg.DESJobLng // HdrGeoLng: -114.75 + rand.Float64() * ( -110.15 - 114.75 ),
+	hdr.HdrGeoLat = reg.DESJobLat // HdrGeoLat: 51.85 + rand.Float64() * ( 54.35 - 51.85 ),
 
 }
 
@@ -211,5 +211,5 @@ func (hdr *Header) Update_DESJobSearch(reg pkg.DESRegistration) {
 
 // type GeoJSONGeometry struct {
 // 	GeomType   string    `json:"type"`
-// 	GeomCoords []float32 `json:"coordinates"`
+// 	GeomCoords []float64 `json:"coordinates"`
 // }
