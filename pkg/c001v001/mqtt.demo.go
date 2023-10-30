@@ -280,13 +280,14 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	go demo.Demo_Simulation(demo.HDR.HdrJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
 	time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 
-	/* ENSURE WE ARE NOT SENDING DATA IF JOB WAS STOPPED BEFORE SERVER RESTART */
-	// pkg.Json("(demo *DemoDeviceClient) DemoDeviceClient_Connect( ) -> demo.DESDev", demo.DESDev)
-	// pkg.Json("(demo *DemoDeviceClient) DemoDeviceClient_Connect( ) -> demo.HDR", demo.HDR)
-	// pkg.Json("(demo *DemoDeviceClient) DemoDeviceClient_Connect( ) -> demo.EVT", demo.EVT)
-	if demo.EVT.EvtCode == STATUS_JOB_ENDED || demo.EVT.EvtCode == STATUS_JOB_END_REQ {
-		demo.EndDemoJob(demo.EVT)
-	}
+	// /* ENSURE WE ARE NOT SENDING DATA IF JOB WAS STOPPED BEFORE SERVER RESTART */
+	// // pkg.Json("(demo *DemoDeviceClient) DemoDeviceClient_Connect( ) -> demo.DESDev", demo.DESDev)
+	// // pkg.Json("(demo *DemoDeviceClient) DemoDeviceClient_Connect( ) -> demo.HDR", demo.HDR)
+	// // pkg.Json("(demo *DemoDeviceClient) DemoDeviceClient_Connect( ) -> demo.EVT", demo.EVT)
+	// if ( demo.EVT.EvtCode == STATUS_JOB_ENDED || demo.EVT.EvtCode == STATUS_JOB_END_REQ ) && 
+	// 	demo.DESJobName != demo.CmdArchiveName( ) {
+	// 	demo.EndDemoJob(demo.EVT)
+	// }
 
 	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
 }

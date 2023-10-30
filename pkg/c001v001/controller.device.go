@@ -737,6 +737,11 @@ func (device *Device) SetAdminRequest(src string) (err error) {
 	adm := device.ADM
 	device.CmdDBC.Create(&adm)
 
+	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
+	if device.DESJobName != device.CmdArchiveName() {
+		device.JobDBC.Create(&adm)
+	}
+
 	/* MQTT PUB CMD: ADM */
 	fmt.Printf("\nHandleSetAdmin( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDAdmin(adm)
@@ -856,6 +861,11 @@ func (device *Device) SetHeaderRequest(src string) (err error) {
 	hdr := device.HDR
 	device.CmdDBC.Create(&hdr)
 
+	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
+	if device.DESJobName != device.CmdArchiveName() {
+		device.JobDBC.Create(&hdr)
+	}
+
 	/* MQTT PUB CMD: HDR */
 	fmt.Printf("\nHandleSetHeader( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDHeader(hdr)
@@ -887,6 +897,11 @@ func (device *Device) SetConfigRequest(src string) (err error) {
 	/* LOG CFG CHANGE REQUEST TO CMDARCHIVE */
 	cfg := device.CFG
 	device.CmdDBC.Create(&cfg)
+
+	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
+	if device.DESJobName != device.CmdArchiveName() {
+		device.JobDBC.Create(&cfg)
+	}
 
 	/* MQTT PUB CMD: CFG */
 	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
