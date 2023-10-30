@@ -579,7 +579,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
 			demo.WriteCfgToFlash(demo.CmdArchiveName(), cfg)
-			cfg_rec := demo.CFG
+			cfg_rec := cfg
 
 			/* UPDATE SOURCE ADDRESS ONLY */
 			cfg.CfgAddr = demo.DESDevSerial
@@ -644,7 +644,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
-			demo.WriteEvtToFlash(demo.CmdArchiveName(), demo.EVT)
+			demo.WriteEvtToFlash(demo.CmdArchiveName(), evt)
 			evt_rec := evt
 
 			/* UPDATE SOURCE ADDRESS ONLY */
