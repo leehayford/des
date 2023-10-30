@@ -289,6 +289,11 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	// 	demo.EndDemoJob(demo.EVT)
 	// }
 
+	if ( demo.EVT.EvtCode > STATUS_JOB_START_REQ )  {
+		go demo.Demo_Simulation(demo.HDR.HdrJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
+		time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
+	}
+
 	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
 }
 func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
