@@ -526,7 +526,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
-			demo.WriteHdrToFlash(demo.CmdArchiveName(), demo.HDR)
+			demo.WriteHdrToFlash(demo.CmdArchiveName(), hdr)
 			hdr_rec := hdr
 
 			/* UPDATE SOURCE ADDRESS ONLY */
@@ -578,7 +578,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
-			demo.WriteCfgToFlash(demo.CmdArchiveName(), demo.CFG)
+			demo.WriteCfgToFlash(demo.CmdArchiveName(), cfg)
 			cfg_rec := demo.CFG
 
 			/* UPDATE SOURCE ADDRESS ONLY */
@@ -705,7 +705,6 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGAdmin(adm Admi
 
 		Topic:   demo.MQTTTopic_SIGAdmin(),
 		Message: pkg.ModelToJSONString(adm),
-		// Message:  pkg.MakeMQTTMessage(adm.FilterAdmRecord()),
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -723,7 +722,6 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGHwID(hw HwID) 
 
 		Topic:   demo.MQTTTopic_SIGHwID(),
 		Message: pkg.ModelToJSONString(hw),
-		// Message:  pkg.MakeMQTTMessage(hw.FilterAdmRecord()),
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -741,7 +739,6 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGHeader(hdr Hea
 
 		Topic:   demo.MQTTTopic_SIGHeader(),
 		Message: pkg.ModelToJSONString(hdr),
-		// Message:  pkg.MakeMQTTMessage(hdr.FilterHdrRecord()),
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -759,7 +756,6 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGConfig(cfg Con
 
 		Topic:   demo.MQTTTopic_SIGConfig(),
 		Message: pkg.ModelToJSONString(cfg),
-		// Message:  pkg.MakeMQTTMessage(cfg.FilterCfgRecord()),
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
