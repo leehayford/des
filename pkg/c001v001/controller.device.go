@@ -735,11 +735,11 @@ func (device *Device) SetAdminRequest(src string) (err error) {
 
 	/* LOG ADM CHANGE REQUEST TO  CMDARCHIVE */
 	adm := device.ADM
-	device.CmdDBC.Create(&adm)
+	WriteADM(adm, &device.CmdDBC)
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
 	if device.DESJobName != device.CmdArchiveName() {
-		device.JobDBC.Create(&adm)
+		WriteADM(adm, &device.JobDBC)
 	}
 
 	/* MQTT PUB CMD: ADM */
@@ -859,11 +859,11 @@ func (device *Device) SetHeaderRequest(src string) (err error) {
 
 	/* LOG HDR CHANGE REQUEST TO CMDARCHIVE */
 	hdr := device.HDR
-	device.CmdDBC.Create(&hdr)
+	WriteHDR(hdr, &device.CmdDBC)
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
 	if device.DESJobName != device.CmdArchiveName() {
-		device.JobDBC.Create(&hdr)
+		WriteHDR(hdr, &device.JobDBC)
 	}
 
 	/* MQTT PUB CMD: HDR */
@@ -896,11 +896,11 @@ func (device *Device) SetConfigRequest(src string) (err error) {
 
 	/* LOG CFG CHANGE REQUEST TO CMDARCHIVE */
 	cfg := device.CFG
-	device.CmdDBC.Create(&cfg)
+	WriteCFG(cfg, &device.CmdDBC)
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
 	if device.DESJobName != device.CmdArchiveName() {
-		device.JobDBC.Create(&cfg)
+		WriteCFG(cfg, &device.JobDBC)
 	}
 
 	/* MQTT PUB CMD: CFG */
@@ -914,3 +914,38 @@ func (device *Device) SetConfigRequest(src string) (err error) {
 }
 
 /* REQUEST THE CURRENT CONFIG FROM THE DEVICE */
+
+/* PREPARE, LOG, AND SEND A SET EVENT REQUEST TO THE DEVICE */
+func (device *Device) CreateEventRequest(src string) (err error) {
+
+	/* SYNC DEVICE WITH DevicesMap */
+	device.GetMappedADM()
+	device.GetMappedHW()  // fmt.Printf("\nCreateEventRequest( ) -> Mapped HW gotten")
+	device.GetMappedHDR() // fmt.Printf("\nCreateEventRequest( ) -> Mapped HDR gotten")
+	device.GetMappedCFG() // fmt.Printf("\nCreateEventRequest( ) -> Mapped CFG gotten")
+	device.GetMappedSMP() // fmt.Printf("\nCreateEventRequest( ) -> Mapped SMP gotten")
+	device.DESMQTTClient = pkg.DESMQTTClient{}
+	device.DESMQTTClient.WG = &sync.WaitGroup{}
+	device.GetMappedClients() // fmt.Printf("\nCreateEventRequest( ) -> Mapped Clients gotten")
+
+	/* LOG EVT CHANGE REQUEST TO  CMDARCHIVE */
+	device.EVT.EvtTime = time.Now().UTC().UnixMilli()
+	device.EVT.EvtAddr = src
+	device.EVT.Validate() // fmt.Printf("\nCreateEventRequest( ) -> EVT Validated")
+	evt := device.EVT
+	WriteEVT(evt, &device.CmdDBC)
+
+	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
+	if device.DESJobName != device.CmdArchiveName() {
+		WriteEVT(evt, &device.JobDBC)
+	}
+
+	/* MQTT PUB CMD: EVT */
+	fmt.Printf("\nHandleSetEvent( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	device.MQTTPublication_DeviceClient_CMDEvent(evt)
+
+	/* UPDATE DevicesMap */
+	UpdateDevicesMap(device.DESDevSerial, *device)
+
+	return
+}

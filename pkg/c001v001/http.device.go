@@ -384,6 +384,48 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 	})
 }
 
+
+/*
+	USED TO CREATE AN EVENT FOR A GIVEN DEVICE, BOTH: 
+	- DURING A JOB AND 
+	- TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. ) 
+*/
+func HandleCreateDeviceEvent(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleCreateDeviceEvent( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to create Events.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleCreateDeviceEvent( ): -> c.BodyParser(&device) -> device.EVT", device.EVT)
+
+	/* SEND CREATE EVENT REQUEST */
+	if err = device.CreateEventRequest(c.IP()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleCreateDeviceEvent( ): -> device.CreateEventRequest(...) -> device.EVT", device.EVT)
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":  "success",
+		"data":    fiber.Map{"device": &device},
+		"message": "C001V001 CREATE EVENT REQUEST sent to device.",
+	})
+}
+
 /* TODO: TEST *** DO NOT USE ***
 	USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
 

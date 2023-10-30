@@ -29,6 +29,7 @@ func WriteEVT(evt Event, dbc *pkg.DBClient) (err error) {
 	dbc.WG.Add(1)
 	evt.EvtID = 0
 	res := dbc.Create(&evt)
+	evt.EvtID = 0
 	dbc.WG.Done()
 
 	return res.Error
@@ -139,12 +140,9 @@ var EVENT_TYPES = []EventTyp{
 	// 	{EvtTypCode: 1003, EvtTypName: "ALARM HIGH PRESSURE"},
 	// 	{EvtTypCode: 1004, EvtTypName: "ALARM HIGH FLOW"},
 
-	// 	/* OPERATIONAL STATUS EVENT TYPES 2000 - 2999 */
-	// 	{EvtTypCode: 2000, EvtTypName: "CONFIGURATION CHANGED"},
-	// 	{EvtTypCode: 2001, EvtTypName: "SHUT-IN PRESSURE STABILIZED"},
-	// 	{EvtTypCode: 2002, EvtTypName: "MODE VENT"},
-	// 	{EvtTypCode: 2003, EvtTypName: "MODE BUILD"},
-	// 	{EvtTypCode: 2004, EvtTypName: "MODE HIGH FLOW"},
-	// 	{EvtTypCode: 2005, EvtTypName: "MODE LOW FLOW"},
+	// 	/* OPERATIONAL EVENT TYPES 2000 - 2999 */
+	{EvtTypCode: 2000, EvtTypName: "OPERATOR COMMENT"},
 
+	// 	/* REPORTING EVENT TYPES 3000 - 4999 */
+	{EvtTypCode: 3000, EvtTypName: "REPORT COMMENT"},
 }

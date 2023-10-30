@@ -237,7 +237,9 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
-			go WriteEVT(evt, &device.CmdDBC)
+			// go WriteEVT(evt, &device.CmdDBC)
+			evt.EvtID = 0
+			go device.CmdDBC.Create(&evt)
 
 			/* CHECK THE RECEIVED EVENT CODE */
 			switch evt.EvtCode {

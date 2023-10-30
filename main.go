@@ -105,6 +105,7 @@ func main() {
 			router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)
 			router.Post("/header", pkg.DesAuth, c001v001.HandleSetHeader)
 			router.Post("/config", pkg.DesAuth, c001v001.HandleSetConfig)
+			router.Post("/event", pkg.DesAuth, c001v001.HandleCreateDeviceEvent)
 			router.Post("/search", pkg.DesAuth, c001v001.HandleSearchDevices)
 			router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
 
