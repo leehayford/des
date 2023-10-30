@@ -80,8 +80,8 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 	fmt.Printf("\n\nMakeDemoC001V001() -> %s... \n", serial)
 
 	t := time.Now().UTC().UnixMilli()
+	
 	/* CREATE DEMO DEVICE */
-
 	des_dev := pkg.DESDev{
 		DESDevRegTime:   t,
 		DESDevRegAddr:   "DEMO",
@@ -276,9 +276,9 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	/* ADD TO DemoDeviceClients MAP */
 	DemoDeviceClients[demo.DESDevSerial] = *demo
 
-	/* RUN THE SIMULATION */
-	go demo.Demo_Simulation(demo.HDR.HdrJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
-	time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
+	// /* RUN THE SIMULATION */
+	// go demo.Demo_Simulation(demo.HDR.HdrJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
+	// time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 
 	// /* ENSURE WE ARE NOT SENDING DATA IF JOB WAS STOPPED BEFORE SERVER RESTART */
 	// // pkg.Json("(demo *DemoDeviceClient) DemoDeviceClient_Connect( ) -> demo.DESDev", demo.DESDev)
