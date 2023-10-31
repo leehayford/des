@@ -16,9 +16,9 @@ type HwID struct {
 	HwApp    string `gorm:"not null; varchar(36)" json:"hw_app"`
 
 	/*DEVICE*/
-	HwSerial  string `gorm:"not null; varchar(10)" json:"adm_serial"`
-	HwVersion string `gorm:"not null; varchar(3)" json:"adm_version"`
-	HwClass   string `gorm:"not null; varchar(3)" json:"adm_class"`
+	HwSerial  string `gorm:"not null; varchar(10)" json:"hw_serial"`
+	HwVersion string `gorm:"not null; varchar(3)" json:"hw_version"`
+	HwClass   string `gorm:"not null; varchar(3)" json:"hw_class"`
 
 	HwLogFw  string `gorm:"not null; varchar(10)" json:"hw_log_fw"`
 	HwModFw  string `gorm:"not null; varchar(10)" json:"hw_mod_fw"`

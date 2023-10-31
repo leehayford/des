@@ -96,7 +96,7 @@ func (evt *Event) Validate() {
 }
 
 type EventTyp struct {
-	EvtTypID   int64  `gorm:"unique; primaryKey" json:"evt_typ_id"`
+	EvtTypID   int64  `gorm:"unique; primaryKey" json:"-"`
 	EvtTypCode int32  `gorm:"unique" json:"evt_typ_code"`
 	EvtTypName string `json:"evt_typ_name"`
 	EvtTypDesc string `json:"evt_typ_desc"`

@@ -53,8 +53,8 @@ type UserResponse struct {
 	Name      string    `json:"name,omitempty"`
 	Email     string    `json:"email,omitempty"`
 	Role      string    `json:"role,omitempty"`
-	Provider  string    `json:"provider"`
-	Photo     string    `json:"photo,omitempty"`
+	// Provider  string    `json:"provider"`
+	// Photo     string    `json:"photo,omitempty"`
 	CreatedAt int64 `json:"created_at"`
 	UpdatedAt int64 `json:"updated_at"`
 }
@@ -65,8 +65,8 @@ func (user *User) FilterUserRecord() UserResponse {
 		Name:      user.Name,
 		Email:     user.Email,
 		Role:      user.Role,
-		Photo:     user.Photo,
-		Provider:  user.Provider,
+		// Photo:     user.Photo,
+		// Provider:  user.Provider,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}
