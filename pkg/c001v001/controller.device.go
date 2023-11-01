@@ -511,6 +511,7 @@ func (device *Device) StartJob(sta State) {
 	job.DESJobRegUserID = sta.StaUserID
 	job.DESJobRegApp = sta.StaApp
 
+	job.DESJobName = sta.StaJobName
 	job.DESJobStart = sta.StaTime
 	job.DESJobEnd = 0
 	job.DESJobDevID = device.DESDevID
