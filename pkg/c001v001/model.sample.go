@@ -110,7 +110,8 @@ type MQTT_Sample struct {
 
 func (smp *Sample) DecodeMQTTSample(b64 string) (err error) {
 
-	bytes := pkg.Base64ToBytes(b64)
+	// bytes := pkg.Base64ToBytes(b64)
+	bytes := pkg.Base64URLToBytes(b64)
 
 	smp.SmpTime = pkg.BytesToInt64(bytes[0:8])
 	smp.SmpCH4 = pkg.BytesToFloat32(bytes[8:12])

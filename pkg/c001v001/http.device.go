@@ -264,9 +264,9 @@ func  HandleGetAdmin(c *fiber.Ctx) (err error) {
 /* TODO: DO NOT USE 
 TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS 
 */
-func  HandleGetHwID(c *fiber.Ctx) (err error) {
+func  HandleGetState(c *fiber.Ctx) (err error) {
 
-	fmt.Printf("\nHandleGetHwID( )\n")
+	fmt.Printf("\nHandleGetState( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
@@ -285,20 +285,20 @@ func  HandleGetHwID(c *fiber.Ctx) (err error) {
 			"message": err.Error(),
 		})
 	} 
-	pkg.Json("HandleGetHwID(): -> c.BodyParser(&device) -> device.HW", device.HW)
+	pkg.Json("HandleGetState(): -> c.BodyParser(&device) -> device.STA", device.STA)
 
-	/* SEND GET HARDWARE ID REQUEST */
+	/* SEND GET STATE REQUEST */
 	if err = device.GetHwIDRequest(c.IP()); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("HandleGetHwID(): -> device.GetHwIDRequest(...) -> device", device)
+	} // pkg.Json("HandleGetState(): -> device.GetStateRequest(...) -> device", device)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
 		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 GET ADMIN Reqest sent to device.",
+		"message": "C001V001 GET STATE Reqest sent to device.",
 	})
 }
 

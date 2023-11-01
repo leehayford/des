@@ -17,7 +17,6 @@ type Header struct {
 	HdrUserID string `gorm:"not null; varchar(36)" json:"hdr_user_id"`
 	HdrApp    string `gorm:"varchar(36)" json:"hdr_app"`
 
-	HdrJobName  string `gorm:"not null; varchar(24)" json:"hdr_job_name"`
 	HdrJobStart int64  `json:"hdr_job_start"`
 	HdrJobEnd   int64  `json:"hdr_job_end"`
 
@@ -57,7 +56,6 @@ func (hdr Header) HeaderToBytes() (out []byte) {
 	out = append(out, pkg.StringToNBytes(hdr.HdrUserID, 36)...)
 	out = append(out, pkg.StringToNBytes(hdr.HdrApp, 36)...)
 
-	out = append(out, pkg.StringToNBytes(hdr.HdrJobName, 24)...)
 	out = append(out, pkg.Int64ToBytes(hdr.HdrJobStart)...)
 	out = append(out, pkg.Int64ToBytes(hdr.HdrJobEnd)...)
 
@@ -81,18 +79,17 @@ func (hdr *Header) HeaderFromBytes(b []byte) {
 		HdrUserID: pkg.StrBytesToString(b[44:80]),
 		HdrApp:    pkg.StrBytesToString(b[80:116]),
 
-		HdrJobName:  pkg.StrBytesToString(b[116:140]),
-		HdrJobStart: pkg.BytesToInt64_L(b[140:148]),
-		HdrJobEnd:   pkg.BytesToInt64_L(b[148:156]),
+		HdrJobStart: pkg.BytesToInt64_L(b[116:124]),
+		HdrJobEnd:   pkg.BytesToInt64_L(b[124:132]),
 
-		HdrWellCo:    pkg.StrBytesToString(b[156:188]),
-		HdrWellName:  pkg.StrBytesToString(b[188:220]),
-		HdrWellSFLoc: pkg.StrBytesToString(b[220:252]),
-		HdrWellBHLoc: pkg.StrBytesToString(b[252:284]),
-		HdrWellLic:   pkg.StrBytesToString(b[284:316]),
+		HdrWellCo:    pkg.StrBytesToString(b[132:164]),
+		HdrWellName:  pkg.StrBytesToString(b[164:196]),
+		HdrWellSFLoc: pkg.StrBytesToString(b[196:228]),
+		HdrWellBHLoc: pkg.StrBytesToString(b[228:260]),
+		HdrWellLic:   pkg.StrBytesToString(b[260:292]),
 
-		HdrGeoLng: pkg.BytesToFloat64_L(b[316:324]),
-		HdrGeoLat: pkg.BytesToFloat64_L(b[324:332]),
+		HdrGeoLng: pkg.BytesToFloat64_L(b[292:300]),
+		HdrGeoLat: pkg.BytesToFloat64_L(b[300:308]),
 	}
 	//  pkg.Json("(demo *DemoDeviceClient)HeaderFromBytes() -> hdr", hdr)
 	return
@@ -107,7 +104,6 @@ func (hdr *Header) DefaultSettings_Header(reg pkg.DESRegistration) {
 	hdr.HdrUserID = reg.DESJobRegUserID
 	hdr.HdrApp = reg.DESJobRegApp
 
-	hdr.HdrJobName = reg.DESJobName
 	hdr.HdrJobStart = 0
 	hdr.HdrJobEnd = 0
 
@@ -132,7 +128,6 @@ func (hdr *Header) Validate() {
 	hdr.HdrUserID = pkg.ValidateStringLength(hdr.HdrUserID, 36)
 	hdr.HdrApp = pkg.ValidateStringLength(hdr.HdrApp, 36)
 	
-	hdr.HdrJobName = pkg.ValidateStringLength(hdr.HdrJobName, 10)
 	hdr.HdrWellCo = pkg.ValidateStringLength(hdr.HdrWellCo, 32)
 	hdr.HdrWellName = pkg.ValidateStringLength(hdr.HdrWellName, 32)
 	hdr.HdrWellSFLoc = pkg.ValidateStringLength(hdr.HdrWellSFLoc, 32)

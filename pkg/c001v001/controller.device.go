@@ -12,13 +12,16 @@ import (
 const DEVICE_CLASS = "001"
 const DEVICE_VERSION = "001"
 
+const DEFAULT_GEO_LNG = -180
+const DEFAULT_GEO_LAT = 90
+
 /* OPERATION CODES ( Event.EvtCode 0 : 999 ) *******************************************************/
 const OP_CODE_DES_REG_REQ int32 = 0    // USER REQUEST -> CHANGE DEVICE'S OPERATIONAL DATA EXCHANGE SERVER
 const OP_CODE_DES_REGISTERED int32 = 1 // DEVICE RESPONSE -> SENT TO NEW DATA EXCHANGE SERVER
 const OP_CODE_JOB_ENDED int32 = 2      // DEVICE RESPONSE -> JOB ENDED
 const OP_CODE_JOB_START_REQ int32 = 3  // USER REQUEST -> START JOB
-const OP_CODE_JOB_STARTED int32 = 4 // DEVICE RESPONSE -> JOB STARTED
-const OP_CODE_JOB_END_REQ int32 = 5 // USER REQUEST -> END JOB
+const OP_CODE_JOB_STARTED int32 = 4    // DEVICE RESPONSE -> JOB STARTED
+const OP_CODE_JOB_END_REQ int32 = 5    // USER REQUEST -> END JOB
 /* END OPERATION CODES  ( Event.EvtCode ) *********************************************************/
 
 /* STATUS CODES ( Event.EvtCode 1000 : 1999 ) *******************************************************/
@@ -32,6 +35,7 @@ const STATUS_HFS_MAX_DIFF int32 = 1006
 const STATUS_LFS_MAX_FLOW int32 = 1007
 const STATUS_LFS_MAX_PRESS int32 = 1008
 const STATUS_LFS_MAX_DIFF int32 = 1009
+
 /* END STATUS CODES ( Event.EvtCode ) **************************************************************/
 
 /* VALVE POSITIONS ***********************************************************************************/
@@ -60,7 +64,7 @@ SEVERAL DEDICATED CONNECTIONS:
 type Device struct {
 	pkg.DESRegistration `json:"reg"` // Contains registration data for both the device and active job
 	ADM                 Admin        `json:"adm"` // Last known Admin value
-	HW                  HwID         `json:"hw"`  // Last known HwID value
+	STA                 State        `json:"sta"` // Last known State value
 	HDR                 Header       `json:"hdr"` // Last known Header value
 	CFG                 Config       `json:"cfg"` // Last known Config value
 	EVT                 Event        `json:"evt"` // Last known Event value
@@ -170,7 +174,7 @@ func (device *Device) DeviceClient_Connect() {
 	}
 
 	device.JobDBC.Last(&device.ADM)
-	device.JobDBC.Last(&device.HW)
+	device.JobDBC.Last(&device.STA)
 	device.JobDBC.Last(&device.HDR)
 	device.JobDBC.Last(&device.CFG)
 	device.JobDBC.Last(&device.SMP)
@@ -255,7 +259,7 @@ func (device *Device) GetMappedADM() {
 /* HYDRATES THE DEVICE'S HwID STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedHW() {
 	d := device.ReadDevicesMap(device.DESDevSerial)
-	device.HW = d.HW
+	device.STA = d.STA
 }
 
 /* HYDRATES THE DEVICE'S HEader STRUCT FROM THE DevicesMap */
@@ -301,10 +305,10 @@ func (device *Device) UpdateMappedADM() {
 	UpdateDevicesMap(device.DESDevSerial, d)
 }
 
-/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT HwID */
+/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT State */
 func (device *Device) UpdateMappedHW() {
 	d := device.ReadDevicesMap(device.DESDevSerial)
-	d.HW = device.HW
+	d.STA = device.STA
 	UpdateDevicesMap(device.DESDevSerial, d)
 }
 
@@ -429,21 +433,22 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.ADM.Validate()
 	// pkg.Json("HandleStartJob(): -> device.ADM", device.ADM)
 
-	device.HW.HwTime = startTime
-	device.HW.HwAddr = src
-	device.HW.HwUserID = device.DESJobRegUserID
-	device.HW.HwApp = device.DESJobRegApp
-	device.HW.HwSerial = device.DESDevSerial
-	device.HW.HwVersion = DEVICE_VERSION
-	device.HW.HwClass = DEVICE_CLASS
-	device.HW.Validate()
-	// pkg.Json("HandleStartJob(): -> device.HW", device.HW)
+	device.STA.StaTime = startTime
+	device.STA.StaAddr = src
+	device.STA.StaUserID = device.DESJobRegUserID
+	device.STA.StaApp = device.DESJobRegApp
+	device.STA.StaSerial = device.DESDevSerial
+	device.STA.StaVersion = DEVICE_VERSION
+	device.STA.StaClass = DEVICE_CLASS
+	device.STA.StaLogging = 0
+	device.STA.StaJobName = device.CmdArchiveName()
+	device.STA.Validate()
+	// pkg.Json("HandleStartJob(): -> device.STA", device.STA)
 
 	device.HDR.HdrTime = startTime
 	device.HDR.HdrAddr = src
 	device.HDR.HdrUserID = device.DESJobRegUserID
 	device.HDR.HdrApp = device.DESJobRegApp
-	device.HDR.HdrJobName = device.CmdArchiveName()
 	device.HDR.HdrJobStart = startTime // This is displays the time/date of the request while pending
 	device.HDR.HdrJobEnd = -1          // This means there is a pending request for the device to start a new job
 	device.HDR.HdrGeoLng = -180
@@ -470,7 +475,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 
 	/* LOG START JOB REQUEST TO CMDARCHIVE */
 	device.CmdDBC.Create(&device.ADM)
-	device.CmdDBC.Create(&device.HW)
+	device.CmdDBC.Create(&device.STA)
 	device.CmdDBC.Create(&device.HDR)
 	device.CmdDBC.Create(&device.CFG)
 	device.CmdDBC.Create(&device.EVT)
@@ -478,7 +483,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	// /* MQTT PUB CMD: ADM, HDR, CFG, EVT */
 	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
-	device.MQTTPublication_DeviceClient_CMDHwID(device.HW)
+	device.MQTTPublication_DeviceClient_CMDState(device.STA)
 	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
 	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
 	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
@@ -490,7 +495,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 }
 
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB STARTED' EVENT FROM THE DEVICE */
-func (device *Device) StartJob(evt Event) {
+func (device *Device) StartJob(sta State) {
 	fmt.Printf("\n(device *Device) StartJob()\n")
 
 	// /* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
@@ -500,18 +505,24 @@ func (device *Device) StartJob(evt Event) {
 	device.JobDBC.Disconnect()
 	hdr := device.HDR
 
-	device.DESJob = pkg.DESJob{
-		DESJobRegTime:   hdr.HdrTime,
-		DESJobRegAddr:   hdr.HdrAddr,
-		DESJobRegUserID: hdr.HdrUserID,
-		DESJobRegApp:    hdr.HdrApp,
+	job := pkg.DESJob{}
+	job.DESJobRegTime = sta.StaTime
+	job.DESJobRegAddr = sta.StaAddr
+	job.DESJobRegUserID = sta.StaUserID
+	job.DESJobRegApp = sta.StaApp
 
-		DESJobName:  hdr.HdrJobName,
-		DESJobStart: hdr.HdrJobStart,
-		DESJobEnd:   0,
-		DESJobLng:   hdr.HdrGeoLng,
-		DESJobLat:   hdr.HdrGeoLat,
-		DESJobDevID: device.DESDevID,
+	job.DESJobStart = sta.StaTime
+	job.DESJobEnd = 0
+	job.DESJobDevID = device.DESDevID
+
+	if hdr.HdrTime != sta.StaTime {
+		/* Header WAS NOT RECEIVED */
+		fmt.Printf("\n(device *Device) StartJob() -> Header WAS NOT RECEIVED\n")
+		job.DESJobLng = DEFAULT_GEO_LNG
+		job.DESJobLat = DEFAULT_GEO_LAT
+		/*
+			TODO: SEND LOCATION REQUEST
+		*/
 	}
 
 	fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n")
@@ -542,7 +553,7 @@ func (device *Device) StartJob(evt Event) {
 			/* CREATE JOB DB TABLES */
 			if err := device.JobDBC.Migrator().CreateTable(
 				&Admin{},
-				&HwID{},
+				&State{},
 				&Header{},
 				&Config{},
 				&EventTyp{},
@@ -562,7 +573,7 @@ func (device *Device) StartJob(evt Event) {
 	if err := WriteADM(device.ADM, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := WriteHW(device.HW, &device.JobDBC); err != nil {
+	if err := WriteSTA(sta, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
 	if err := WriteHDR(hdr, &device.JobDBC); err != nil {
@@ -572,17 +583,17 @@ func (device *Device) StartJob(evt Event) {
 	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
-	if err := WriteEVT(evt, &device.JobDBC); err != nil {
+	if err := WriteEVT(device.EVT, &device.JobDBC); err != nil {
 		pkg.TraceErr(err)
 	}
 
 	/* WAIT FOR PENDING MQTT MESSAGES TO COMPLETE */
 	device.DESMQTTClient.WG.Wait()
 
-	/* UPDATE THE DEVICE EVENT CODE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB
+	/* UPDATE THE DEVICE STATE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB
 	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
 	*/
-	device.EVT = evt
+	device.STA = sta
 
 	/* UPDATE THE DEVICES CLIENT MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
@@ -648,7 +659,7 @@ func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
 }
 
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
-func (device *Device) EndJob(evt Event) {
+func (device *Device) EndJob(sta State) {
 
 	// /* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
 	// device.DESMQTTClient.WG.Wait()
@@ -667,23 +678,22 @@ func (device *Device) EndJob(evt Event) {
 	// }
 	// fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
 
-	/* WRITE END JOB REQUEST EVENT AS RECEIVED TO JOB */
-	WriteEVT(evt, &device.JobDBC)
-	// device.JobDBC.Write(evt)
+	/* WRITE END JOB STATE AS RECEIVED TO JOB */
+	WriteSTA(sta, &device.JobDBC)
 
 	/* UPDATE THE DEVICE EVENT CODE, DISABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB	*/
-	device.EVT = evt
+	device.STA = sta
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 
 	jobName := device.DESJobName
 	/* CLOSE DES JOB */
-	device.DESJob.DESJobRegTime = evt.EvtTime
-	device.DESJob.DESJobRegAddr = evt.EvtAddr
-	device.DESJob.DESJobRegUserID = evt.EvtUserID
-	device.DESJob.DESJobRegApp = evt.EvtApp
-	device.DESJob.DESJobEnd = evt.EvtTime
+	device.DESJob.DESJobRegTime = sta.StaTime
+	device.DESJob.DESJobRegAddr = sta.StaAddr
+	device.DESJob.DESJobRegUserID = sta.StaUserID
+	device.DESJob.DESJobRegApp = sta.StaApp
+	device.DESJob.DESJobEnd = sta.StaTime
 	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", jobName)
 	pkg.DES.DB.Save(device.DESJob)
 
@@ -692,9 +702,9 @@ func (device *Device) EndJob(evt Event) {
 	/* UPDATE DES CMDARCHIVE */
 	cmd := device.GetCmdArchiveDESRegistration()
 	cmd.DESJobRegTime = time.Now().UTC().UnixMilli() // WE WANT THIS TO BE THE LATEST
-	cmd.DESJobRegAddr = evt.EvtAddr
-	cmd.DESJobRegUserID = evt.EvtUserID
-	cmd.DESJobRegApp = evt.EvtApp
+	cmd.DESJobRegAddr = sta.StaAddr
+	cmd.DESJobRegUserID = sta.StaUserID
+	cmd.DESJobRegApp = sta.StaApp
 	cmd.DESJob.DESJobEnd = 0 // ENSURE THE DEVICE IS DISCOVERABLE
 	pkg.DES.DB.Save(cmd.DESJob)
 
@@ -806,15 +816,15 @@ func (device *Device) GetAdminRequest(src string) (err error) {
 	return
 }
 
-/* REQUEST THE CURRENT HARDWARE ID FROM THE DEVICE */
+/* REQUEST THE CURRENT STATE FROM THE DEVICE */
 func (device *Device) GetHwIDRequest(src string) (err error) {
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedADM()
 	device.GetMappedHDR()
-	device.HW.HwTime = time.Now().UTC().UnixMilli()
-	device.HW.HwAddr = src
-	device.HW.Validate()
+	device.STA.StaTime = time.Now().UTC().UnixMilli()
+	device.STA.StaAddr = src
+	device.STA.Validate()
 	device.GetMappedCFG()
 	device.GetMappedEVT()
 	device.GetMappedSMP()
@@ -824,7 +834,7 @@ func (device *Device) GetHwIDRequest(src string) (err error) {
 
 	/* MQTT PUB CMD: HARDWARE ID */
 	fmt.Printf("\nGetHwIDRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDHwID(device.HW)
+	device.MQTTPublication_DeviceClient_CMDState(device.STA)
 
 	/* TODO: DO NOT USE
 	TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS

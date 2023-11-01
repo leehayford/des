@@ -13,7 +13,8 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
-/* MQTT DEVICE USER CLIENT
+/*
+	MQTT DEVICE USER CLIENT
 
 SUBSCRIBES TO ALL SIGNALS FOR A SINGLE DEVICE
   - SENDS LIVE DATA TO A SINGLE USER WSMessage
@@ -23,8 +24,8 @@ type DeviceUserClient struct {
 	WSClientID string
 	pkg.DESMQTTClient
 	DataOut chan string
-	Close chan struct{}
-	Kill chan struct{}
+	Close   chan struct{}
+	Kill    chan struct{}
 }
 
 type WSMessage struct {
@@ -33,9 +34,10 @@ type WSMessage struct {
 }
 
 type AuthResponse struct {
-	Status string 	`json:"status"`
+	Status  string `json:"status"`
 	Message string `json:"message"`
 }
+
 func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	fmt.Printf("\nWSDeviceUserClient_Connect( )\n")
 
@@ -51,7 +53,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 		if err != nil {
 			pkg.TraceErr(err)
 			return
-		} 
+		}
 		c.Conn.WriteJSON(string(js))
 		return
 	}
@@ -66,7 +68,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	des_reg.DESJobRegAddr = c.RemoteAddr().String()
 
 	wscid := fmt.Sprintf("%d-%s",
-		time.Now().UTC().UnixMilli() / 10,
+		time.Now().UTC().UnixMilli()/10,
 		des_reg.DESDevSerial,
 	) // fmt.Printf("WSDeviceUserClient_Connect -> wscid: %s\n", wscid)
 
@@ -109,11 +111,11 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 		for live {
 			select {
 
-			case <- duc.Kill:
+			case <-duc.Kill:
 				live = false
 
 			default:
-				time.Sleep(time.Second * 30) 
+				time.Sleep(time.Second * 30)
 				js, err := json.Marshal(&WSMessage{Type: "live", Data: ""})
 				if err != nil {
 					pkg.TraceErr(err)
@@ -129,11 +131,11 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	for open {
 		select {
 
-		case <- duc.Close:
+		case <-duc.Close:
 			duc.Kill <- struct{}{}
 			open = false
 
-		case data := <- duc.DataOut:
+		case data := <-duc.DataOut:
 			if err := c.WriteJSON(data); err != nil {
 				pkg.TraceErr(err)
 				duc.MQTTDeviceUserClient_Disconnect()
@@ -147,7 +149,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 
 	close(duc.Kill)
 	duc.Kill = nil
-	
+
 	close(duc.DataOut)
 	duc.DataOut = nil
 
@@ -172,7 +174,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 	// duc.DESMQTTClient.ClientOptions.ClientID)
 
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().Sub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_SIGHwID().Sub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_SIGState().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGHeader().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGConfig().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().Sub(duc.DESMQTTClient)
@@ -186,7 +188,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_SIGHwID().UnSub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_SIGState().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGHeader().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGConfig().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().UnSub(duc.DESMQTTClient)
@@ -229,24 +231,24 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 }
 
 /* SUBSCRIPTIONS -> HARDWARE ID  */
-func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHwID() pkg.MQTTSubscription {
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGState() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
-		Topic: duc.MQTTTopic_SIGHwID(),
+		Topic: duc.MQTTTopic_SIGState(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			/* DECODE MESSAGE PAYLOAD TO HwID STRUCT */
-			hw := HwID{}
-			if err := json.Unmarshal(msg.Payload(), &hw); err != nil {
+			/* DECODE MESSAGE PAYLOAD TO State STRUCT */
+			sta := State{}
+			if err := json.Unmarshal(msg.Payload(), &sta); err != nil {
 				pkg.TraceErr(err)
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "hwid", Data: hw})
+			js, err := json.Marshal(&WSMessage{Type: "state", Data: sta})
 			if err != nil {
 				pkg.TraceErr(err)
-			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGHwID(...) -> hw :", hw)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGState(...) -> sta :", sta)
 
 			/* SEND WSMessage AS JSON STRING */
 			duc.DataOut <- string(js)
@@ -363,7 +365,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 				js, err := json.Marshal(&WSMessage{Type: "sample", Data: sample})
 				if err != nil {
 					pkg.TraceErr(err)
-				} else { 
+				} else {
 					// pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)
 					/* SEND WSMessage AS JSON STRING */
 					duc.DataOut <- string(js)
@@ -388,6 +390,6 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGDiagSample() p
 }
 
 /* PUBLICATIONS ******************************************************************************************/
-/* NONE; WE DON'T DO THAT; 
-ALL COMMANDS SENT TO THE DEVICE GO THROUGH HTTP HANDLERS 
+/* NONE; WE DON'T DO THAT;
+ALL COMMANDS SENT TO THE DEVICE GO THROUGH HTTP HANDLERS
 */

@@ -108,14 +108,23 @@ func BytesToFloat64_L(bytes []byte) float64 {
 
 
 func BytesToBase64(bytes []byte) string {
-	// usage := BytesToBase64([]byte("whatever"))
 	str := base64.StdEncoding.EncodeToString(bytes)
-	// fmt.Println(str)
 	return str
 }
 func Base64ToBytes(b64 string) []byte {
-	// usage := Base64ToBytes("FFFFFFFF")
 	bytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return bytes
+}
+
+func BytesToBase64URL(bytes []byte) string {
+	str := base64.URLEncoding.EncodeToString(bytes)
+	return str
+}
+func Base64URLToBytes(b64 string) []byte {
+	bytes, err := base64.URLEncoding.DecodeString(b64)
 	if err != nil {
 		fmt.Println(err)
 	}
