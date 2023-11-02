@@ -839,7 +839,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.ADM.AdmApp = evt.EvtApp
 
 	/* CREATE A LOCAL STATE VARIABLE TO AVOID ALTERING LOGGING MODE PREMATURELY */
-	sta := State{}
+	sta := demo.STA
 	sta.StaTime = startTime
 	sta.StaAddr = demo.DESDevSerial
 	sta.StaUserID = evt.EvtUserID
