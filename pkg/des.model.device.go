@@ -29,6 +29,11 @@ type DESDev struct {
 	DESJobs []DESJob `gorm:"foreignKey:DESJobDevID" json:"-"`
 	User User `gorm:"foreignKey:DESDevRegUserID" json:"-"`
 }
+func WriteDESDevice(device DESDev) (err error) {
+	device.DESDevID = 0
+	res := DES.DB.Create(&device)
+	return res.Error
+}
 
 
 func GetDesDevList(devices *[]DESDev) (err error) {

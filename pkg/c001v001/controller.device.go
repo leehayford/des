@@ -496,7 +496,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB STARTED' EVENT FROM THE DEVICE */
 func (device *Device) StartJob(sta State) {
-	fmt.Printf("\n(device *Device) StartJob()\n")
+	fmt.Printf("\n(device *Device) StartJob() -> sta:\n%v\n", sta)
 
 	// /* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
 	// device.DESMQTTClient.WG.Wait()
@@ -505,31 +505,34 @@ func (device *Device) StartJob(sta State) {
 	device.JobDBC.Disconnect()
 	hdr := device.HDR
 
-	job := pkg.DESJob{}
-	job.DESJobRegTime = sta.StaTime
-	job.DESJobRegAddr = sta.StaAddr
-	job.DESJobRegUserID = sta.StaUserID
-	job.DESJobRegApp = sta.StaApp
+	device.DESJobRegTime = sta.StaTime
+	device.DESJobRegAddr = sta.StaAddr
+	device.DESJobRegUserID = sta.StaUserID
+	device.DESJobRegApp = sta.StaApp
 
-	job.DESJobName = sta.StaJobName
-	job.DESJobStart = sta.StaTime
-	job.DESJobEnd = 0
-	job.DESJobDevID = device.DESDevID
+	device.DESJobName = sta.StaJobName
+	device.DESJobStart = sta.StaTime
+	device.DESJobEnd = 0
+	device.DESJobDevID = device.DESDevID
 
+	/* GET LOCATION DATA */
 	if hdr.HdrTime != sta.StaTime {
 		/* Header WAS NOT RECEIVED */
 		fmt.Printf("\n(device *Device) StartJob() -> Header WAS NOT RECEIVED\n")
-		job.DESJobLng = DEFAULT_GEO_LNG
-		job.DESJobLat = DEFAULT_GEO_LAT
+		device.DESJobLng = DEFAULT_GEO_LNG
+		device.DESJobLat = DEFAULT_GEO_LAT
 		/*
 			TODO: SEND LOCATION REQUEST
 		*/
 	}
 
-	fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n")
+	fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n%v\n", device.DESJob)
 	/* CREATE A JOB RECORD IN THE DES DATABASE */
-	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
-		pkg.TraceErr(res.Error)
+	// if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
+	// 	pkg.TraceErr(res.Error)
+	// }
+	if err := pkg.WriteDESJob(&device.DESJob); err != nil {
+		pkg.TraceErr(err)
 	}
 
 	/* CREATE DESJobSearch RECORD */
@@ -643,11 +646,8 @@ func (device *Device) EndJobRequest(src string) (err error) {
 	return
 }
 
-/*
-HEADER - UPDATE DESJobSearch
-*/
+/* HEADER - UPDATE DESJobSearch */
 func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
-
 	s := pkg.DESJobSearch{}
 	if res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s); res.Error != nil {
 		pkg.TraceErr(res.Error)
@@ -690,13 +690,14 @@ func (device *Device) EndJob(sta State) {
 
 	jobName := device.DESJobName
 	/* CLOSE DES JOB */
-	device.DESJob.DESJobRegTime = sta.StaTime
-	device.DESJob.DESJobRegAddr = sta.StaAddr
-	device.DESJob.DESJobRegUserID = sta.StaUserID
-	device.DESJob.DESJobRegApp = sta.StaApp
-	device.DESJob.DESJobEnd = sta.StaTime
-	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\n", jobName)
+	device.DESJobRegTime = sta.StaTime
+	device.DESJobRegAddr = sta.StaAddr
+	device.DESJobRegUserID = sta.StaUserID
+	device.DESJobRegApp = sta.StaApp
+	device.DESJobEnd = sta.StaTime
+	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\nDESJobID: %d\n", jobName, device.DESJobID)
 	pkg.DES.DB.Save(device.DESJob)
+	fmt.Printf("\n(device *Device) EndJob( ) %s ENDED\n", jobName)
 
 	device.Update_DESJobSearch(device.DESRegistration)
 
@@ -707,7 +708,9 @@ func (device *Device) EndJob(sta State) {
 	cmd.DESJobRegUserID = sta.StaUserID
 	cmd.DESJobRegApp = sta.StaApp
 	cmd.DESJob.DESJobEnd = 0 // ENSURE THE DEVICE IS DISCOVERABLE
+	fmt.Printf("\n(device *Device) EndJob( ) UPDATING CMDARCHIVE\ncmd.DESJobID: %d\v", cmd.DESJobID)
 	pkg.DES.DB.Save(cmd.DESJob)
+	fmt.Printf("\n(device *Device) EndJob( ) CMDARCHIVE UPDATED\n")
 
 	/* ENSURE WE CATCH STRAY SAMPLES IN THE CMDARCHIVE */
 	device.DESJob = cmd.DESJob
@@ -818,7 +821,7 @@ func (device *Device) GetAdminRequest(src string) (err error) {
 }
 
 /* REQUEST THE CURRENT STATE FROM THE DEVICE */
-func (device *Device) GetHwIDRequest(src string) (err error) {
+func (device *Device) GetStateRequest(src string) (err error) {
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedADM()

@@ -8,11 +8,13 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
-/* NOT TESTED
-	RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
+/*
+	NOT TESTED
 
-	ALONG WITH THE ACTIVE JOB FOR EACH DEVICE
-	IN THE FORM OF A DESRegistration
+RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
+
+ALONG WITH THE ACTIVE JOB FOR EACH DEVICE
+IN THE FORM OF A DESRegistration
 */
 func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
@@ -220,10 +222,13 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 		"message": "C001V001 SET ADMIN Reqest sent to device.",
 	})
 }
-/* TODO: DO NOT USE 
-TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS 
+
+/*
+	TODO: DO NOT USE
+
+TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS
 */
-func  HandleGetAdmin(c *fiber.Ctx) (err error) {
+func HandleGetAdmin(c *fiber.Ctx) (err error) {
 
 	fmt.Printf("\nHandleGetAdmin( )\n")
 
@@ -243,7 +248,7 @@ func  HandleGetAdmin(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} 
+	}
 	pkg.Json("HandleGetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
 
 	/* SEND GET ADMIN REQUEST */
@@ -261,10 +266,12 @@ func  HandleGetAdmin(c *fiber.Ctx) (err error) {
 	})
 }
 
-/* TODO: DO NOT USE 
-TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS 
+/*
+	TODO: DO NOT USE
+
+TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS
 */
-func  HandleGetState(c *fiber.Ctx) (err error) {
+func HandleGetState(c *fiber.Ctx) (err error) {
 
 	fmt.Printf("\nHandleGetState( )\n")
 
@@ -284,11 +291,11 @@ func  HandleGetState(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} 
+	}
 	pkg.Json("HandleGetState(): -> c.BodyParser(&device) -> device.STA", device.STA)
 
 	/* SEND GET STATE REQUEST */
-	if err = device.GetHwIDRequest(c.IP()); err != nil {
+	if err = device.GetStateRequest(c.IP()); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
@@ -334,7 +341,7 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}  // pkg.Json("HandleSetHeader(): -> device.SetHeaderRequest(...) -> device.HDR", device.HDR)
+	} // pkg.Json("HandleSetHeader(): -> device.SetHeaderRequest(...) -> device.HDR", device.HDR)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
@@ -384,11 +391,10 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 	})
 }
 
-
 /*
-	USED TO CREATE AN EVENT FOR A GIVEN DEVICE, BOTH: 
-	- DURING A JOB AND 
-	- TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. ) 
+USED TO CREATE AN EVENT FOR A GIVEN DEVICE, BOTH:
+- DURING A JOB AND
+- TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. )
 */
 func HandleCreateDeviceEvent(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleCreateDeviceEvent( )\n")

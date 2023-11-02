@@ -823,7 +823,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 		DESJobName:  fmt.Sprintf("%s_%d", demo.DESDevSerial, startTime),
 		DESJobStart: startTime,
 		DESJobEnd:   0,
-		DESJobLng:   -114.75 + rand.Float64()*(-110.15+114.75),
+		DESJobLng:  -114.75 + rand.Float64()*(-110.15+114.75),
 		DESJobLat:   51.85 + rand.Float64()*(54.35-51.85),
 		DESJobDevID: demo.DESDevID,
 	}
@@ -838,6 +838,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.ADM.AdmUserID = evt.EvtUserID
 	demo.ADM.AdmApp = evt.EvtApp
 
+	/* CREATE A LOCAL STATE VARIABLE TO AVOID ALTERING LOGGING MODE PREMATURELY */
 	sta := State{}
 	sta.StaTime = startTime
 	sta.StaAddr = demo.DESDevSerial
@@ -846,7 +847,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	sta.StaLogFw = "0.0.009"
 	sta.StaModFw = "0.0.007"
 	sta.StaLogging = 1
-	sta.StaJobName = fmt.Sprintf("%s_%d", demo.DESDevSerial, startTime)
+	sta.StaJobName = demo.DESJobName
 
 	/* WHERE JOB START HEADER WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.HDR.HdrTime != evt.EvtTime {
@@ -859,10 +860,11 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	demo.HDR.HdrApp = evt.EvtApp
 	demo.HDR.HdrJobStart = startTime
 	demo.HDR.HdrJobEnd = 0
-	demo.HDR.HdrGeoLng = -114.75 + rand.Float64()*(-110.15+114.75)
-	demo.HDR.HdrGeoLat = 51.85 + rand.Float64()*(54.35-51.85)
-	if demo.HDR.HdrWellName == "" {
-		demo.HDR.HdrWellName = demo.STA.StaJobName
+	demo.HDR.HdrGeoLng = demo.DESJobLng
+	demo.HDR.HdrGeoLat = demo.DESJobLat
+	fmt.Printf("(demo *DemoDeviceClient) Check Well Name -> %s\n", demo.HDR.HdrWellName)
+	if demo.HDR.HdrWellName == "" || demo.HDR.HdrWellName == demo.CmdArchiveName() {
+		demo.HDR.HdrWellName = sta.StaJobName
 	}
 
 	/* WHERE JOB START CONFIG WAS NOT RECEIVED, USE DEFAULT VALUES */

@@ -32,3 +32,8 @@ type DESJob struct {
 	DESDev DESDev `gorm:"foreignKey:DESJobDevID" json:"-"`
 	User   User   `gorm:"foreignKey:DESJobRegUserID" json:"-"`
 }
+func WriteDESJob(job *DESJob) (err error) {
+	job.DESJobID = 0
+	res := DES.DB.Create(&job)
+	return res.Error
+}
