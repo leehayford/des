@@ -126,6 +126,7 @@ func main() {
 			router.Get("/event/list", c001v001.HandleGetEventTypeLists)
 			
 			router.Get("/list", pkg.DesAuth, c001v001.HandleGetJobList)
+			router.Post("/data", pkg.DesAuth, c001v001.HandleGetJobData)
 		})
 
 	}

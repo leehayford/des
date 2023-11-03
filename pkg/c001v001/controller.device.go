@@ -516,7 +516,10 @@ func (device *Device) StartJob(sta State) {
 	device.DESJobDevID = device.DESDevID
 
 	/* GET LOCATION DATA */
-	if hdr.HdrTime != sta.StaTime {
+	if hdr.HdrTime == sta.StaTime {
+		device.DESJobLng = device.HDR.HdrGeoLng
+		device.DESJobLat = device.HDR.HdrGeoLat
+	} else {
 		/* Header WAS NOT RECEIVED */
 		fmt.Printf("\n(device *Device) StartJob() -> Header WAS NOT RECEIVED\n")
 		device.DESJobLng = DEFAULT_GEO_LNG
@@ -643,20 +646,7 @@ func (device *Device) EndJobRequest(src string) (err error) {
 
 	/* UPDATE THE DEVICES CLIENT MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
-	return
-}
-
-/* HEADER - UPDATE DESJobSearch */
-func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
-	s := pkg.DESJobSearch{}
-	if res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s); res.Error != nil {
-		pkg.TraceErr(res.Error)
-	}
-	s.DESJobJson = pkg.ModelToJSONString(device)
-
-	if res := pkg.DES.DB.Save(&s); res.Error != nil {
-		pkg.TraceErr(res.Error)
-	}
+	return err
 }
 
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
@@ -732,6 +722,22 @@ func (device *Device) EndJob(sta State) {
 	UpdateDevicesMap(device.DESDevSerial, *device)
 
 	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", jobName)
+}
+
+
+/* HEADER - UPDATE DESJobSearch */
+func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
+	s := pkg.DESJobSearch{}
+
+	res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s) 
+	if res.Error != nil {
+		pkg.TraceErr(res.Error)
+	}
+
+	s.DESJobJson = pkg.ModelToJSONString(device)
+	if res := pkg.DES.DB.Save(&s); res.Error != nil {
+		pkg.TraceErr(res.Error)
+	}
 }
 
 /* SET / GET JOB PARAMS *********************************************************************************/

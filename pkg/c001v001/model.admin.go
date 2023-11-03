@@ -217,7 +217,7 @@ func (adm *Admin) Validate() {
 	adm.AdmUserID = pkg.ValidateStringLength(adm.AdmUserID, 36)
 	adm.AdmApp = pkg.ValidateStringLength(adm.AdmApp, 36)
 
-	adm.AdmDefHost = pkg.ValidateStringLength(adm.AdmApp, 32)
-	adm.AdmOpHost = pkg.ValidateStringLength(adm.AdmApp, 32)
+	adm.AdmDefHost = pkg.ValidateStringLength(adm.AdmDefHost, 32)
+	adm.AdmOpHost = pkg.ValidateStringLength(adm.AdmOpHost, 32)
 
 }
