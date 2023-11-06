@@ -2,6 +2,7 @@ package c001v001
 
 import (
 	// "encoding/json"
+	"fmt"
 
 	"github.com/leehayford/des/pkg"
 )
@@ -110,8 +111,14 @@ type MQTT_Sample struct {
 
 func (smp *Sample) DecodeMQTTSample(b64 string) (err error) {
 
-	// bytes := pkg.Base64ToBytes(b64)
-	bytes := pkg.Base64URLToBytes(b64)
+	bytes, err := pkg.Base64URLToBytes(b64)
+	if err != nil {
+		return pkg.TraceErr(err)
+	}
+
+	if len(bytes) != 40 {
+		return fmt.Errorf("DecodeMQTTSample: Expected 40 bytes; received %d", len(bytes))
+	}
 
 	smp.SmpTime = pkg.BytesToInt64_L(bytes[0:8])
 	smp.SmpCH4 = pkg.BytesToFloat32_L(bytes[8:12])

@@ -127,15 +127,15 @@ func Base64ToBytes(b64 string) []byte {
 }
 
 func BytesToBase64URL(bytes []byte) string {
-	str := base64.URLEncoding.EncodeToString(bytes)
+	str := base64.URLEncoding.WithPadding(-1).EncodeToString(bytes)
 	return str
 }
-func Base64URLToBytes(b64 string) []byte {
-	bytes, err := base64.URLEncoding.DecodeString(b64)
+func Base64URLToBytes(b64 string) (bytes []byte, err error) {
+	bytes, err = base64.URLEncoding.WithPadding(-1).DecodeString(b64)
 	if err != nil {
 		fmt.Println(err)
 	}
-	return bytes
+	return bytes, err
 }
 
 func Int64ToBytes(in int64) []byte {
