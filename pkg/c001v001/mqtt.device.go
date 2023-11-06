@@ -282,17 +282,29 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 
 			/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
 			smp := &Sample{SmpJobName: mqtts.DesJobName}
-			/* TODO: CHECK SAMPLE JOB NAME & MAKE DATABASE IF IT DOES NOT EXIST */
+			
+			/* TODO: CHECK SAMPLE JOB NAME & MAKE DATABASE IF IT DOES NOT EXIST 
+				DEVICE HAS STARTED A JOB WITHOUT THE DES KNOWING ABOUT IT:
+				- CALL START JOB
+				- REQUEST LAST: ADM, STA, HDR, CFG, EVT
+			*/
 
 			/* DECODE BASE64URL STRING ( DATA ) */
 			if err := smp.DecodeMQTTSample(mqtts.Data); err != nil {
 				pkg.TraceErr(err)
 			}
 
-			/* WRITE TO JOB DATABASE REGARDLESS OF WHETHER WE ARE LOGGING 
-			TODO: CHECK SAMPLE JOB NAME & MAKE DATABASE IF IT DOES NOT EXIST
-			*/
-			go WriteSMP(*smp, &device.JobDBC)
+			/* DECIDE WHAT TO DO BASED ON LAST STATE */
+			if device.STA.StaLogging == 1 {
+
+				/* WRITE TO JOB DATABASE  */
+				go WriteSMP(*smp, &device.JobDBC)
+
+			} else {
+
+				/* WRITE TO JOB CMDARCHIVE */
+				go WriteSMP(*smp, &device.CmdDBC)
+			}
 
 			device.SMP = *smp
 
