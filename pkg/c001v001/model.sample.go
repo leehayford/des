@@ -116,8 +116,9 @@ func (smp *Sample) DecodeMQTTSample(b64 string) (err error) {
 		return pkg.TraceErr(err)
 	}
 
-	if len(bytes) != 40 {
-		return fmt.Errorf("DecodeMQTTSample: Expected 40 bytes; received %d", len(bytes))
+	expected := 40
+	if len(bytes) != expected {
+		return fmt.Errorf("DecodeMQTTSample: Expected %d bytes; received %d", expected, len(bytes))
 	}
 
 	smp.SmpTime = pkg.BytesToInt64_L(bytes[0:8])
