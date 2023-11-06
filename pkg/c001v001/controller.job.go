@@ -89,6 +89,38 @@ func (job *Job) GetJobData() (err error) {
 }
 
 
+
+/* RUNS AUTOMATICALLY WHEN A JOB HAS ENDED */
+func (job *Job) CreateDefaultReport(end_evt Event) {
+
+	/* GET START & END OF JOB */
+	start := job.DESJobStart
+	end := job.DESJobEnd
+	
+	rep := &Report{}
+	rep.RepUserID = end_evt.EvtUserID 
+	rep.CreateReport(job)
+
+	sec := &RepSection{}
+	sec.SecUserID = end_evt.EvtUserID
+	sec.CreateRepSection(rep, start, end, "Basic")
+	
+	
+
+	// for _, evt := range job.Events {
+
+	// }
+
+	// for _, cfg := range job.Configs {
+
+	// }
+
+}
+
+
+
+
+
 /* NOT CURRENTLY IN USE... */
 func (job *Job) GetJobData_Limited(limit int) (err error) {
 	db := job.JDB()

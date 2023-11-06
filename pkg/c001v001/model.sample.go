@@ -10,8 +10,8 @@ import (
 SAMPLE - AS WRITTEN TO JOB DATABASE
 */
 type Sample struct {
-	SmpID int64 `gorm:"unique; primaryKey" json:"-"`	
-	
+	SmpID int64 `gorm:"unique; primaryKey" json:"-"`
+
 	SmpTime    int64   `gorm:"not null" json:"smp_time"`
 	SmpCH4     float32 `json:"smp_ch4"`
 	SmpHiFlow  float32 `json:"smp_hi_flow"`
@@ -24,14 +24,15 @@ type Sample struct {
 	SmpVlvPos  uint32  `json:"smp_vlv_pos"`
 	SmpJobName string  `json:"smp_job_name"`
 }
+
 func WriteSMP(smp Sample, dbc *pkg.DBClient) (err error) {
 
-	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
-		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
+	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
 	dbc.WG.Add(1)
 	smp.SmpID = 0
-	res := dbc.Create(&smp) 
+	res := dbc.Create(&smp)
 	dbc.WG.Done()
 
 	return res.Error
@@ -58,21 +59,20 @@ func (smp *Sample) SampleToBytes() (out []byte) {
 func (smp *Sample) SampleFromBytes(bytes []byte) {
 
 	smp = &Sample{
-		SmpTime: pkg.BytesToInt64(bytes[0:8]),
-		SmpCH4: pkg.BytesToFloat32(bytes[8:12]),
-		SmpHiFlow: pkg.BytesToFloat32(bytes[12:16]),
-		SmpLoFlow: pkg.BytesToFloat32(bytes[16:20]),
-		SmpPress: pkg.BytesToFloat32(bytes[20:24]),
-		SmpBatAmp: pkg.BytesToFloat32(bytes[24:28]),
-		SmpBatVolt: pkg.BytesToFloat32(bytes[28:32]),
-		SmpMotVolt: pkg.BytesToFloat32(bytes[32:36]),
-		SmpVlvTgt: pkg.BytesToUInt32(bytes[36:38]),
-		SmpVlvPos: pkg.BytesToUInt32(bytes[38:40]),
+		SmpTime:    pkg.BytesToInt64_L(bytes[0:8]),
+		SmpCH4:     pkg.BytesToFloat32_L(bytes[8:12]),
+		SmpHiFlow:  pkg.BytesToFloat32_L(bytes[12:16]),
+		SmpLoFlow:  pkg.BytesToFloat32_L(bytes[16:20]),
+		SmpPress:   pkg.BytesToFloat32_L(bytes[20:24]),
+		SmpBatAmp:  pkg.BytesToFloat32_L(bytes[24:28]),
+		SmpBatVolt: pkg.BytesToFloat32_L(bytes[28:32]),
+		SmpMotVolt: pkg.BytesToFloat32_B(bytes[32:36]),
+		SmpVlvTgt:  pkg.BytesToUInt32_L(bytes[36:38]),
+		SmpVlvPos:  pkg.BytesToUInt32_L(bytes[38:40]),
 	}
 	// pkg.Json("(smp *Sample) SampleFromBytes(...) ->  smp:", smp)
 	return
 }
-
 
 /*
 SAMPLE - MQTT MESSAGE STRUCTURE
@@ -113,16 +113,16 @@ func (smp *Sample) DecodeMQTTSample(b64 string) (err error) {
 	// bytes := pkg.Base64ToBytes(b64)
 	bytes := pkg.Base64URLToBytes(b64)
 
-	smp.SmpTime = pkg.BytesToInt64(bytes[0:8])
-	smp.SmpCH4 = pkg.BytesToFloat32(bytes[8:12])
-	smp.SmpHiFlow = pkg.BytesToFloat32(bytes[12:16])
-	smp.SmpLoFlow = pkg.BytesToFloat32(bytes[16:20])
-	smp.SmpPress = pkg.BytesToFloat32(bytes[20:24])
-	smp.SmpBatAmp = pkg.BytesToFloat32(bytes[24:28])
-	smp.SmpBatVolt = pkg.BytesToFloat32(bytes[28:32])
-	smp.SmpMotVolt = pkg.BytesToFloat32(bytes[32:36])
-	smp.SmpVlvTgt = pkg.BytesToUInt32(bytes[36:38])
-	smp.SmpVlvPos = pkg.BytesToUInt32(bytes[38:40])
+	smp.SmpTime = pkg.BytesToInt64_L(bytes[0:8])
+	smp.SmpCH4 = pkg.BytesToFloat32_L(bytes[8:12])
+	smp.SmpHiFlow = pkg.BytesToFloat32_L(bytes[12:16])
+	smp.SmpLoFlow = pkg.BytesToFloat32_L(bytes[16:20])
+	smp.SmpPress = pkg.BytesToFloat32_L(bytes[20:24])
+	smp.SmpBatAmp = pkg.BytesToFloat32_L(bytes[24:28])
+	smp.SmpBatVolt = pkg.BytesToFloat32_L(bytes[28:32])
+	smp.SmpMotVolt = pkg.BytesToFloat32_L(bytes[32:36])
+	smp.SmpVlvTgt = pkg.BytesToUInt32_L(bytes[36:38])
+	smp.SmpVlvPos = pkg.BytesToUInt32_L(bytes[38:40])
 
 	// pkg.Json("DecodeMQTTSampleData(...) ->  smp:", smp)
 

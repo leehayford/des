@@ -823,7 +823,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 		DESJobName:  fmt.Sprintf("%s_%d", demo.DESDevSerial, startTime),
 		DESJobStart: startTime,
 		DESJobEnd:   0,
-		DESJobLng:  -114.75 + rand.Float64()*(-110.15+114.75),
+		DESJobLng:   -114.75 + rand.Float64()*(-110.15+114.75),
 		DESJobLat:   51.85 + rand.Float64()*(54.35-51.85),
 		DESJobDevID: demo.DESDevID,
 	}
@@ -1154,16 +1154,16 @@ func Demo_EncodeMQTTSampleMessage(job string, i int, smp Sample) MQTT_Sample {
 	var vp int16 = int16(data[8].Data[i].Y) // fmt.Printf("Target V:\t%d\n", vp)
 
 	var hex []byte
-	hex = append(hex, pkg.GetBytes(x)...)
-	hex = append(hex, pkg.GetBytes(ch)...)
-	hex = append(hex, pkg.GetBytes(hf)...)
-	hex = append(hex, pkg.GetBytes(lf)...)
-	hex = append(hex, pkg.GetBytes(p)...)
-	hex = append(hex, pkg.GetBytes(bc)...)
-	hex = append(hex, pkg.GetBytes(bv)...)
-	hex = append(hex, pkg.GetBytes(mv)...)
-	hex = append(hex, pkg.GetBytes(vt)...)
-	hex = append(hex, pkg.GetBytes(vp)...)
+	hex = append(hex, pkg.GetBytes_B(x)...)
+	hex = append(hex, pkg.GetBytes_B(ch)...)
+	hex = append(hex, pkg.GetBytes_B(hf)...)
+	hex = append(hex, pkg.GetBytes_B(lf)...)
+	hex = append(hex, pkg.GetBytes_B(p)...)
+	hex = append(hex, pkg.GetBytes_B(bc)...)
+	hex = append(hex, pkg.GetBytes_B(bv)...)
+	hex = append(hex, pkg.GetBytes_B(mv)...)
+	hex = append(hex, pkg.GetBytes_B(vt)...)
+	hex = append(hex, pkg.GetBytes_B(vp)...)
 	// fmt.Printf("Hex:\t%X\n", hex)
 
 	// b64 := pkg.BytesToBase64(hex)
@@ -1252,14 +1252,16 @@ func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
 	return float32(a * (math.Cos(dt*freq+(freq/shift)) + 1))
 }
 
-
 /* JSON FILES ***********************************************************************************/
 
-/* CONVERTS MODEL TO JSON STRING AND WRITES TO ~/jobName/fileName.json 
-PREPENDS COMMA AFTER FIRST ENTRY */
+/*
+	CONVERTS MODEL TO JSON STRING AND WRITES TO ~/jobName/fileName.json
+
+PREPENDS COMMA AFTER FIRST ENTRY
+*/
 func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error) {
 
-	js := pkg.ModelToJSONString(mod) 
+	js := pkg.ModelToJSONString(mod)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
@@ -1274,10 +1276,10 @@ func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error
 
 	/* PREPEND A COMMA IF THIS IS NOT THE FIRST OBJECT IN THE FILE */
 	fi, _ := f.Stat()
-	if( fi.Size() > 0 ) { 
+	if fi.Size() > 0 {
 		js = fmt.Sprintf(",%s", js)
 	}
-	
+
 	_, err = f.WriteString(js)
 	if err != nil {
 		return pkg.TraceErr(err)
@@ -1289,30 +1291,28 @@ func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error
 
 /* ADM DEMO MEMORY -> JSON*/
 func (demo DemoDeviceClient) WriteAdmToFlash(jobName string, adm Admin) (err error) {
-	return WriteModelToFlashJSON(jobName, "adm",adm)
+	return WriteModelToFlashJSON(jobName, "adm", adm)
 }
 
 /* STA DEMO MEMORY -> JSON */
 func (demo DemoDeviceClient) WriteStateToFlash(jobName string, sta State) (err error) {
-	return WriteModelToFlashJSON(jobName, "sta",sta)
+	return WriteModelToFlashJSON(jobName, "sta", sta)
 }
 
 /* HDR DEMO MEMORY -> JSON */
 func (demo *DemoDeviceClient) WriteHdrToFlash(jobName string, hdr Header) (err error) {
-	return WriteModelToFlashJSON(jobName, "hdr",hdr)
+	return WriteModelToFlashJSON(jobName, "hdr", hdr)
 }
 
 /* CFG DEMO MEMORY -> JSON */
 func (demo *DemoDeviceClient) WriteCfgToFlash(jobName string, cfg Config) (err error) {
-	return WriteModelToFlashJSON(jobName, "cfg",cfg)
+	return WriteModelToFlashJSON(jobName, "cfg", cfg)
 }
 
 /* EVT DEMO MEMORY -> JSON */
 func (demo *DemoDeviceClient) WriteEvtToFlash(jobName string, evt Event) (err error) {
-	return WriteModelToFlashJSON(jobName, "evt",evt)
+	return WriteModelToFlashJSON(jobName, "evt", evt)
 }
-
-
 
 /* BIN FILES *************************************************************************************/
 
@@ -1371,7 +1371,7 @@ func (demo *DemoDeviceClient) ReadLastAdmFromFlashHex(jobName string, adm *Admin
 	if err != nil {
 		return
 	}
-	b := buf[len(buf)-272 : ]
+	b := buf[len(buf)-272:]
 	// fmt.Printf("\nadmBytes ( %d ) : %v\n", len(b), b)
 	adm.AdminFromBytes(b)
 	return
@@ -1388,7 +1388,7 @@ func (demo *DemoDeviceClient) ReadLastStateFromFlashHex(jobName string, sta *Sta
 	if err != nil {
 		return
 	}
-	b := buf[len(buf)-180 : ]
+	b := buf[len(buf)-180:]
 	// fmt.Printf("\nstaBytes ( %d ) : %v\n", len(b), b)
 	sta.StateFromBytes(b)
 	return
@@ -1396,7 +1396,7 @@ func (demo *DemoDeviceClient) ReadLastStateFromFlashHex(jobName string, sta *Sta
 
 /* HDR DEMO MEMORY -> 308 BYTES -> HxD 44 x 7 */
 func (demo *DemoDeviceClient) WriteHdrToFlashHex(jobName string, hdr Header) (err error) {
-	buf := hdr.HeaderToBytes()	// fmt.Printf("\nhdrBytes ( %d ) : %x\n", len(buf), buf)
+	buf := hdr.HeaderToBytes() // fmt.Printf("\nhdrBytes ( %d ) : %x\n", len(buf), buf)
 	return WriteModelBytesToFlashHEX(jobName, "adm", buf)
 }
 func (demo *DemoDeviceClient) ReadLastHdrFromFlashHex(jobName string, hdr *Header) (err error) {
@@ -1405,7 +1405,7 @@ func (demo *DemoDeviceClient) ReadLastHdrFromFlashHex(jobName string, hdr *Heade
 	if err != nil {
 		return
 	}
-	b := buf[len(buf)-308 : ]
+	b := buf[len(buf)-308:]
 	// fmt.Printf("\nhdrBytes ( %d ) : %v\n", len(b), b)
 	hdr.HeaderFromBytes(b)
 	return
@@ -1422,7 +1422,7 @@ func (demo *DemoDeviceClient) ReadLastCfgFromFlashHex(jobName string, cfg *Confi
 	if err != nil {
 		return
 	}
-	b := buf[len(buf)-172 : ]
+	b := buf[len(buf)-172:]
 	// fmt.Printf("\ncfgBytes ( %d ) : %v\n", len(b), b)
 	cfg.ConfigFromBytes(b)
 	return
@@ -1430,7 +1430,7 @@ func (demo *DemoDeviceClient) ReadLastCfgFromFlashHex(jobName string, cfg *Confi
 
 /* EVT DEMO MEMORY -> 668 BYTES -> HxD 167 x 4  */
 func (demo *DemoDeviceClient) WriteEvtToFlashHex(jobName string, evt Event) (err error) {
-	buf := evt.EventToBytes()// fmt.Printf("\nevtBytes ( %d ) : %x\n", len(buf), buf)
+	buf := evt.EventToBytes() // fmt.Printf("\nevtBytes ( %d ) : %x\n", len(buf), buf)
 	return WriteModelBytesToFlashHEX(jobName, "adm", buf)
 }
 func (demo *DemoDeviceClient) ReadLastEvtFromFlashHex(jobName string, evt *Event) (err error) {
@@ -1439,7 +1439,7 @@ func (demo *DemoDeviceClient) ReadLastEvtFromFlashHex(jobName string, evt *Event
 	if err != nil {
 		return
 	}
-	b := buf[len(buf)-668 : ]
+	b := buf[len(buf)-668:]
 	// fmt.Printf("\nevtBytes ( %d ) : %v\n", len(b), b)
 	evt.EventFromBytes(b)
 	return

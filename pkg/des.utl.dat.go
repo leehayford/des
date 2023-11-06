@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -29,7 +28,7 @@ import (
 )
 
 /*BYTES OUTPUT*/
-func GetBytes(v any) []byte {
+func GetBytes_B(v any) []byte {
 	var buffer bytes.Buffer
 	err := binary.Write(&buffer, binary.BigEndian, v)
 	if err != nil {
@@ -37,9 +36,18 @@ func GetBytes(v any) []byte {
 	}
 	return buffer.Bytes()
 }
+func GetBytes_L(v any) []byte {
+	var buffer bytes.Buffer
+	err := binary.Write(&buffer, binary.LittleEndian, v)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return buffer.Bytes()
+}
+
 
 /*BYTES INPUT*/
-func BytesToUInt16(bytes []byte) uint16 {
+func BytesToUInt16_B(bytes []byte) uint16 {
 	x := make([]byte, 2)
 	i := len(x) - len(bytes)
 	n := len(bytes) - 1
@@ -61,7 +69,7 @@ func BytesToUInt16_L(bytes []byte) uint16 {
 	return binary.LittleEndian.Uint16(x)
 }
 
-func BytesToUInt32(bytes []byte) uint32 {
+func BytesToUInt32_B(bytes []byte) uint32 {
 	x := make([]byte, 4)
 	i := len(x) - len(bytes)
 	n := len(bytes) - 1
@@ -86,7 +94,7 @@ func BytesToInt32_L(bytes []byte) int32 {
 	return int32(BytesToUInt32_L(bytes))
 }
 
-func BytesToInt64(bytes []byte) int64 {
+func BytesToInt64_B(bytes []byte) int64 {
 	return int64(binary.BigEndian.Uint64(bytes))
 }
 func BytesToInt64_L(bytes []byte) int64 {
@@ -96,8 +104,8 @@ func BytesToUint64_L(bytes []byte) uint64 {
 	return binary.LittleEndian.Uint64(bytes)
 }
 
-func BytesToFloat32(bytes []byte) float32 {
-	return math.Float32frombits(BytesToUInt32(bytes))
+func BytesToFloat32_B(bytes []byte) float32 {
+	return math.Float32frombits(BytesToUInt32_B(bytes))
 }
 func BytesToFloat32_L(bytes []byte) float32 {
 	return math.Float32frombits(BytesToUInt32_L(bytes))
@@ -105,7 +113,6 @@ func BytesToFloat32_L(bytes []byte) float32 {
 func BytesToFloat64_L(bytes []byte) float64 {
 	return math.Float64frombits(BytesToUint64_L(bytes))
 }
-
 
 func BytesToBase64(bytes []byte) string {
 	str := base64.StdEncoding.EncodeToString(bytes)
@@ -184,6 +191,7 @@ func StrBytesToString(b []byte) (out string) {
 	}
 	return
 }
+
 /* STRING INPUT */
 func StringToNBytes(str string, size int) []byte {
 
@@ -192,20 +200,20 @@ func StringToNBytes(str string, size int) []byte {
 
 	if l == size {
 		/* bin ALREADY THE RIGHT SIZE, SHIP IT */
-		return bin 
+		return bin
 	}
 	if l > size {
-		/* bin TOO BIG, RETURN THE LAST 'size' BYTES 
-			WE COULD RETURN THE FIRST 'size' BYTES...
+		/* bin TOO BIG, RETURN THE LAST 'size' BYTES
+		WE COULD RETURN THE FIRST 'size' BYTES...
 		*/
-		return bin[l-size:] 
+		return bin[l-size:]
 	}
 
 	/* bin TOO SMALL*/
-	
+
 	/* FILL BUFFER WITH 'size' SPACES */
 	out := bytes.Repeat([]byte{0x20}, size)
-	
+
 	/* WRITE 'bin TO THE START OF THE BUFFER */
 	copy(out[:l], bin)
 
@@ -216,7 +224,7 @@ func ValidateStringLength(str string, size int) (out string) {
 
 	if len(str) > size {
 		/* str TOO BIG, RETURN THE  FIRST 'size' CHARS... */
-		return str[:size] 
+		return str[:size]
 	}
 	/* str ALREADY THE RIGHT SIZE, SHIP IT */
 	return str

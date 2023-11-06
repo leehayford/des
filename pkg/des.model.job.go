@@ -37,3 +37,4 @@ func WriteDESJob(job *DESJob) (err error) {
 	res := DES.DB.Create(&job)
 	return res.Error
 }
+
