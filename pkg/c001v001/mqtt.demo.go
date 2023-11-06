@@ -1166,13 +1166,12 @@ func Demo_EncodeMQTTSampleMessage(job string, i int, smp Sample) MQTT_Sample {
 	hex = append(hex, pkg.GetBytes_L(vp)...)
 	// fmt.Printf("Hex:\t%X\n", hex)
 
-	// b64 := pkg.BytesToBase64(hex)
-	b64 := pkg.BytesToBase64URL(hex)
-	// fmt.Printf("Base64:\t%s\n\n", b64)
+	b64url := pkg.BytesToBase64URL(hex)
+	// fmt.Printf("Base64URL:\t%s\n\n", b64url)
 
 	msg := MQTT_Sample{
 		DesJobName: job,
-		Data:       []string{b64},
+		Data:   b64url,
 	}
 
 	return msg

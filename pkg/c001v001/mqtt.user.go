@@ -345,32 +345,31 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 		Qos:   0,
 		Topic: duc.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			/* DECODE MESSAGE PAYLOAD TO MQTT_Sample STRUCT */
+			
+			/* DECODE THE PAYLOAD INTO AN MQTT_Sample */
 			mqtts := MQTT_Sample{}
 			if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
 				pkg.TraceErr(err)
-			} // pkg.Json("DecodeMQTTSampleMessage(...) ->  msg :", msg)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample(...) ->  mqtts :", mqtts) 
 
-			/* SAMPLE MESSAGES MAY CONTAIN MANY SAMPLES */
-			for _, b64 := range mqtts.Data {
+			/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
+			smp := &Sample{SmpJobName: mqtts.DesJobName}
 
-				/* DECODE BASE 64 STRING TO Sample */
-				sample := &Sample{SmpJobName: mqtts.DesJobName}
-				if err := sample.DecodeMQTTSample(b64); err != nil {
-					pkg.TraceErr(err)
-				}
-
-				/* CREATE JSON WSMessage STRUCT */
-				js, err := json.Marshal(&WSMessage{Type: "sample", Data: sample})
-				if err != nil {
-					pkg.TraceErr(err)
-				} else {
-					// pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)
-					/* SEND WSMessage AS JSON STRING */
-					duc.DataOut <- string(js)
-				}
+			/* DECODE BASE64URL STRING ( DATA ) */
+			if err := smp.DecodeMQTTSample(mqtts.Data); err != nil {
+				pkg.TraceErr(err)
 			}
+
+			/* CREATE JSON WSMessage STRUCT */
+			js, err := json.Marshal(&WSMessage{Type: "sample", Data: smp})
+			if err != nil {
+				pkg.TraceErr(err)
+			} else {
+				// pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)
+				/* SEND WSMessage AS JSON STRING */
+				duc.DataOut <- string(js)
+			}
+
 		},
 	}
 }

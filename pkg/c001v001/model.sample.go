@@ -79,7 +79,7 @@ SAMPLE - MQTT MESSAGE STRUCTURE
 */
 type MQTT_Sample struct {
 	DesJobName string   `json:"des_job_name"`
-	Data       []string `json:"data"`
+	Data       string `json:"data"`
 }
 
 // func (job *Job) WriteMQTTSample(msg []byte, smp Sample) (err error) {

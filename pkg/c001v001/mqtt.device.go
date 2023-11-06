@@ -273,36 +273,26 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			device.DESMQTTClient.WG.Add(1)
-			smp := &Sample{}
+			
+			/* DECODE THE PAYLOAD INTO AN MQTT_Sample */
+			mqtts := MQTT_Sample{}
+			if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
+				pkg.TraceErr(err)
+			} // pkg.Json("MQTTSubscription_DeviceClient_SIGSample(...) ->  mqtts :", mqtts)
 
-			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging == 1 {
+			/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
+			smp := &Sample{SmpJobName: mqtts.DesJobName}
+			/* TODO: CHECK SAMPLE JOB NAME & MAKE DATABASE IF IT DOES NOT EXIST */
 
-				// Decode the payload into an MQTTSampleMessage
-				mqtts := MQTT_Sample{}
-				if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
-					pkg.TraceErr(err)
-				} // pkg.Json("DecodeMQTTSampleMessage(...) ->  msg :", msg)
-
-				for _, b64 := range mqtts.Data {
-
-					// Decode base64 string
-					smp.SmpJobName = mqtts.DesJobName
-					if err := smp.DecodeMQTTSample(b64); err != nil {
-						pkg.TraceErr(err)
-					}
-
-					/* TODO: ADD BULK INSERT ( WRITE ALL SAMPLES IN ONE TRANSACTION ) */
-					// // Write the Sample to the job database
-					// go device.JobDBC.Write(device.SMP)
-
-				}
-
-				/* TODO: ADD BULK INSERT ( WRITE ALL SAMPLES IN ONE TRANSACTION ) */
-				// Write the Sample to the job database
-				go WriteSMP(*smp, &device.JobDBC)
-
+			/* DECODE BASE64URL STRING ( DATA ) */
+			if err := smp.DecodeMQTTSample(mqtts.Data); err != nil {
+				pkg.TraceErr(err)
 			}
+
+			/* WRITE TO JOB DATABASE REGARDLESS OF WHETHER WE ARE LOGGING 
+			TODO: CHECK SAMPLE JOB NAME & MAKE DATABASE IF IT DOES NOT EXIST
+			*/
+			go WriteSMP(*smp, &device.JobDBC)
 
 			device.SMP = *smp
 
