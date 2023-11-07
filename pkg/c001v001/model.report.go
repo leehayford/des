@@ -175,7 +175,7 @@ type SecAnnotation struct {
 	AnnPlot  bool    `json:"ann_plot"`
 
 	AnnEvtID int64	`json:"ann_evt_id"` 
-	AnnEvt Event `gorm:"foreignKey:EvtID; references:AnnEvtID" json:"evt"`
+	AnnEvt Event `gorm:"foreignKey:AnnEvtID; references:EvtID" json:"evt"`
 }
 func (job *Job) CreateSecAnnotation(sec *RepSection) (ann *SecAnnotation, err error) {
 
