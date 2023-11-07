@@ -127,6 +127,7 @@ func main() {
 			
 			router.Get("/list", pkg.DesAuth, c001v001.HandleGetJobList)
 			router.Post("/data", pkg.DesAuth, c001v001.HandleGetJobData)
+			router.Post("/new_report", pkg.DesAuth, c001v001.HandleCreateReport)
 		})
 
 	}

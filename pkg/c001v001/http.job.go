@@ -96,3 +96,48 @@ func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
 		"data":    fiber.Map{"event_types": EVENT_TYPES},
 	})
 }
+
+/*
+	CREATES A REPORT INSTANCE IN THE REQUESTED JOB DB 
+	RETURNS THE REPORT
+*/
+func HandleCreateReport(c *fiber.Ctx) (err error) {
+
+	fmt.Printf("\nHandleCreateReport( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to create a report",
+		})
+	}
+
+	rep := &Report{}
+	if err = c.BodyParser(rep); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}  // pkg.Json("HandleCreateReport(): -> c.BodyParser(&rep) -> rep", rep)
+
+	job := &Job{DESRegistration: rep.DESRegistration}
+	// pkg.Json("HandleCreateReport(): job", job)
+
+	// scls := &SecScales{}
+	// if err = scls.AutoScaleSection(job, job.DESJobStart, job.DESJobEnd); err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	// 		"status":  "fail",
+	// 		"message": err.Error(),
+	// 	})
+	// } // pkg.Json("AutoScaleSection(): SecScales", scls)
+
+	job.CreateDefaultReport(rep)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "You are a tolerable person!",
+		"data":    fiber.Map{"report": rep},
+	})
+}

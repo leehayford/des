@@ -18,7 +18,7 @@ type Event struct {
 	EvtCode  int32    `json:"evt_code"`
 	EvtTitle string   `gorm:"varchar(36)" json:"evt_title"`
 	EvtMsg   string   `gorm:"varchar(128)" json:"evt_msg"`
-	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:evt_typ_code" json:"-"`
+	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:EvtTypCode" json:"-"`
 }
 
 func WriteEVT(evt Event, dbc *pkg.DBClient) (err error) {

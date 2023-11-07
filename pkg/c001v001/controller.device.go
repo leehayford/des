@@ -563,9 +563,13 @@ func (device *Device) StartJob(sta State) {
 				&State{},
 				&Header{},
 				&Config{},
+				&Sample{},
+				&Report{},
+				&RepSection{},
+				&SecDataset{},
+				&SecAnnotation{},
 				&EventTyp{},
 				&Event{},
-				&Sample{},
 			); err != nil {
 				pkg.TraceErr(err)
 			}
