@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/leehayford/des/pkg"
+	"gorm.io/gorm/clause"
 )
 
 type Job struct {
@@ -62,7 +63,7 @@ func (job *Job) GetJobData() (err error) {
 	db.Connect()
 	defer db.Disconnect()
 	db.Select("*").Table("admins").Order("adm_time ASC").Scan(&job.Admins)
-	db.Select("*").Table("states").Order("adm_time ASC").Scan(&job.States)
+	db.Select("*").Table("states").Order("sta_time ASC").Scan(&job.States)
 	db.Select("*").Table("headers").Order("hdr_time ASC").Scan(&job.Headers)
 	db.Select("*").Table("configs").Order("cfg_time ASC").Scan(&job.Configs)
 	db.Select("*").Table("events").Order("evt_time ASC").Scan(&job.Events)
@@ -70,7 +71,8 @@ func (job *Job) GetJobData() (err error) {
 	for _, smp := range job.Samples {
 		job.XYPoints.AppendXYSample(smp)
 	}
-	db.Select("*").Table("reports").Order("rep_created ASC").Scan(&job.Reports)
+	// db.Select("*").Table("reports").Order("rep_created ASC").Scan(&job.Reports)
+	db.Preload("RepSecs.SecDats").Preload(clause.Associations).Find(&job.Reports)
 	db.Disconnect()
 	// pkg.Json("GetJobData(): job.Headers", job.Headers)
 	return
@@ -84,7 +86,9 @@ func (job *Job) CreateDefaultReport(rep *Report) {
 	/* GET START & END OF JOB */
 	start := job.DESJobStart
 	
+	job.GetJobData()
 	rep.CreateReport(job)
+	// pkg.Json("CreateDefaultReport( ): -> rep ", rep)
 
 	buildCount := 0
 	ventCount := 0
@@ -93,6 +97,7 @@ func (job *Job) CreateDefaultReport(rep *Report) {
 	secStart := start
 	secName := "Job Start"
 	curCFG := job.Configs[0]
+	pkg.Json("CreateDefaultReport( ): -> curCFG ", curCFG)
 
 	/* CREATE SECTIONS BY CFG */
 	for _, cfg := range job.Configs {
@@ -131,9 +136,9 @@ func (job *Job) CreateDefaultReport(rep *Report) {
 			
 			/* UPDATE START TIME AND CURRENT MODE */
 			secStart = cfg.CfgTime
-			curCFG = cfg
 		}
 
+		curCFG = cfg
 	}
 
 
@@ -157,7 +162,11 @@ func (job *Job) CreateBuildUpSection(rep *Report, start, end int64, name string,
 	scls := &SecScales{}
 	scls.AutoScaleSection(job, start, end)
 
-	/* CALCULATE SSP */
+	/* CALCULATE SSP 
+		GET SSP START / END
+		CREATE EVENT / ANNOTATION SSP START
+		CREATE EVENT / ANNOTATION SSP END
+	*/
 
 }
 
@@ -172,8 +181,52 @@ func (job *Job) CreateVentSection(rep *Report, start, end int64, name string, cf
 	/* ADD DATASETS */
 	scls := &SecScales{}
 	scls.AutoScaleSection(job, start, end)
+
+	ch4, err := job.CreateSecDataset(sec, true, false, "y_ch4", scls.MinCH4, scls.MaxCH4)
+	if err != nil {
+		pkg.TraceErr(err)
+	}
+	pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> ch4 ", ch4)
 	
-	/* CALCULATE SCVF */
+	hf, err := job.CreateSecDataset(sec, true, false, "y_hi_flow", scls.MinHF, scls.MaxHF)
+	if err != nil {
+		pkg.TraceErr(err)
+	}
+	pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> hf ", hf)
+	
+	lf, err := job.CreateSecDataset(sec, true, false, "y_lo_flow", scls.MinLF, scls.MaxLF)
+	if err != nil {
+		pkg.TraceErr(err)
+	}
+	pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> lf ", lf)
+
+	p, err := job.CreateSecDataset(sec, true, false, "y_press", scls.MinPress, scls.MaxPress)
+	if err != nil {
+		pkg.TraceErr(err)
+	}
+	pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> p ", p)
+
+	ba, err := job.CreateSecDataset(sec, true, false, "y_bat_amp", scls.MinBatAmp, scls.MaxBatAmp)
+	if err != nil {
+		pkg.TraceErr(err)
+	}
+	pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> ba ", ba)
+
+
+	bv, err := job.CreateSecDataset(sec, true, false, "y_bat_volt", scls.MinBatVolt, scls.MaxBatVolt)
+	if err != nil {
+		pkg.TraceErr(err)
+	}
+	pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> bv ", bv)
+
+
+	mv, err := job.CreateSecDataset(sec, true, false, "y_mot_volt", scls.MinMotVolt, scls.MaxMotVolt)
+	if err != nil {
+		pkg.TraceErr(err)
+	}
+	pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> mv ", mv)
+
+
 }
 
 func (job *Job) CreateFlowSection(rep *Report, start, end int64, name string, cfg Config) {
@@ -247,9 +300,12 @@ func (job *Job) CreateFlowSection(rep *Report, start, end int64, name string, cf
 	pkg.Json("CreateFlowSection( ): -> SecDataset -> p ", p)
 	/* WRITE TO DB */
 
-	/* CALCULATE SCVF */
+	/* CALCULATE SCVF 
+		GET SCVF START / END
+		CREATE EVENT / ANNOTATION SCVF START
+		CREATE EVENT / ANNOTATION SCVF END
+	*/
 
-	
 }
 
 

@@ -17,9 +17,8 @@ type Report struct {
 	RepModified   int64  `gorm:"autoUpdateTime:milli" json:"rep_modified"`
 
 	RepTitle string `json:"rep_title"`
-	RepSecs []RepSection `gorm:"foreignKey:SecID" json:"rep_secs"`
+	RepSecs []RepSection `gorm:"foreignKey:SecRepID" json:"rep_secs"`
 
-	// RepJobID int64  `json:"rep_job_id"` // DES Job ID
 	pkg.DESRegistration `gorm:"-" json:"reg"`
 }
 func (rep *Report) CreateReport(job *Job) {
@@ -27,12 +26,13 @@ func (rep *Report) CreateReport(job *Job) {
 		rep.RepTitle = fmt.Sprintf("%s-%d", job.DESJobName, time.Now().UTC().UnixMilli())
 	}
 
-	/* WRITE TO JOB DB ( ??? WRITE TO DES DB ??? ) */
+	/* WRITE TO JOB DB */
 	db := job.JDB()
 	db.Connect()
 	defer db.Disconnect()
-	db.Create(rep)
-
+	db.Create(&rep)
+	db.Disconnect()
+	// pkg.Json("CreateReport( ): -> rep ", rep)
 }
 
 /* CALC STRUCTURE - NOT WRITTEN TO DB */
@@ -133,13 +133,25 @@ type RepSection struct {
 	SecEnd   int64  `gorm:"not null" json:"sec_end"`
 	SecName  string `json:"sec_name"`
 
-	SecDats []SecDataset `gorm:"foreignKey:DatID" json:"sec_dats"`
-	SecAnns []SecAnnotation `gorm:"foreignKey:AnnID" json:"sec_anns"`
+	SecDats []SecDataset `gorm:"foreignKey:DatSecID" json:"sec_dats"`
+	SecAnns []SecAnnotation `gorm:"foreignKey:AnnSecID" json:"sec_anns"`
 }
 func (job *Job) CreateRepSection(rep *Report, start, end int64, name string) (sec *RepSection, err error){	
 	
-	sec.SecRepID = rep.RepID
+	sec = &RepSection{}
 	sec.SecUserID = rep.RepUserID
+	sec.SecRepID = rep.RepID
+	sec.SecStart = start
+	sec.SecEnd = end
+	sec.SecName = name
+	
+	db := job.JDB()
+	db.Connect()
+	defer db.Disconnect()
+	db.Create(&sec)
+	db.Disconnect()
+	// pkg.Json("CreateRepSection( ): -> sec ", sec)
+
 
 	return
 }
@@ -157,10 +169,24 @@ type SecDataset struct {
 	DatYMin  float32 `json:"dat_y_min"`
 	DatYMax  float32 `json:"dat_y_max"`
 }
-func (job *Job) CreateSecDataset(sec *RepSection, ymin, ymax float32) (dat *SecDataset, err error) {
+func (job *Job) CreateSecDataset(sec *RepSection, csv, plot bool, yaxis string, ymin, ymax float32) (dat *SecDataset, err error) {
 
+	dat = &SecDataset{}
+	dat.DatUserID = sec.SecUserID
 	dat.DatSecID = sec.SecID
+	dat.DatCSV = csv
+	dat.DatPlot = plot
+	dat.DatYAxis = yaxis
+	dat.DatYMin = ymin
+	dat.DatYMax = ymax
 	
+	db := job.JDB()
+	db.Connect()
+	defer db.Disconnect()
+	db.Create(&dat)
+	db.Disconnect()
+	// pkg.Json("CreateSecDataset( ): -> dat ", dat)
+
 	return
 }
 
@@ -177,9 +203,21 @@ type SecAnnotation struct {
 	AnnEvtID int64	`json:"ann_evt_id"` 
 	AnnEvt Event `gorm:"foreignKey:AnnEvtID; references:EvtID" json:"evt"`
 }
-func (job *Job) CreateSecAnnotation(sec *RepSection) (ann *SecAnnotation, err error) {
+func (job *Job) CreateSecAnnotation(sec *RepSection, csv, plot bool, evt Event) (ann *SecAnnotation, err error) {
 
+	ann = &SecAnnotation{}
+	ann.AnnUserID = sec.SecUserID
 	ann.AnnSecID = sec.SecID
+	ann.AnnCSV = csv
+	ann.AnnPlot = plot
+	ann.AnnEvtID = evt.EvtID
+	
+	db := job.JDB()
+	db.Connect()
+	defer db.Disconnect()
+	db.Create(&ann)
+	db.Disconnect()
+	// pkg.Json("CreateSecAnnotation( ): -> ann ", ann)
 
 	return
 }

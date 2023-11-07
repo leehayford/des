@@ -564,12 +564,12 @@ func (device *Device) StartJob(sta State) {
 				&Header{},
 				&Config{},
 				&Sample{},
+				&EventTyp{},
+				&Event{},
 				&Report{},
 				&RepSection{},
 				&SecDataset{},
 				&SecAnnotation{},
-				&EventTyp{},
-				&Event{},
 			); err != nil {
 				pkg.TraceErr(err)
 			}
