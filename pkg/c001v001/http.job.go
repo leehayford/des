@@ -8,10 +8,10 @@ import (
 )
 
 /*
-	RETURNS THE LIST OF JOBS REGISTERED TO THIS DES
+RETURNS THE LIST OF JOBS REGISTERED TO THIS DES
 
-	ALONG WITH THE DEVICE FOR EACH OF THOSE JOBS
-	IN THE FORM OF A DESRegistration
+ALONG WITH THE DEVICE FOR EACH OF THOSE JOBS
+IN THE FORM OF A DESRegistration
 */
 func HandleGetJobList(c *fiber.Ctx) (err error) {
 
@@ -51,9 +51,9 @@ func HandleGetJobList(c *fiber.Ctx) (err error) {
 }
 
 /*
-	RETURNS ALL DATA ASSOCIATED WITH A JOB
+RETURNS ALL DATA ASSOCIATED WITH A JOB
 
-	ALONG WITH THE DEVICE AND ANY REPORT INFORMATION
+ALONG WITH THE DEVICE AND ANY REPORT INFORMATION
 */
 func HandleGetJobData(c *fiber.Ctx) (err error) {
 
@@ -76,7 +76,7 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 		})
 	} // pkg.Json("HandleGetJobData(): -> c.BodyParser(&reg) -> reg", reg)
 
-	job := Job{ DESRegistration: reg,}
+	job := Job{DESRegistration: reg}
 	job.GetJobData()
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -87,7 +87,7 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 }
 
 /*
-	RETURNS THE LIST OF EVENT TYPES FOR A CLASS 001 VERSION 001 DEVICE / JOB
+RETURNS THE LIST OF EVENT TYPES FOR A CLASS 001 VERSION 001 DEVICE / JOB
 */
 func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -98,12 +98,12 @@ func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
 }
 
 /*
-	CREATES A REPORT INSTANCE IN THE REQUESTED JOB DB 
-	RETURNS THE REPORT
+CREATES A REPORT INSTANCE IN THE REQUESTED JOB DB
+RETURNS THE REPORT
 */
-func HandleCreateReport(c *fiber.Ctx) (err error) {
+func HandleNewReport(c *fiber.Ctx) (err error) {
 
-	fmt.Printf("\nHandleCreateReport( )\n")
+	fmt.Printf("\nHandleNewReport( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
@@ -120,7 +120,7 @@ func HandleCreateReport(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}  // pkg.Json("HandleCreateReport(): -> c.BodyParser(&rep) -> rep", rep)
+	} // pkg.Json("HandleCreateReport(): -> c.BodyParser(&rep) -> rep", rep)
 
 	job := &Job{DESRegistration: rep.DESRegistration}
 	// pkg.Json("HandleCreateReport(): job", job)
@@ -141,3 +141,7 @@ func HandleCreateReport(c *fiber.Ctx) (err error) {
 		"data":    fiber.Map{"report": rep},
 	})
 }
+
+/*
+
+*/

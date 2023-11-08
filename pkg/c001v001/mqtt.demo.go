@@ -226,6 +226,7 @@ func DemoDeviceClient_ConnectAll(qty int) {
 			regs = append(regs, MakeDemoC001V001(DemoSNMaker(i), user.ID.String()))
 		}
 		MakeDemoC001V001("RENE123456", user.ID.String())
+		MakeDemoC001V001("RUS9999999", user.ID.String())
 	}
 
 	for _, reg := range regs {

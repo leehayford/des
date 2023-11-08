@@ -124,10 +124,10 @@ func main() {
 		/* C001V001 JOB / REPORTING ROUTES */
 		api.Route("/001/001/job", func(router fiber.Router) {
 			router.Get("/event/list", c001v001.HandleGetEventTypeLists)
-			
+
 			router.Get("/list", pkg.DesAuth, c001v001.HandleGetJobList)
 			router.Post("/data", pkg.DesAuth, c001v001.HandleGetJobData)
-			router.Post("/new_report", pkg.DesAuth, c001v001.HandleCreateReport)
+			router.Post("/new_report", pkg.DesAuth, c001v001.HandleNewReport)
 		})
 
 	}
@@ -142,6 +142,6 @@ func main() {
 			"message": fmt.Sprintf("Path: %v does not exists on this server", path),
 		})
 	})
-	
+
 	log.Fatal(app.Listen(pkg.APP_HOST))
 }
