@@ -89,13 +89,13 @@ func (dbc *DBClient) Connect( /* TODO: CONNECTION POOL OPTIONS */ ) (err error) 
 	dbc.DB.Logger = logger.Default.LogMode(logger.Error)
 	dbc.WG = &sync.WaitGroup{}
 	
-	fmt.Printf("\n(dbc *DBClient) Connect() -> %s -> connected... \n", dbc.GetDBName())
+	// fmt.Printf("\n(dbc *DBClient) Connect() -> %s -> connected... \n", dbc.GetDBName())
 	return err
 }
 func (dbc DBClient) Disconnect() (err error) {
 
 	/* ENSURE ALL PENDING WRITES TO JOB DB ARE COMPLETE BEFORE DISCONNECTION */
-	fmt.Printf("\n(dbc *DBClient) Disconnect() -> %s -> waiting for final write ops... \n", dbc.GetDBName())
+	// fmt.Printf("\n(dbc *DBClient) Disconnect() -> %s -> waiting for final write ops... \n", dbc.GetDBName())
 	dbc.WG.Wait()
 
 	db, err := dbc.DB.DB()
@@ -105,7 +105,7 @@ func (dbc DBClient) Disconnect() (err error) {
 	if err = db.Close(); err != nil {
 		return TraceErr(err)
 	}
-	fmt.Printf("\n(dbc *DBClient) Disconnect() -> %s -> connection closed. \n", dbc.GetDBName())
+	// fmt.Printf("\n(dbc *DBClient) Disconnect() -> %s -> connection closed. \n", dbc.GetDBName())
 	dbc = DBClient{}
 	return
 }
