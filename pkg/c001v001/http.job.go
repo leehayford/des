@@ -145,3 +145,48 @@ func HandleNewReport(c *fiber.Ctx) (err error) {
 /*
 
 */
+func HandleJobNewHeader(c *fiber.Ctx) (err error) {
+
+	fmt.Printf("\nHandleJobNewHeader( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to edit job headers",
+		})
+	}
+
+	/*
+	ADD TO JOB DB
+	UPDATE REG JSON / TOKEN
+	RETURN HDR & REG
+	*/
+
+	return
+}
+
+/*
+
+*/
+func HandleJobNewEvent(c *fiber.Ctx) (err error) {
+
+	fmt.Printf("\nHandleJobNewEvent( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to add new events",
+		})
+	}
+
+	/*
+	ADD TO JOB DB
+	RETURN EVT
+	*/
+
+	return
+}

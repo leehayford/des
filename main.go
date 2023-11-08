@@ -128,6 +128,8 @@ func main() {
 			router.Get("/list", pkg.DesAuth, c001v001.HandleGetJobList)
 			router.Post("/data", pkg.DesAuth, c001v001.HandleGetJobData)
 			router.Post("/new_report", pkg.DesAuth, c001v001.HandleNewReport)
+			router.Post("/new_header", pkg.DesAuth, c001v001.HandleJobNewHeader)
+			router.Post("/new_event", pkg.DesAuth, c001v001.HandleJobNewEvent)
 		})
 
 	}
