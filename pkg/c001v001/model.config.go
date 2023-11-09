@@ -19,7 +19,7 @@ type Config struct {
 	CfgSCVD     float32 `json:"cfg_scvd"`
 	CfgSCVDMult float32 `json:"cfg_scvd_mult"`
 	CfgSSPRate  float32 `json:"cfg_ssp_rate"`
-	CfgSSPDur   float32 `json:"cfg_ssp_dur"`
+	CfgSSPDur   int32 `json:"cfg_ssp_dur"`
 	CfgHiSCVF   float32 `json:"cfg_hi_scvf"`
 	CfgFlowTog  float32 `json:"cfg_flow_tog"`
 
@@ -63,7 +63,7 @@ func (cfg Config) ConfigToBytes() (out []byte) {
 	out = append(out, pkg.Float32ToBytes(cfg.CfgSCVD)...)
 	out = append(out, pkg.Float32ToBytes(cfg.CfgSCVDMult)...)
 	out = append(out, pkg.Float32ToBytes(cfg.CfgSSPRate)...)
-	out = append(out, pkg.Float32ToBytes(cfg.CfgSSPDur)...)
+	out = append(out, pkg.Int32ToBytes(cfg.CfgSSPDur)...)
 	out = append(out, pkg.Float32ToBytes(cfg.CfgHiSCVF)...)
 	out = append(out, pkg.Float32ToBytes(cfg.CfgFlowTog)...)
 
@@ -92,7 +92,7 @@ func (cfg *Config) ConfigFromBytes(b []byte) {
 		CfgSCVD:     pkg.BytesToFloat32_L(b[116:120]),
 		CfgSCVDMult: pkg.BytesToFloat32_L(b[120:124]),
 		CfgSSPRate:  pkg.BytesToFloat32_L(b[124:128]),
-		CfgSSPDur:   pkg.BytesToFloat32_L(b[128:132]),
+		CfgSSPDur:   pkg.BytesToInt32_L(b[128:132]),
 		CfgHiSCVF:   pkg.BytesToFloat32_L(b[132:136]),
 		CfgFlowTog:  pkg.BytesToFloat32_L(b[136:140]),
 
@@ -124,7 +124,7 @@ func (cfg *Config) DefaultSettings_Config(reg pkg.DESRegistration) {
 	cfg.CfgSCVD = 596.8    // m
 	cfg.CfgSCVDMult = 10.5 // kPa / m
 	cfg.CfgSSPRate = 1.95  // kPa / hour
-	cfg.CfgSSPDur = 6.0    // hour
+	cfg.CfgSSPDur = 21600000    // hour
 	cfg.CfgHiSCVF = 201.4  //  L/min
 	cfg.CfgFlowTog = 1.85  // L/min
 
@@ -140,7 +140,7 @@ func (cfg *Config) DefaultSettings_Config(reg pkg.DESRegistration) {
 	/* DIAG PERIODS */
 	cfg.CfgDiagSample = 10000 // millisecond
 	cfg.CfgDiagLog = 100000   // millisecond
-	cfg.CfgDiagTrans = 600000 // millisecond
+	cfg.CfgDiagTrans = 100000 // millisecond
 }
 
 /*
@@ -171,5 +171,10 @@ func (cfg *Config) Validate() {
 	}
 	if cfg.CfgDiagTrans < cfg.CfgDiagSample {
 		cfg.CfgDiagTrans = cfg.CfgDiagSample
+	}
+
+	/* ENSURE THE SSP DURATION HAS BEEN SET WITHIN ACCEPTABLE LIMITS */
+	if cfg.CfgSSPDur < cfg.CfgOpLog {
+		cfg.CfgSSPDur = cfg.CfgOpLog
 	}
 }
