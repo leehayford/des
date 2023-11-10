@@ -100,8 +100,12 @@ func main() {
 		/* C001V001 DEVICE ROUTES */
 		api.Route("/001/001/device", func(router fiber.Router) {
 			// router.Post("/register", pkg.DesAuth, c001v001.HandleRegisterDevice)
+
 			router.Post("/start", pkg.DesAuth, c001v001.HandleStartJob)
+			router.Post("/cancel_start", pkg.DesAuth, c001v001.HandleCancelStartJob)
+
 			router.Post("/end", pkg.DesAuth, c001v001.HandleEndJob)
+			
 			router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)
 			router.Post("/state", pkg.DesAuth, c001v001.HandleSetState)
 			router.Post("/header", pkg.DesAuth, c001v001.HandleSetHeader)

@@ -450,7 +450,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.HDR.HdrUserID = device.DESJobRegUserID
 	device.HDR.HdrApp = device.DESJobRegApp
 	device.HDR.HdrJobStart = startTime // This is displays the time/date of the request while pending
-	device.HDR.HdrJobEnd = -1          // This means there is a pending request for the device to start a new job
+	// device.HDR.HdrJobEnd = -1          // This means there is a pending request for the device to start a new job
 	device.HDR.HdrGeoLng = -180
 	device.HDR.HdrGeoLat = 90
 	device.HDR.Validate()
@@ -474,11 +474,11 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	}
 
 	/* LOG START JOB REQUEST TO CMDARCHIVE */
-	device.CmdDBC.Create(&device.ADM)
-	device.CmdDBC.Create(&device.STA)
-	device.CmdDBC.Create(&device.HDR)
-	device.CmdDBC.Create(&device.CFG)
-	device.CmdDBC.Create(&device.EVT)
+	device.CmdDBC.Create(&device.ADM) /* TODO: USE WriteADM... */
+	device.CmdDBC.Create(&device.STA) /* TODO: USE WriteSTA... */
+	device.CmdDBC.Create(&device.HDR) /* TODO: USE WriteHDR... */
+	device.CmdDBC.Create(&device.CFG) /* TODO: USE WriteCFG... */
+	device.CmdDBC.Create(&device.EVT) /* TODO: USE WriteEVT... */
 
 	// /* MQTT PUB CMD: ADM, HDR, CFG, EVT */
 	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -500,15 +500,10 @@ func (device *Device) CancelStartJobRequest(src string) (err error) {
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedADM()
 	device.GetMappedSTA()
+	device.STA.StaTime = time.Now().UTC().UnixMilli()
+	device.STA.StaAddr = src
+	device.STA.StaLogging = OP_CODE_JOB_END_REQ
 	device.GetMappedHDR()
-	device.HDR.HdrTime = time.Now().UTC().UnixMilli()
-	device.HDR.HdrAddr = src
-	device.HDR.HdrUserID = device.DESJobRegUserID
-	device.HDR.HdrApp = device.DESJobRegApp
-	device.HDR.HdrJobEnd = -2 // This means there is a pending request for the device to cancel start (end) job
-	device.HDR.HdrGeoLng = -180
-	device.HDR.HdrGeoLat = 90
-	device.HDR.Validate()
 	device.GetMappedCFG()
 	device.GetMappedSMP()
 	device.DESMQTTClient = pkg.DESMQTTClient{}
@@ -525,15 +520,18 @@ func (device *Device) CancelStartJobRequest(src string) (err error) {
 		EvtMsg:    "",
 	}
 
-	/* LOG END JOB REQUEST TO CMDARCHIVE */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.CmdArchiveName())
-	device.CmdDBC.Create(&device.EVT)
+	/* LOG CANCEL START JOB REQUEST TO CMDARCHIVE */ 
+	// device.CmdDBC.Create(&device.STA) 
+	/* TODO: USE WriteSTA... */
+	WriteSTA(device.STA, &device.CmdDBC)
 
-	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
-	device.EVT.EvtID = 0
-	device.JobDBC.Create(&device.EVT)
+	// device.CmdDBC.Create(&device.EVT) 
+	/* TODO: USE WriteEVT... */
+	WriteEVT(device.EVT, &device.CmdDBC)
 
 	/* MQTT PUB CMD: EVT */
 	fmt.Printf("\nCancelStartJobRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	// device.MQTTPublication_DeviceClient_CMDState(device.STA)
 	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
@@ -911,9 +909,18 @@ func (device *Device) SetStateRequest(src string) (err error) {
 	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
+	/* LOG STA CHANGE REQUEST TO CMDARCHIVE */
+	sta := device.STA
+	WriteSTA(sta, &device.CmdDBC)
+
+	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
+	if device.DESJobName != device.CmdArchiveName() {
+		WriteSTA(sta, &device.JobDBC)
+	}
+
 	/* MQTT PUB CMD: STATE */
 	fmt.Printf("\nSetStateRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDState(device.STA)
+	device.MQTTPublication_DeviceClient_CMDState(sta)
 
 	return
 }
