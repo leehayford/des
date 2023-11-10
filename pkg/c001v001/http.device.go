@@ -137,6 +137,42 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	})
 }
 
+func HandleCancelStartJob(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleCancelStartJob( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to cancel start a job",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleCancelStartJob(): -> c.BodyParser(&device) -> device", device)
+
+	/* SEND CANCEL START JOB REQUEST */
+	if err = device.CancelStartJobRequest(c.IP()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleCancelStartJob(): -> device.StartJobRequest(...) -> device", device)
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":  "success",
+		"data":    fiber.Map{"device": &device},
+		"message": "C001V001 Job Start Cancel Reqest sent to device.",
+	})
+}
+
 /*
 	USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO END A JOB ON THIS DEVICE
 
@@ -267,13 +303,15 @@ func HandleGetAdmin(c *fiber.Ctx) (err error) {
 }
 
 /*
-	TODO: DO NOT USE
-
-TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS
+	USED TO SET THE STATE VALUES FOR A GIVEN DEVICE
+	***NOTE*** 
+		THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
+		FUTURE VERSIONS WILL ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
+		CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
 */
-func HandleGetState(c *fiber.Ctx) (err error) {
+func HandleSetState(c *fiber.Ctx) (err error) {
 
-	fmt.Printf("\nHandleGetState( )\n")
+	fmt.Printf("\nHandleSetState( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
@@ -292,15 +330,15 @@ func HandleGetState(c *fiber.Ctx) (err error) {
 			"message": err.Error(),
 		})
 	}
-	pkg.Json("HandleGetState(): -> c.BodyParser(&device) -> device.STA", device.STA)
+	pkg.Json("HandleSetState(): -> c.BodyParser(&device) -> device.STA", device.STA)
 
 	/* SEND GET STATE REQUEST */
-	if err = device.GetStateRequest(c.IP()); err != nil {
+	if err = device.SetStateRequest(c.IP()); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("HandleGetState(): -> device.GetStateRequest(...) -> device", device)
+	} // pkg.Json("HandleSetState(): -> device.SetStateRequest(...) -> device", device)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",

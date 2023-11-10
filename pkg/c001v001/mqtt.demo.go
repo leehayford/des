@@ -331,7 +331,8 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	/* SUBSCRIBE TO ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdminReport().Sub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDState().Sub(demo.DESMQTTClient)
+	// demo.MQTTSubscription_DemoDeviceClient_CMDState().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDStateReport().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
@@ -343,7 +344,8 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdminReport().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDState().UnSub(demo.DESMQTTClient)
+	// demo.MQTTSubscription_DemoDeviceClient_CMDState().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDStateReport().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
@@ -431,7 +433,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdminReport()
 	}
 }
 
-/* SUBSCRIPTION -> STATE -> UPON RECEIPT, LOG & REPLY TO .../sig/state */
+/* NOT IN USE: SUBSCRIPTION -> STATE -> UPON RECEIPT, LOG & REPLY TO .../sig/state */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
@@ -479,11 +481,13 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 		},
 	}
 }
+/* SUBSCRIPTION -> STATE -> UPON RECEIPT, REPLY TO .../sig/state */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStateReport() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
-		Topic: demo.MQTTTopic_CMDReport(demo.MQTTTopic_CMDState()),
+		// Topic: demo.MQTTTopic_CMDReport(demo.MQTTTopic_CMDState()),
+		Topic: demo.MQTTTopic_CMDState(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			demo.DESMQTTClient.WG.Add(1)

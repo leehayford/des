@@ -145,7 +145,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscript
 				device.STA = sta
 
 				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-				device.UpdateMappedHW()
+				device.UpdateMappedSTA()
 			}
 
 			device.DESMQTTClient.WG.Done()
@@ -273,7 +273,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			device.DESMQTTClient.WG.Add(1)
-			
+
 			/* DECODE THE PAYLOAD INTO AN MQTT_Sample */
 			mqtts := MQTT_Sample{}
 			if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
@@ -282,11 +282,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 
 			/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
 			smp := &Sample{SmpJobName: mqtts.DesJobName}
-			
-			/* TODO: CHECK SAMPLE JOB NAME & MAKE DATABASE IF IT DOES NOT EXIST 
-				DEVICE HAS STARTED A JOB WITHOUT THE DES KNOWING ABOUT IT:
-				- CALL START JOB
-				- REQUEST LAST: ADM, STA, HDR, CFG, EVT
+
+			/* TODO: CHECK SAMPLE JOB NAME & MAKE DATABASE IF IT DOES NOT EXIST
+			DEVICE HAS STARTED A JOB WITHOUT THE DES KNOWING ABOUT IT:
+			- CALL START JOB
+			- REQUEST LAST: ADM, STA, HDR, CFG, EVT
 			*/
 
 			/* DECODE BASE64URL STRING ( DATA ) */

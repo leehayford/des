@@ -103,6 +103,7 @@ func main() {
 			router.Post("/start", pkg.DesAuth, c001v001.HandleStartJob)
 			router.Post("/end", pkg.DesAuth, c001v001.HandleEndJob)
 			router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)
+			router.Post("/state", pkg.DesAuth, c001v001.HandleSetState)
 			router.Post("/header", pkg.DesAuth, c001v001.HandleSetHeader)
 			router.Post("/config", pkg.DesAuth, c001v001.HandleSetConfig)
 			router.Post("/event", pkg.DesAuth, c001v001.HandleCreateDeviceEvent)

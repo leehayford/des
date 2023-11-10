@@ -93,6 +93,7 @@ func (job *Job) CreateDefaultReport(rep *Report) {
 	flowCount := 0
 
 	secStart := start
+	secEnd := start
 	secName := "Job Start"
 	curCFG := job.Configs[0]
 	pkg.Json("CreateDefaultReport( ): -> curCFG ", curCFG)
@@ -105,28 +106,31 @@ func (job *Job) CreateDefaultReport(rep *Report) {
 
 			fmt.Printf("\ncfg.CfgVlvTgt: %d -> curCFG.CfgVlvTgt %d", cfg.CfgVlvTgt, curCFG.CfgVlvTgt )
 
-			switch curCFG.CfgVlvTgt {
-	
-			case MODE_BUILD:
-				buildCount++
-				secName = fmt.Sprintf("Pressure Build-Up %d", buildCount)
-				job.CreateBuildUpSection(rep, secStart, cfg.CfgTime, secName, curCFG)
-	
-			case MODE_VENT:
-				ventCount++
-				secName = fmt.Sprintf("Vent %d", ventCount)
-				job.CreateVentSection(rep, secStart, cfg.CfgTime, secName, curCFG)
-	
-			case MODE_HI_FLOW:
-				flowCount++
-				secName = fmt.Sprintf("Flow %d", flowCount)
-				job.CreateFlowSection(rep, secStart, cfg.CfgTime, secName, curCFG)
+			secEnd = cfg.CfgTime
 
-			case MODE_LO_FLOW:
-				flowCount++
-				secName = fmt.Sprintf("Flow %d", flowCount)
-				job.CreateFlowSection(rep, secStart, cfg.CfgTime, secName, curCFG)
-			}
+			job.CreateSectionByConfig(rep, &secStart, &secEnd, &buildCount, &ventCount, &flowCount, secName, curCFG)
+			// switch curCFG.CfgVlvTgt {
+	
+			// case MODE_BUILD:
+			// 	buildCount++
+			// 	secName = fmt.Sprintf("Pressure Build-Up %d", buildCount)
+			// 	job.CreateBuildUpSection(rep, secStart, cfg.CfgTime, secName, curCFG)
+	
+			// case MODE_VENT:
+			// 	ventCount++
+			// 	secName = fmt.Sprintf("Vent %d", ventCount)
+			// 	job.CreateVentSection(rep, secStart, cfg.CfgTime, secName, curCFG)
+	
+			// case MODE_HI_FLOW:
+			// 	flowCount++
+			// 	secName = fmt.Sprintf("Flow %d", flowCount)
+			// 	job.CreateFlowSection(rep, secStart, cfg.CfgTime, secName, curCFG)
+
+			// case MODE_LO_FLOW:
+			// 	flowCount++
+			// 	secName = fmt.Sprintf("Flow %d", flowCount)
+			// 	job.CreateFlowSection(rep, secStart, cfg.CfgTime, secName, curCFG)
+			// }
 			
 			/* UPDATE START TIME AND CURRENT MODE */
 			secStart = cfg.CfgTime
@@ -138,6 +142,37 @@ func (job *Job) CreateDefaultReport(rep *Report) {
 		}
 	}
 
+	/*  CREATE NEW SECTIONS FOR DATE AFTER FINAL MODE CHANGE */
+	secEnd =  job.DESJobEnd
+	job.CreateSectionByConfig(rep, &secStart, &secEnd, &buildCount, &ventCount, &flowCount, secName, curCFG)
+
+
+}
+func (job *Job) CreateSectionByConfig(rep *Report, secStart, secEnd *int64, buildCount, ventCount, flowCount *int, secName string, curCFG Config) { 
+	
+	switch curCFG.CfgVlvTgt {
+	
+	case MODE_BUILD:
+		*buildCount++
+		secName = fmt.Sprintf("Pressure Build-Up %d", *buildCount)
+		job.CreateBuildUpSection(rep, *secStart, *secEnd, secName, curCFG)
+
+	case MODE_VENT:
+		*ventCount++
+		secName = fmt.Sprintf("Vent %d", *ventCount)
+		job.CreateVentSection(rep, *secStart, *secEnd, secName, curCFG)
+
+	case MODE_HI_FLOW:
+		*flowCount++
+		secName = fmt.Sprintf("Flow %d", *flowCount)
+		job.CreateFlowSection(rep, *secStart, *secEnd, secName, curCFG)
+
+	case MODE_LO_FLOW:
+		*flowCount++
+		secName = fmt.Sprintf("Flow %d", *flowCount)
+		job.CreateFlowSection(rep, *secStart, *secEnd, secName, curCFG)
+	}
+	 return
 }
 
 func (job *Job) CreateBuildUpSection(rep *Report, start, end int64, name string, cfg Config) {
