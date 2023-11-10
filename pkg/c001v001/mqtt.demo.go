@@ -330,9 +330,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 
 	/* SUBSCRIBE TO ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDAdminReport().Sub(demo.DESMQTTClient)
-	// demo.MQTTSubscription_DemoDeviceClient_CMDState().Sub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDStateReport().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDState().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
@@ -343,9 +341,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDAdminReport().UnSub(demo.DESMQTTClient)
-	// demo.MQTTSubscription_DemoDeviceClient_CMDState().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDStateReport().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDState().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
@@ -409,6 +405,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 		},
 	}
 }
+
+/* NOT IN USE: SUBSCRIPTION -> ADMINISTRATION -> UPON RECEIPT REPLY TO .../sig/admin */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdminReport() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
@@ -433,7 +431,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdminReport()
 	}
 }
 
-/* NOT IN USE: SUBSCRIPTION -> STATE -> UPON RECEIPT, LOG & REPLY TO .../sig/state */
+/* SUBSCRIPTION -> STATE -> UPON RECEIPT, LOG & REPLY TO .../sig/state */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
@@ -453,16 +451,27 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 			demo.WriteStateToFlash(demo.CmdArchiveName(), sta)
 			sta_rec := sta
 
-			/* UPDATE SOURCE ADDRESS ONLY */
+			/* TEMPORARY OUT: UNCOMMENT THIS WHEN STATE WRITES ARE ENABLED
+			// UPDATE SOURCE ADDRESS ONLY
 			sta.StaAddr = demo.DESDevSerial
+			**********************************************************************************/
+
+			/* TEMPORARY USE:
+			COMMENT THIS OUT WHEN STATE WRITES ARE ENABLED **********/
+			sta = demo.STA
+			sta.StaAddr = demo.DESDevSerial
+			sta.StaTime = time.Now().UTC().UnixMilli()
+			/* END TEMPORARY USE ********************************************************************/
 
 			if demo.STA.StaLogging == 1 {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteStateToFlash(demo.DESJobName, sta_rec)
 
-				/* UPDATE TIME ONLY WHEN LOGGING */
+				/* TEMPORARY OUT : UNCOMMENT THIS WHEN STATE WRITES ARE ENABLED
+				// UPDATE TIME ONLY WHEN LOGGING
 				sta.StaTime = time.Now().UTC().UnixMilli()
+				**********************************************************************************/
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
 				demo.WriteStateToFlash(demo.DESJobName, sta)
@@ -471,8 +480,10 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 			/* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
 			demo.WriteStateToFlash(demo.CmdArchiveName(), sta)
 
-			/* LOAD VALUE INTO SIM 'RAM' */
+			/* TEMPORARY OUT : UNCOMMENT THIS WHEN STATE WRITES ARE ENABLED
+			// LOAD VALUE INTO SIM 'RAM'
 			demo.STA = sta
+			**********************************************************************************/
 
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
@@ -481,11 +492,12 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 		},
 	}
 }
-/* SUBSCRIPTION -> STATE -> UPON RECEIPT, REPLY TO .../sig/state */
+
+/* NOT IN USE: SUBSCRIPTION -> STATE -> UPON RECEIPT REPLY TO .../sig/state */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStateReport() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
-		Qos:   0,
+		Qos: 0,
 		// Topic: demo.MQTTTopic_CMDReport(demo.MQTTTopic_CMDState()),
 		Topic: demo.MQTTTopic_CMDState(),
 		Handler: func(c phao.Client, msg phao.Message) {
@@ -851,7 +863,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	sta.StaApp = evt.EvtApp
 	sta.StaLogFw = "0.0.009"
 	sta.StaModFw = "0.0.007"
-	sta.StaLogging = 1
+	sta.StaLogging = OP_CODE_JOB_STARTED 
 	sta.StaJobName = demo.DESJobName
 
 	/* WHERE JOB START HEADER WAS NOT RECEIVED, USE DEFAULT VALUES */
@@ -957,7 +969,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	sta.StaApp = evt.EvtApp
 	sta.StaLogFw = "0.0.009"
 	sta.StaModFw = "0.0.007"
-	sta.StaLogging = 0
+	sta.StaLogging = OP_CODE_JOB_ENDED
 	sta.StaJobName = demo.CmdArchiveName()
 
 	/* LOAD VALUE INTO SIM 'RAM'
@@ -1176,7 +1188,7 @@ func Demo_EncodeMQTTSampleMessage(job string, i int, smp Sample) MQTT_Sample {
 
 	msg := MQTT_Sample{
 		DesJobName: job,
-		Data:   b64url,
+		Data:       b64url,
 	}
 
 	return msg
