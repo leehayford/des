@@ -450,7 +450,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.HDR.HdrUserID = device.DESJobRegUserID
 	device.HDR.HdrApp = device.DESJobRegApp
 	device.HDR.HdrJobStart = startTime // This is displays the time/date of the request while pending
-	// device.HDR.HdrJobEnd = -1          // This means there is a pending request for the device to start a new job
+	device.HDR.HdrJobEnd = 0         
 	device.HDR.HdrGeoLng = -180
 	device.HDR.HdrGeoLat = 90
 	device.HDR.Validate()
