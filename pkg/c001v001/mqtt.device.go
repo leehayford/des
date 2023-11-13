@@ -90,7 +90,8 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			go WriteADM(adm, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging == 1 {
+			if device.STA.StaLogging > OP_CODE_DES_REG_REQ {
+
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteADM(adm, &device.JobDBC)
 			}
@@ -173,7 +174,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			go WriteHDR(hdr, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging == 1 {
+			if device.STA.StaLogging > OP_CODE_DES_REG_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteHDR(hdr, &device.JobDBC)
@@ -212,7 +213,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			go WriteCFG(cfg, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging == 1 {
+			if device.STA.StaLogging > OP_CODE_DES_REG_REQ {
 
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteCFG(cfg, &device.JobDBC)
@@ -249,7 +250,8 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			go WriteEVT(evt, &device.CmdDBC)
 
 			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging == 1 {
+			if device.STA.StaLogging > OP_CODE_DES_REG_REQ {
+
 				/* STORE THE EVENT IN THE ACTIVE JOB; CALL DB WRITE IN GOROUTINE */
 				go WriteEVT(evt, &device.JobDBC)
 			}
@@ -295,7 +297,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 			}
 
 			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging == 1 {
+			if device.STA.StaLogging > OP_CODE_DES_REG_REQ {
 
 				/* WRITE TO JOB DATABASE  */
 				go WriteSMP(*smp, &device.JobDBC)

@@ -1033,3 +1033,118 @@ func (device *Device) CreateEventRequest(src string) (err error) {
 
 	return
 }
+
+
+
+/* REGISTER A C001V001 DEVICE ON THIS DES
+	- CREATE DES DB RECORDS 
+		- A DEVICE RECORD FOR THIS DEVICE IN des_devs
+		- A JOB RECORD FOR THIS DEVICE'S CMDARCHIVE IN des_jobs
+		- A JOB SEARCH RECORDS FOR THIS DEVICE'S CMDARCHIVE IN des_job_searches
+	- CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE
+		- POPULATE DEFAULT ADM, STA, HDR, CFG, EVT 
+	-  CONNECT DEVICE ( DeviceClient_Connect() )
+*/
+func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err error) {
+	fmt.Printf("\n(device *Device)RegisterDevice( )...\n")
+
+	t := time.Now().UTC().UnixMilli() 
+
+	/* CREATE A DES DEVICE RECORD */
+	device.DESDev = reg.DESDev
+	device.DESDevRegTime = t
+	device.DESDevRegAddr = src
+	/* TODO: VALIDATE SERIAL # */
+	device.DESDevVersion = "001"
+	device.DESDevClass = "001"
+	if res := pkg.DES.DB.Create(&device.DESDev); res.Error != nil {
+		return res.Error
+	}
+	
+	/* CREATE A DES JOB RECORD ( CMDARCHIVE )*/
+	device.DESJobRegTime = t
+	device.DESJobRegAddr = src
+	device.DESJobRegUserID = device.DESDevRegUserID
+	device.DESJobRegApp = device.DESDevRegApp
+	device.DESJobName = fmt.Sprintf("%s_CMDARCHIVE", device.DESDevSerial)
+	device.DESJobStart = 0
+	device.DESJobEnd = 0
+	device.DESJobLng = -180 // TODO: TEST -999.25
+	device.DESJobLat = 90 // TODO: TEST -999.25
+	device.DESJobDevID = device.DESDevID
+	
+	pkg.Json("RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
+	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
+		return res.Error
+	}
+
+	/*  CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE */
+	pkg.ADB.CreateDatabase(strings.ToLower(device.DESJobName))
+
+	
+	/*  TEMPORARILY CONNECT TO CMDARCHIVE DATABASE FOR THIS DEVICE */
+	if err = device.ConnectJobDBC(); err != nil {
+		return err
+	}
+	
+	/* CREATE JOB DB TABLES */
+	if err := device.JobDBC.Migrator().CreateTable(
+		&Admin{},
+		&State{},
+		&Header{},
+		&Config{},
+		&EventTyp{},
+		&Event{},
+		&Sample{},
+	); err != nil {
+		pkg.TraceErr(err)
+	}
+	
+	/* WRITE DEFAULT ADM, STA, HDR, CFG, EVT TO CMDARCHIVE */
+	device.ADM.DefaultSettings_Admin(device.DESRegistration)
+	device.STA.DefaultSettings_State(device.DESRegistration)
+	device.STA.StaLogging = OP_CODE_DES_REGISTERED
+	device.HDR.DefaultSettings_Header(device.DESRegistration)
+	device.CFG.DefaultSettings_Config(device.DESRegistration)
+	device.SMP = Sample{SmpTime: t, SmpJobName: device.DESJobName}
+	device.EVT = Event{
+		EvtTime: t,
+		EvtAddr: src,
+		EvtUserID: device.DESDevRegUserID,
+		EvtApp: device.DESDevRegApp,
+		EvtCode: OP_CODE_DES_REGISTERED,
+		EvtTitle: "DEVICE REGISTRATION",
+		EvtMsg: "DEVICE REGISTERED",
+	}
+
+	for _, typ := range EVENT_TYPES {
+		WriteETYP(typ, &device.JobDBC)
+	}
+	if err := WriteADM(device.ADM, &device.JobDBC); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := WriteSTA(device.STA, &device.JobDBC); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := WriteEVT(device.EVT, &device.JobDBC); err != nil {
+		pkg.TraceErr(err)
+	}
+	if err := WriteSMP(device.SMP, &device.JobDBC); err != nil {
+		pkg.TraceErr(err)
+	}
+
+	/* CLOSE TEMPORARY CONNECTION TO  CMDARCHIVE DB */
+	device.JobDBC.Disconnect()
+
+	/* CREATE PERMANENT DES DEVICE CLIENT CONNECTIONS */
+	device.DESMQTTClient = pkg.DESMQTTClient{}
+	device.DeviceClient_Connect()
+
+	return
+}
