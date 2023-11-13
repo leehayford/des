@@ -277,7 +277,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	DemoDeviceClients[demo.DESDevSerial] = *demo
 
 	// /* RUN THE SIMULATION IF LAST KNOWN STATUS WAS LOGGING */
-	if demo.STA.StaLogging == 1 {
+	if demo.STA.StaLogging > OP_CODE_JOB_ENDED {
 		go demo.Demo_Simulation(demo.STA.StaJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
 		time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 	}
@@ -944,11 +944,14 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 
 	demo.DESMQTTClient.WG.Wait()
 	demo.DESMQTTClient.WG.Add(1)
-	demo.Stop <- struct{}{}
+	if demo.Stop != nil { 
+		demo.Stop <- struct{}{} 
+	}
 
 	/* CAPTURE TIME VALUE FOR JOB TERMINATION: HDR, EVT */
 	endTime := time.Now().UTC().UnixMilli()
 
+	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) at:\t%d\n", endTime)
 	// demo.GetHdrFromFlash(demo.CmdArchiveName(), &demo.HDR)
 	demo.HDR.HdrTime = endTime
 	demo.HDR.HdrAddr = demo.DESDevSerial
