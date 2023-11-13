@@ -29,6 +29,11 @@ type State struct {
 	/* LOGGING STATE */
 	StaLogging int32 `json:"sta_logging"`
 	StaJobName string `gorm:"not null; varchar(24)" json:"sta_job_name"`
+
+	/* CHIP UID (STMicro) */
+	StaStmUID1 int32 `json:"sta_stm_uid1"`
+	StaStmUID2 int32 `json:"sta_stm_uid2"`
+	StaStmUID3 int32 `json:"sta_stm_uid3"`
 }
 func WriteSTA(sta State, dbc *pkg.DBClient) (err error) {
 
@@ -64,6 +69,10 @@ func (sta State) StateToBytes() (out []byte) {
 	
 	out = append(out, pkg.Int32ToBytes(sta.StaLogging)...)
 	out = append(out, pkg.StringToNBytes(sta.StaJobName, 24)...)
+	
+	out = append(out, pkg.Int32ToBytes(sta.StaStmUID1)...)
+	out = append(out, pkg.Int32ToBytes(sta.StaStmUID2)...)
+	out = append(out, pkg.Int32ToBytes(sta.StaStmUID3)...)
 
 	return
 }
@@ -85,6 +94,10 @@ func (sta State) StateFromBytes(b []byte) {
 		
 		StaLogging: pkg.BytesToInt32_L(b[152:156]),
 		StaJobName:  pkg.StrBytesToString(b[156:180]),
+		
+		StaStmUID1: pkg.BytesToInt32_L(b[180:184]),
+		StaStmUID2: pkg.BytesToInt32_L(b[184:188]),
+		StaStmUID3: pkg.BytesToInt32_L(b[188:192]),
 	}
 	//  pkg.Json("(demo *DemoDeviceClient)StateFromBytes() -> sta", sta)
 }
@@ -107,6 +120,11 @@ func (sta *State) DefaultSettings_State(reg pkg.DESRegistration) {
 
 	sta.StaLogging = 0
 	sta.StaJobName = fmt.Sprintf("%s_CMDARCHIVE", sta.StaSerial)
+
+	sta.StaStmUID1 = 0
+	sta.StaStmUID2 = 0
+	sta.StaStmUID3 = 0
+	
 }
 
 /*
