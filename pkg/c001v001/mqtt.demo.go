@@ -953,11 +953,12 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 
 	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) at:\t%d\n", endTime)
 	// demo.GetHdrFromFlash(demo.CmdArchiveName(), &demo.HDR)
-	demo.HDR.HdrTime = endTime
-	demo.HDR.HdrAddr = demo.DESDevSerial
-	demo.HDR.HdrUserID = evt.EvtUserID
-	demo.HDR.HdrApp = evt.EvtApp
-	demo.HDR.HdrJobEnd = endTime
+	hdr := demo.HDR
+	hdr.HdrTime = endTime
+	hdr.HdrAddr = demo.DESDevSerial
+	hdr.HdrUserID = evt.EvtUserID
+	hdr.HdrApp = evt.EvtApp
+	hdr.HdrJobEnd = endTime
 
 	evt.EvtTime = endTime
 	evt.EvtAddr = demo.DESDevSerial
@@ -979,21 +980,22 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	UPDATE THE DEVICE EVENT CODE, AND STATE DISABLING MQTT MESSAGE WRITES TO ACTIVE JOB
 	BEFORE WE HAVE WRITTEN THE FINAL JOB RECORDS
 	*/
+	demo.HDR = hdr
 	demo.EVT = evt
 	demo.STA = sta
 
 	/* WRITE TO FLASH - CMDARCHIVE */
-	demo.WriteStateToFlash(demo.CmdArchiveName(), sta)
-	demo.WriteHdrToFlash(demo.CmdArchiveName(), demo.HDR)
+	demo.WriteHdrToFlash(demo.CmdArchiveName(), hdr)
 	demo.WriteEvtToFlash(demo.CmdArchiveName(), evt)
+	demo.WriteStateToFlash(demo.CmdArchiveName(), sta)
 
 	/* WRITE TO FLASH - JOB */
-	demo.WriteStateToFlash(demo.DESJobName, sta)
-	demo.WriteHdrToFlash(demo.DESJobName, demo.HDR)
+	demo.WriteHdrToFlash(demo.DESJobName, hdr)
 	demo.WriteEvtToFlash(demo.DESJobName, evt)
+	demo.WriteStateToFlash(demo.DESJobName, sta)
 
 	/* SEND CONFIRMATION */
-	demo.MQTTPublication_DemoDeviceClient_SIGHeader(demo.HDR)
+	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
 	demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
 	time.Sleep(time.Second * 2) // ENSURE PREVIOUS MESSAGES HAVE BEEN PROCESSED
 	demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
