@@ -440,7 +440,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.STA.StaSerial = device.DESDevSerial
 	device.STA.StaVersion = DEVICE_VERSION
 	device.STA.StaClass = DEVICE_CLASS
-	device.STA.StaLogging =  OP_CODE_JOB_START_REQ  // This means there is a pending request for the device to start a new job
+	device.STA.StaLogging = OP_CODE_JOB_START_REQ // This means there is a pending request for the device to start a new job
 	device.STA.StaJobName = device.CmdArchiveName()
 	device.STA.Validate()
 	// pkg.Json("HandleStartJob(): -> device.STA", device.STA)
@@ -450,7 +450,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.HDR.HdrUserID = device.DESJobRegUserID
 	device.HDR.HdrApp = device.DESJobRegApp
 	device.HDR.HdrJobStart = startTime // This is displays the time/date of the request while pending
-	device.HDR.HdrJobEnd = 0         
+	device.HDR.HdrJobEnd = 0
 	device.HDR.HdrGeoLng = -180
 	device.HDR.HdrGeoLat = 90
 	device.HDR.Validate()
@@ -520,12 +520,12 @@ func (device *Device) CancelStartJobRequest(src string) (err error) {
 		EvtMsg:    "",
 	}
 
-	/* LOG CANCEL START JOB REQUEST TO CMDARCHIVE */ 
-	// device.CmdDBC.Create(&device.STA) 
+	/* LOG CANCEL START JOB REQUEST TO CMDARCHIVE */
+	// device.CmdDBC.Create(&device.STA)
 	/* TODO: USE WriteSTA... */
 	WriteSTA(device.STA, &device.CmdDBC)
 
-	// device.CmdDBC.Create(&device.EVT) 
+	// device.CmdDBC.Create(&device.EVT)
 	/* TODO: USE WriteEVT... */
 	WriteEVT(device.EVT, &device.CmdDBC)
 
@@ -657,6 +657,24 @@ func (device *Device) StartJob(sta State) {
 	fmt.Printf("\n(device *Device) StartJob( ): COMPLETE: %s\n", device.JobDBC.GetDBName())
 }
 
+/* CALLED WHEN DES RECEIVES SAMPLES WITH AN UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST ) */
+func (device *Device) RegisterJob() {
+
+	/* ENSURE PREVIOUS JOB HAS ENDED
+	MAKE EVT -> JOB ENDED
+		- SOURCE DES ( TIME, ADDR, DES UID, APP  )
+		- MSG JOB ENDED OFFLINE BY DEVICE
+	*/
+
+	/* MAKE EVT -> REGISTER JOB REQ
+	- LOG TO CMDARCHIVE
+	- PUBLISH TO DEVICE
+	- DEVICE WILL SEND ADM, HDR, CFG, EVT( REGISTER JOB )
+	- AND FINALLY STA WHICH WILL RESULT IN A CALL TO StartJob( )
+	*/
+
+}
+
 /* END JOB ************************************************************************************************/
 
 /* PREPARE, LOG, AND SEND AN END JOB REQUEST */
@@ -673,7 +691,7 @@ func (device *Device) EndJobRequest(src string) (err error) {
 	device.STA.StaSerial = device.DESDevSerial
 	device.STA.StaVersion = DEVICE_VERSION
 	device.STA.StaClass = DEVICE_CLASS
-	device.STA.StaLogging =  OP_CODE_JOB_END_REQ  // This means there is a pending request for the device to start a new job
+	device.STA.StaLogging = OP_CODE_JOB_END_REQ // This means there is a pending request for the device to start a new job
 	device.STA.StaJobName = device.CmdArchiveName()
 	device.STA.Validate()
 	// pkg.Json("HandleStartJob(): -> device.STA", device.STA)
@@ -1034,21 +1052,23 @@ func (device *Device) CreateEventRequest(src string) (err error) {
 	return
 }
 
+/*
+	REGISTER A C001V001 DEVICE ON THIS DES
 
+- CREATE DES DB RECORDS
+  - A DEVICE RECORD FOR THIS DEVICE IN des_devs
+  - A JOB RECORD FOR THIS DEVICE'S CMDARCHIVE IN des_jobs
+  - A JOB SEARCH RECORDS FOR THIS DEVICE'S CMDARCHIVE IN des_job_searches
 
-/* REGISTER A C001V001 DEVICE ON THIS DES
-	- CREATE DES DB RECORDS 
-		- A DEVICE RECORD FOR THIS DEVICE IN des_devs
-		- A JOB RECORD FOR THIS DEVICE'S CMDARCHIVE IN des_jobs
-		- A JOB SEARCH RECORDS FOR THIS DEVICE'S CMDARCHIVE IN des_job_searches
-	- CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE
-		- POPULATE DEFAULT ADM, STA, HDR, CFG, EVT 
-	-  CONNECT DEVICE ( DeviceClient_Connect() )
+- CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE
+  - POPULATE DEFAULT ADM, STA, HDR, CFG, EVT
+
+-  CONNECT DEVICE ( DeviceClient_Connect() )
 */
 func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err error) {
 	fmt.Printf("\n(device *Device)RegisterDevice( )...\n")
 
-	t := time.Now().UTC().UnixMilli() 
+	t := time.Now().UTC().UnixMilli()
 
 	/* CREATE A DES DEVICE RECORD */
 	device.DESDev = reg.DESDev
@@ -1060,7 +1080,7 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	if res := pkg.DES.DB.Create(&device.DESDev); res.Error != nil {
 		return res.Error
 	}
-	
+
 	/* CREATE A DES JOB RECORD ( CMDARCHIVE )*/
 	device.DESJobRegTime = t
 	device.DESJobRegAddr = src
@@ -1070,9 +1090,9 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	device.DESJobStart = 0
 	device.DESJobEnd = 0
 	device.DESJobLng = -180 // TODO: TEST -999.25
-	device.DESJobLat = 90 // TODO: TEST -999.25
+	device.DESJobLat = 90   // TODO: TEST -999.25
 	device.DESJobDevID = device.DESDevID
-	
+
 	pkg.Json("RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
 	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
 		return res.Error
@@ -1081,12 +1101,11 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	/*  CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE */
 	pkg.ADB.CreateDatabase(strings.ToLower(device.DESJobName))
 
-	
 	/*  TEMPORARILY CONNECT TO CMDARCHIVE DATABASE FOR THIS DEVICE */
 	if err = device.ConnectJobDBC(); err != nil {
 		return err
 	}
-	
+
 	/* CREATE JOB DB TABLES */
 	if err := device.JobDBC.Migrator().CreateTable(
 		&Admin{},
@@ -1099,7 +1118,7 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	); err != nil {
 		pkg.TraceErr(err)
 	}
-	
+
 	/* WRITE DEFAULT ADM, STA, HDR, CFG, EVT TO CMDARCHIVE */
 	device.ADM.DefaultSettings_Admin(device.DESRegistration)
 	device.STA.DefaultSettings_State(device.DESRegistration)
@@ -1108,13 +1127,13 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	device.CFG.DefaultSettings_Config(device.DESRegistration)
 	device.SMP = Sample{SmpTime: t, SmpJobName: device.DESJobName}
 	device.EVT = Event{
-		EvtTime: t,
-		EvtAddr: src,
+		EvtTime:   t,
+		EvtAddr:   src,
 		EvtUserID: device.DESDevRegUserID,
-		EvtApp: device.DESDevRegApp,
-		EvtCode: OP_CODE_DES_REGISTERED,
-		EvtTitle: "DEVICE REGISTRATION",
-		EvtMsg: "DEVICE REGISTERED",
+		EvtApp:    device.DESDevRegApp,
+		EvtCode:   OP_CODE_DES_REGISTERED,
+		EvtTitle:  "DEVICE REGISTRATION",
+		EvtMsg:    "DEVICE REGISTERED",
 	}
 
 	for _, typ := range EVENT_TYPES {
