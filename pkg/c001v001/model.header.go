@@ -112,8 +112,8 @@ func (hdr *Header) DefaultSettings_Header(reg pkg.DESRegistration) {
 	hdr.HdrWellBHLoc = ""
 	hdr.HdrWellLic = ""
 
-	hdr.HdrGeoLng = reg.DESJobLng // HdrGeoLng: -114.75 + rand.Float64() * ( -110.15 - 114.75 ),
-	hdr.HdrGeoLat = reg.DESJobLat // HdrGeoLat: 51.85 + rand.Float64() * ( 54.35 - 51.85 ),
+	hdr.HdrGeoLng = DEFAULT_GEO_LNG
+	hdr.HdrGeoLat = DEFAULT_GEO_LAT
 
 }
 

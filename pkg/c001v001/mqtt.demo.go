@@ -101,8 +101,8 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 		DESJobName:  fmt.Sprintf("%s_CMDARCHIVE", serial),
 		DESJobStart: 0,
 		DESJobEnd:   0,
-		DESJobLng:   -180, // -114.75 + rand.Float32() * ( -110.15 + 114.75 ),
-		DESJobLat:   90,   // 51.85 + rand.Float32() * ( 54.35 - 51.85 ),
+		DESJobLng:  DEFAULT_GEO_LNG,
+		DESJobLat: DEFAULT_GEO_LAT,
 		DESJobDevID: des_dev.DESDevID,
 	}
 	pkg.DES.DB.Create(&des_job)

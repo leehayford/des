@@ -12,8 +12,8 @@ import (
 const DEVICE_CLASS = "001"
 const DEVICE_VERSION = "001"
 
-const DEFAULT_GEO_LNG = -180
-const DEFAULT_GEO_LAT = 90
+const DEFAULT_GEO_LNG = -180 // TODO: TEST -999.25
+const DEFAULT_GEO_LAT = 90 // TODO: TEST -999.25
 
 /* OPERATION CODES ( Event.EvtCode 0 : 999 ) *******************************************************/
 const OP_CODE_DES_REG_REQ int32 = 0    // USER REQUEST -> CHANGE DEVICE'S OPERATIONAL DATA EXCHANGE SERVER
@@ -451,8 +451,8 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.HDR.HdrApp = device.DESJobRegApp
 	device.HDR.HdrJobStart = startTime // This is displays the time/date of the request while pending
 	device.HDR.HdrJobEnd = 0
-	device.HDR.HdrGeoLng = -180
-	device.HDR.HdrGeoLat = 90
+	device.HDR.HdrGeoLng = DEFAULT_GEO_LNG
+	device.HDR.HdrGeoLat = DEFAULT_GEO_LAT
 	device.HDR.Validate()
 	// pkg.Json("HandleStartJob(): -> device.HDR", device.HDR)
 
@@ -1092,8 +1092,8 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	device.DESJobName = fmt.Sprintf("%s_CMDARCHIVE", device.DESDevSerial)
 	device.DESJobStart = 0
 	device.DESJobEnd = 0
-	device.DESJobLng = -180 // TODO: TEST -999.25
-	device.DESJobLat = 90   // TODO: TEST -999.25
+	device.DESJobLng = DEFAULT_GEO_LNG
+	device.DESJobLat = DEFAULT_GEO_LAT
 	device.DESJobDevID = device.DESDevID
 
 	pkg.Json("RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
