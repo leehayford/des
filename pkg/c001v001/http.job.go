@@ -35,17 +35,17 @@ func HandleGetJobList(c *fiber.Ctx) (err error) {
 		})
 	}
 
+	stat := "fail"
+	msg := fmt.Sprintf("GetJobs(...) -> NO JOBS.\n")
 	jobs := GetJobs(regs)
-	if len(jobs) == 0 {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("GetJobList(...) -> NO JOBS.\n"),
-		})
+	if len(jobs) > 0 {
+		stat = "success"
+		msg = "You are a tolerable person!"
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
+		"status":  stat,
+		"message": msg,
 		"data":    fiber.Map{"jobs": jobs},
 	})
 }
