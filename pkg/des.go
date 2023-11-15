@@ -22,6 +22,22 @@ import (
 // 	"errors"
 )
 
+
+const ROLE_ADMIN = "admin"
+const ROLE_OPERATOR = "operator"
+const ROLE_USER = "user"
+
+/* TODO : IMPLEMENT DESRole STRUCT */
+// type DESRole struct {
+// 	Code int
+// 	Name string
+// }
+// var ROLE_ADMIN = DESRole{ Code: 0, Name: "admin", }
+// var ROLE_OPERATOR = DESRole{ Code: 1, Name: "operator", }
+// var ROLE_EDITOR = DESRole{ Code: 2, Name: "editor", }
+// var ROLE_USER = DESRole{ Code: 3, Name: "user", }
+
+
 type DESRegistration struct {
 	DESDev //`json:"des_dev"`
 	DESJob //`json:"des_job"`

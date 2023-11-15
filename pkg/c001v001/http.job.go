@@ -14,15 +14,14 @@ ALONG WITH THE DEVICE FOR EACH OF THOSE JOBS
 IN THE FORM OF A DESRegistration
 */
 func HandleGetJobList(c *fiber.Ctx) (err error) {
-
-	fmt.Printf("\nHandleGetJobList( )\n")
+	// fmt.Printf("\nHandleGetJobList( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER{
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to view job list",
+			"message": "You must be a registered user to view job list",
 		})
 	}
 
@@ -56,15 +55,14 @@ RETURNS ALL DATA ASSOCIATED WITH A JOB
 ALONG WITH THE DEVICE AND ANY REPORT INFORMATION
 */
 func HandleGetJobData(c *fiber.Ctx) (err error) {
-
-	fmt.Printf("\nHandleGetJobData( )\n")
+	// fmt.Printf("\nHandleGetJobData( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER{
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to view job data",
+			"message": "You must be a registered user to view job data",
 		})
 	}
 
@@ -102,15 +100,14 @@ CREATES A REPORT INSTANCE IN THE REQUESTED JOB DB
 RETURNS THE REPORT
 */
 func HandleNewReport(c *fiber.Ctx) (err error) {
-
-	fmt.Printf("\nHandleNewReport( )\n")
+	// fmt.Printf("\nHandleNewReport( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to create a report",
+			"message": "You must be an operator user to create a report",
 		})
 	}
 
@@ -146,15 +143,14 @@ func HandleNewReport(c *fiber.Ctx) (err error) {
 
 */
 func HandleJobNewHeader(c *fiber.Ctx) (err error) {
-
-	fmt.Printf("\nHandleJobNewHeader( )\n")
+	// fmt.Printf("\nHandleJobNewHeader( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to edit job headers",
+			"message": "You must be a registered user to edit job data",
 		})
 	}
 
@@ -171,15 +167,14 @@ func HandleJobNewHeader(c *fiber.Ctx) (err error) {
 
 */
 func HandleJobNewEvent(c *fiber.Ctx) (err error) {
-
-	fmt.Printf("\nHandleJobNewEvent( )\n")
+	// fmt.Printf("\nHandleJobNewEvent( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to add new events",
+			"message": "You must be a registered user to edit job data",
 		})
 	}
 

@@ -17,15 +17,14 @@ ALONG WITH THE ACTIVE JOB FOR EACH DEVICE
 IN THE FORM OF A DESRegistration
 */
 func HandleGetDeviceList(c *fiber.Ctx) (err error) {
-
-	fmt.Printf("\nHandleGetDeviceList( )\n")
+	// fmt.Printf("\nHandleGetDeviceList( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to view device list",
+			"message": "You must be an operator to view device list",
 		})
 	}
 
@@ -50,15 +49,14 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 /* NOT TESTED --> CURRENTLY HANDLED ON FRONT END...*/
 func HandleSearchDevices(c *fiber.Ctx) (err error) {
-
-	fmt.Printf("\nHandleSearchDevices( )\n")
+	// fmt.Printf("\nHandleSearchDevices( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to search devices",
+			"message": "You must be an operator to search devices",
 		})
 	}
 
@@ -102,14 +100,14 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	CLASS/VERSION SPECIFIC JOB START ACTIONS
 */
 func HandleStartJob(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleStartJob( )\n")
+	// fmt.Printf("\nHandleStartJob( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to start a job",
+			"message": "You must be an operator to start a job",
 		})
 	}
 
@@ -138,14 +136,14 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 }
 
 func HandleCancelStartJob(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleCancelStartJob( )\n")
+	// fmt.Printf("\nHandleCancelStartJob( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to cancel start a job",
+			"message": "You must be an operator to cancel start a job",
 		})
 	}
 
@@ -187,10 +185,10 @@ func HandleEndJob(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to end a job",
+			"message": "You must be an operator to end a job",
 		})
 	}
 
@@ -228,10 +226,10 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to alter device administration data.",
+			"message": "You must be an operator to alter device administration data.",
 		})
 	}
 
@@ -265,15 +263,14 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS
 */
 func HandleGetAdmin(c *fiber.Ctx) (err error) {
-
-	fmt.Printf("\nHandleGetAdmin( )\n")
+	// fmt.Printf("\nHandleGetAdmin( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to see device administration data.",
+			"message": "You must be an operator to see device administration data.",
 		})
 	}
 
@@ -311,15 +308,14 @@ USED TO SET THE STATE VALUES FOR A GIVEN DEVICE
 	CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
 */
 func HandleSetState(c *fiber.Ctx) (err error) {
-
-	fmt.Printf("\nHandleSetState( )\n")
+	// fmt.Printf("\nHandleSetState( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to see device hardware ID data.",
+			"message": "You must be an operator to see device hardware ID data.",
 		})
 	}
 
@@ -358,10 +354,10 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to alter job header data.",
+			"message": "You must be an operator to alter job header data.",
 		})
 	}
 
@@ -399,10 +395,10 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to alter job configuration data.",
+			"message": "You must be an operator to alter job configuration data.",
 		})
 	}
 
@@ -436,14 +432,14 @@ USED TO CREATE AN EVENT FOR A GIVEN DEVICE, BOTH:
 - TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. )
 */
 func HandleCreateDeviceEvent(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleCreateDeviceEvent( )\n")
+	// fmt.Printf("\nHandleCreateDeviceEvent( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to create Events.",
+			"message": "You must be an operator to create Events.",
 		})
 	}
 
@@ -479,11 +475,11 @@ PERFORMS DES DEVICE REGISTRATION
 PERFORMS CLASS/VERSION SPECIFIC REGISTRATION ACTIONS
 */
 func HandleRegisterDevice(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleRegisterDevice( )\n")
+	// fmt.Printf("\nHandleRegisterDevice( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" {
+	if role != pkg.ROLE_ADMIN {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an administrator to register devices",

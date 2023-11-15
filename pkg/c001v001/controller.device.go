@@ -788,15 +788,15 @@ func (device *Device) EndJob(sta State) {
 	device.DESJob = cmd.DESJob
 	device.ConnectJobDBC()
 
-	/* RETURN DEVICE CLIENT DATA TO DEFAULT STATE */
-	device.ADM.DefaultSettings_Admin(cmd.DESRegistration)
-	device.HDR.DefaultSettings_Header(cmd.DESRegistration)
-	device.CFG.DefaultSettings_Config(cmd.DESRegistration)
+	// /* RETURN DEVICE CLIENT DATA TO DEFAULT STATE */
+	// device.ADM.DefaultSettings_Admin(cmd.DESRegistration)
+	// device.HDR.DefaultSettings_Header(cmd.DESRegistration)
+	// device.CFG.DefaultSettings_Config(cmd.DESRegistration)
 
-	/* RETURN DEVICE (PHYSICAL) DATA TO DEFAULT STATE */
-	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
-	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
-	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
+	// /* RETURN DEVICE (PHYSICAL) DATA TO DEFAULT STATE */
+	// device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
+	// device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
+	// device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
 	device.SMP = Sample{SmpTime: cmd.DESJobRegTime, SmpJobName: cmd.DESJobName}
 	// pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", device)
 
