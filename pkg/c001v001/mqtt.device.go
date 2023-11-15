@@ -61,7 +61,7 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 
 	/* DISCONNECT THE DESMQTTCLient */
 	if err = device.DESMQTTClient_Disconnect(); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	fmt.Printf("\n(device) MQTTDeviceClient_Dicconnect( ) -> %s -> disconnected.\n", device.ClientID)
@@ -83,7 +83,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			adm := Admin{}
 			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
@@ -116,38 +116,45 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscript
 
 			device.DESMQTTClient.WG.Add(1)
 
-			/* CAPTURE LAST KNOW DEVICE STATE */
-			cur_sta := device.STA
-
 			/* PARSE / STORE THE STATE IN CMDARCHIVE */
 			sta := State{}
 			if err := json.Unmarshal(msg.Payload(), &sta); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
 			go WriteSTA(sta, &device.CmdDBC)
 
-			/* DECIDE IF WE ARE STARTING / ENDING A JOB ETC. */
-			switch sta.StaLogging {
+			/* DECIDE IF WE ARE CHANGING STATE */
+			if sta.StaLogging != device.STA.StaLogging {
 
-			case OP_CODE_JOB_ENDED:
-				go device.EndJob(sta)
+				switch sta.StaLogging {
 
-			case OP_CODE_JOB_STARTED:
-				go device.StartJob(sta)
+				// case OP_CODE_DES_REGISTERED:
+				// 	go device.Register(sta)
 
-			default:
+				case OP_CODE_JOB_ENDED:
+					go device.EndJob(sta)
 
-				if sta.StaLogging == cur_sta.StaLogging && cur_sta.StaLogging > OP_CODE_JOB_START_REQ {
-					/*/* STORE THE STATE IN THE ACTIVE JOB;  CALL DB WRITE IN GOROUTINE */
+				case OP_CODE_JOB_STARTED:
+					go device.StartJob(sta)
+
+				}
+				/* device.STA AND MappedSTA WILL BE UPDATED IN ONE OF THE CASES ABOVE */
+
+			} else {
+				
+				if sta.StaLogging > OP_CODE_JOB_START_REQ {
+
+					/* STORE THE STATE IN THE ACTIVE JOB;  CALL DB WRITE IN GOROUTINE */
 					go WriteSTA(sta, &device.JobDBC)
+					
+					device.STA = sta
+
+					/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+					device.UpdateMappedSTA()
 				}
 
-				device.STA = sta
-
-				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-				device.UpdateMappedSTA()
 			}
 
 			device.DESMQTTClient.WG.Done()
@@ -168,7 +175,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			/* PARSE / STORE THE HEADER IN CMDARCHIVE */
 			hdr := Header{}
 			if err := json.Unmarshal(msg.Payload(), &hdr); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
@@ -207,7 +214,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			/* PARSE / STORE THE CONFIG IN CMDARCHIVE */
 			cfg := Config{}
 			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
@@ -244,7 +251,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			evt := Event{}
 
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CALL DB WRITE IN GOROUTINE */
@@ -280,7 +287,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 			/* DECODE THE PAYLOAD INTO AN MQTT_Sample */
 			mqtts := MQTT_Sample{}
 			if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceClient_SIGSample(...) ->  mqtts :", mqtts)
 
 			/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
@@ -294,7 +301,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 
 			/* DECODE BASE64URL STRING ( DATA ) */
 			if err := smp.DecodeMQTTSample(mqtts.Data); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* DECIDE WHAT TO DO BASED ON LAST STATE */

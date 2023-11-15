@@ -45,7 +45,6 @@ func GetBytes_L(v any) []byte {
 	return buffer.Bytes()
 }
 
-
 /*BYTES INPUT*/
 func BytesToUInt16_B(bytes []byte) uint16 {
 	x := make([]byte, 2)
@@ -160,7 +159,7 @@ func Float32ToBytes(in float32) []byte {
 
 	var b bytes.Buffer
 	if err := binary.Write(&b, binary.LittleEndian, in); err != nil {
-		TraceErr(err)
+		LogErr(err)
 	}
 	return b.Bytes()
 }
@@ -169,7 +168,7 @@ func Float64ToBytes(in float64) []byte {
 
 	var b bytes.Buffer
 	if err := binary.Write(&b, binary.LittleEndian, in); err != nil {
-		TraceErr(err)
+		LogErr(err)
 	}
 	return b.Bytes()
 }

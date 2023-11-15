@@ -10,15 +10,15 @@ import (
 HEADER AS WRITTEN TO JOB DATABASE
 */
 type Header struct {
-	HdrID int64 `gorm:"unique; primaryKey" json:"-"`	
+	HdrID int64 `gorm:"unique; primaryKey" json:"-"`
 
 	HdrTime   int64  `gorm:"not null" json:"hdr_time"`
 	HdrAddr   string `gorm:"varchar(36)" json:"hdr_addr"`
 	HdrUserID string `gorm:"not null; varchar(36)" json:"hdr_user_id"`
 	HdrApp    string `gorm:"varchar(36)" json:"hdr_app"`
 
-	HdrJobStart int64  `json:"hdr_job_start"`
-	HdrJobEnd   int64  `json:"hdr_job_end"`
+	HdrJobStart int64 `json:"hdr_job_start"`
+	HdrJobEnd   int64 `json:"hdr_job_end"`
 
 	/*WELL INFORMATION*/
 	HdrWellCo    string `gorm:"varchar(32)" json:"hdr_well_co"`
@@ -30,21 +30,20 @@ type Header struct {
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
 	HdrGeoLng float64 `json:"hdr_geo_lng"`
 	HdrGeoLat float64 `json:"hdr_geo_lat"`
-
 }
+
 func WriteHDR(hdr Header, dbc *pkg.DBClient) (err error) {
 
-	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
-		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
+	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
 	dbc.WG.Add(1)
 	hdr.HdrID = 0
-	res := dbc.Create(&hdr) 
+	res := dbc.Create(&hdr)
 	dbc.WG.Done()
 
 	return res.Error
 }
-
 
 /*
 HEADER - AS STORED IN DEVICE FLASH
@@ -100,7 +99,7 @@ HEADER - DEFAULT VALUES
 */
 func (hdr *Header) DefaultSettings_Header(reg pkg.DESRegistration) {
 	hdr.HdrTime = reg.DESJobRegTime
-	hdr.HdrAddr =  reg.DESJobRegAddr
+	hdr.HdrAddr = reg.DESJobRegAddr
 	hdr.HdrUserID = reg.DESJobRegUserID
 	hdr.HdrApp = reg.DESJobRegApp
 
@@ -127,7 +126,7 @@ func (hdr *Header) Validate() {
 	hdr.HdrAddr = pkg.ValidateStringLength(hdr.HdrAddr, 36)
 	hdr.HdrUserID = pkg.ValidateStringLength(hdr.HdrUserID, 36)
 	hdr.HdrApp = pkg.ValidateStringLength(hdr.HdrApp, 36)
-	
+
 	hdr.HdrWellCo = pkg.ValidateStringLength(hdr.HdrWellCo, 32)
 	hdr.HdrWellName = pkg.ValidateStringLength(hdr.HdrWellName, 32)
 	hdr.HdrWellSFLoc = pkg.ValidateStringLength(hdr.HdrWellSFLoc, 32)
@@ -140,9 +139,9 @@ func (hdr *Header) Validate() {
 HEADER - CREATE DESJobSearch
 */
 func (hdr *Header) SearchToken() (token string) {
-	
+
 	/* TODO: EVALUATE MORE CLEVER TOKENIZATION */
-	return fmt.Sprintf("%s %s %s %s %s", 
+	return fmt.Sprintf("%s %s %s %s %s",
 		hdr.HdrWellCo,
 		hdr.HdrWellName,
 		hdr.HdrWellSFLoc,
@@ -158,12 +157,12 @@ func (hdr *Header) Create_DESJobSearch(reg pkg.DESRegistration) {
 
 	s := pkg.DESJobSearch{
 		DESJobToken: hdr.SearchToken(),
-		DESJobJson: pkg.ModelToJSONString(hdr),
-		DESJobKey: reg.DESJobID,
+		DESJobJson:  pkg.ModelToJSONString(hdr),
+		DESJobKey:   reg.DESJobID,
 	}
 
 	if res := pkg.DES.DB.Create(&s); res.Error != nil {
-		pkg.TraceErr(res.Error)
+		pkg.LogErr(res.Error)
 	}
 }
 
@@ -174,13 +173,13 @@ func (hdr *Header) Update_DESJobSearch(reg pkg.DESRegistration) {
 
 	s := pkg.DESJobSearch{}
 	if res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s); res.Error != nil {
-		pkg.TraceErr(res.Error)
+		pkg.LogErr(res.Error)
 	}
 	s.DESJobToken = hdr.SearchToken()
 	s.DESJobJson = pkg.ModelToJSONString(hdr)
 
 	if res := pkg.DES.DB.Save(&s); res.Error != nil {
-		pkg.TraceErr(res.Error)
+		pkg.LogErr(res.Error)
 	}
 }
 

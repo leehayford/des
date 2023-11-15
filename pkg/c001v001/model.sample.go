@@ -79,7 +79,7 @@ func (smp *Sample) SampleFromBytes(bytes []byte) {
 SAMPLE - MQTT MESSAGE STRUCTURE
 */
 type MQTT_Sample struct {
-	DesJobName string   `json:"des_job_name"`
+	DesJobName string `json:"des_job_name"`
 	Data       string `json:"data"`
 }
 
@@ -113,7 +113,7 @@ func (smp *Sample) DecodeMQTTSample(b64 string) (err error) {
 
 	bytes, err := pkg.Base64URLToBytes(b64)
 	if err != nil {
-		return pkg.TraceErr(err)
+		return pkg.LogErr(err)
 	}
 
 	expected := 40

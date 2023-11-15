@@ -51,7 +51,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 		}
 		js, err := json.Marshal(&WSMessage{Type: "auth", Data: res})
 		if err != nil {
-			pkg.TraceErr(err)
+			pkg.LogErr(err)
 			return
 		}
 		c.Conn.WriteJSON(string(js))
@@ -62,7 +62,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 
 	des_reg := pkg.DESRegistration{}
 	if err := json.Unmarshal([]byte(des_regStr), &des_reg); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	des_reg.DESDevRegAddr = c.RemoteAddr().String()
 	des_reg.DESJobRegAddr = c.RemoteAddr().String()
@@ -91,7 +91,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 			_, msg, err := c.ReadMessage()
 			if err != nil {
 				fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() %s\n ERROR:\n%s\n", duc.DESDevSerial, err.Error())
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 				break
 			}
 			if string(msg) == "close" {
@@ -118,7 +118,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 				time.Sleep(time.Second * 30)
 				js, err := json.Marshal(&WSMessage{Type: "live", Data: ""})
 				if err != nil {
-					pkg.TraceErr(err)
+					pkg.LogErr(err)
 				}
 				duc.DataOut <- string(js)
 				// fmt.Printf("WSDeviceUserClient_Connect -> go func() KEEP ALIVE... \n")
@@ -137,7 +137,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 
 		case data := <-duc.DataOut:
 			if err := c.WriteJSON(data); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 				duc.MQTTDeviceUserClient_Disconnect()
 				duc.Close <- struct{}{}
 			}
@@ -214,13 +214,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 			/* DECODE MESSAGE PAYLOAD TO Admin STRUCT */
 			adm := Admin{}
 			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
 			js, err := json.Marshal(&WSMessage{Type: "admin", Data: adm})
 			if err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGAdmin(...) -> adm :", adm)
 
 			/* SEND WSMessage AS JSON STRING */
@@ -241,13 +241,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGState() pkg.MQ
 			/* DECODE MESSAGE PAYLOAD TO State STRUCT */
 			sta := State{}
 			if err := json.Unmarshal(msg.Payload(), &sta); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
 			js, err := json.Marshal(&WSMessage{Type: "state", Data: sta})
 			if err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGState(...) -> sta :", sta)
 
 			/* SEND WSMessage AS JSON STRING */
@@ -268,13 +268,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader() pkg.M
 			/* DECODE MESSAGE PAYLOAD TO Header STRUCT */
 			hdr := Header{}
 			if err := json.Unmarshal(msg.Payload(), &hdr); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
 			js, err := json.Marshal(&WSMessage{Type: "header", Data: hdr})
 			if err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGHeader(...) -> hdr :", hdr)
 
 			/* SEND WSMessage AS JSON STRING */
@@ -295,13 +295,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.M
 			/* DECODE MESSAGE PAYLOAD TO Config STRUCT */
 			cfg := Config{}
 			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
 			js, err := json.Marshal(&WSMessage{Type: "config", Data: cfg})
 			if err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGConfig(...) -> cfg :", cfg)
 
 			/* SEND WSMessage AS JSON STRING */
@@ -322,13 +322,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQ
 			/* DECODE MESSAGE PAYLOAD TO Event STRUCT */
 			evt := Event{}
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
 			js, err := json.Marshal(&WSMessage{Type: "event", Data: evt})
 			if err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGEvent(...) -> evt :", evt)
 
 			/* SEND WSMessage AS JSON STRING */
@@ -345,25 +345,25 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 		Qos:   0,
 		Topic: duc.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
-			
+
 			/* DECODE THE PAYLOAD INTO AN MQTT_Sample */
 			mqtts := MQTT_Sample{}
 			if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
-				pkg.TraceErr(err)
-			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample(...) ->  mqtts :", mqtts) 
+				pkg.LogErr(err)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample(...) ->  mqtts :", mqtts)
 
 			/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
 			smp := &Sample{SmpJobName: mqtts.DesJobName}
 
 			/* DECODE BASE64URL STRING ( DATA ) */
 			if err := smp.DecodeMQTTSample(mqtts.Data); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
 			js, err := json.Marshal(&WSMessage{Type: "sample", Data: smp})
 			if err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			} else {
 				// pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)
 				/* SEND WSMessage AS JSON STRING */

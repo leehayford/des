@@ -10,13 +10,13 @@ import (
 
 type Job struct {
 	Admins              []Admin  `json:"admins"`
-	States				[]State `json:"states"`
+	States              []State  `json:"states"`
 	Headers             []Header `json:"headers"`
 	Configs             []Config `json:"configs"`
 	Events              []Event  `json:"events"`
 	Samples             []Sample `json:"samples"`
 	XYPoints            XYPoints `json:"xypoints"`
-	Reports				[]Report `json:"reports"`
+	Reports             []Report `json:"reports"`
 	pkg.DESRegistration `json:"reg"`
 	pkg.DBClient        `json:"-"`
 }
@@ -76,14 +76,12 @@ func (job *Job) GetJobData() (err error) {
 	return
 }
 
-
-
 /* RUNS AUTOMATICALLY WHEN A JOB HAS ENDED */
 func (job *Job) CreateDefaultReport(rep *Report) {
 
 	/* GET START & END OF JOB */
 	start := job.DESJobStart
-	
+
 	job.GetJobData()
 	rep.CreateReport(job)
 	// pkg.Json("CreateDefaultReport( ): -> rep ", rep)
@@ -104,23 +102,23 @@ func (job *Job) CreateDefaultReport(rep *Report) {
 		/*  CREATE NEW SECTIONS FOR EACH MODE CHANGE */
 		if cfg.CfgVlvTgt != curCFG.CfgVlvTgt && cfg.CfgAddr == job.DESDevSerial {
 
-			fmt.Printf("\ncfg.CfgVlvTgt: %d -> curCFG.CfgVlvTgt %d", cfg.CfgVlvTgt, curCFG.CfgVlvTgt )
+			fmt.Printf("\ncfg.CfgVlvTgt: %d -> curCFG.CfgVlvTgt %d", cfg.CfgVlvTgt, curCFG.CfgVlvTgt)
 
 			secEnd = cfg.CfgTime
 
 			job.CreateSectionByConfig(rep, &secStart, &secEnd, &buildCount, &ventCount, &flowCount, secName, curCFG)
 			// switch curCFG.CfgVlvTgt {
-	
+
 			// case MODE_BUILD:
 			// 	buildCount++
 			// 	secName = fmt.Sprintf("Pressure Build-Up %d", buildCount)
 			// 	job.CreateBuildUpSection(rep, secStart, cfg.CfgTime, secName, curCFG)
-	
+
 			// case MODE_VENT:
 			// 	ventCount++
 			// 	secName = fmt.Sprintf("Vent %d", ventCount)
 			// 	job.CreateVentSection(rep, secStart, cfg.CfgTime, secName, curCFG)
-	
+
 			// case MODE_HI_FLOW:
 			// 	flowCount++
 			// 	secName = fmt.Sprintf("Flow %d", flowCount)
@@ -131,7 +129,7 @@ func (job *Job) CreateDefaultReport(rep *Report) {
 			// 	secName = fmt.Sprintf("Flow %d", flowCount)
 			// 	job.CreateFlowSection(rep, secStart, cfg.CfgTime, secName, curCFG)
 			// }
-			
+
 			/* UPDATE START TIME AND CURRENT MODE */
 			secStart = cfg.CfgTime
 		}
@@ -143,15 +141,14 @@ func (job *Job) CreateDefaultReport(rep *Report) {
 	}
 
 	/*  CREATE NEW SECTIONS FOR DATE AFTER FINAL MODE CHANGE */
-	secEnd =  job.DESJobEnd
+	secEnd = job.DESJobEnd
 	job.CreateSectionByConfig(rep, &secStart, &secEnd, &buildCount, &ventCount, &flowCount, secName, curCFG)
 
-
 }
-func (job *Job) CreateSectionByConfig(rep *Report, secStart, secEnd *int64, buildCount, ventCount, flowCount *int, secName string, curCFG Config) { 
-	
+func (job *Job) CreateSectionByConfig(rep *Report, secStart, secEnd *int64, buildCount, ventCount, flowCount *int, secName string, curCFG Config) {
+
 	switch curCFG.CfgVlvTgt {
-	
+
 	case MODE_BUILD:
 		*buildCount++
 		secName = fmt.Sprintf("Pressure Build-Up %d", *buildCount)
@@ -172,14 +169,14 @@ func (job *Job) CreateSectionByConfig(rep *Report, secStart, secEnd *int64, buil
 		secName = fmt.Sprintf("Flow %d", *flowCount)
 		job.CreateFlowSection(rep, *secStart, *secEnd, secName, curCFG)
 	}
-	 return
+	return
 }
 
 func (job *Job) CreateBuildUpSection(rep *Report, start, end int64, name string, cfg Config) {
 
 	sec, err := job.CreateRepSection(rep, start, end, name)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	pkg.Json("CreateBuildUpSection( ): -> CreateRepSection( ) -> sec ", sec)
 
@@ -187,52 +184,51 @@ func (job *Job) CreateBuildUpSection(rep *Report, start, end int64, name string,
 	scls := &SecScales{}
 	scls.AutoScaleSection(job, start, end)
 
-
 	ch4, err := job.CreateSecDataset(sec, true, true, "y_ch4", scls.MinCH4, scls.MaxCH4)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateBuildUpSection( ): -> CreateSecDataset( ) -> ch4 ", ch4)
 	sec.SecDats = append(sec.SecDats, *ch4)
-	
+
 	hf, err := job.CreateSecDataset(sec, true, false, "y_hi_flow", scls.MinHF, scls.MaxHF)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateBuildUpSection( ): -> CreateSecDataset( ) -> hf ", hf)
 	sec.SecDats = append(sec.SecDats, *hf)
-	
+
 	lf, err := job.CreateSecDataset(sec, true, true, "y_lo_flow", scls.MinLF, scls.MaxLF)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateBuildUpSection( ): -> CreateSecDataset( ) -> lf ", lf)
 	sec.SecDats = append(sec.SecDats, *lf)
 
 	p, err := job.CreateSecDataset(sec, true, true, "y_press", scls.MinPress, scls.MaxPress)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateBuildUpSection( ): -> CreateSecDataset( ) -> p ", p)
 	sec.SecDats = append(sec.SecDats, *p)
 
 	ba, err := job.CreateSecDataset(sec, true, false, "y_bat_amp", scls.MinBatAmp, scls.MaxBatAmp)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateBuildUpSection( ): -> CreateSecDataset( ) -> ba ", ba)
 	sec.SecDats = append(sec.SecDats, *ba)
 
 	bv, err := job.CreateSecDataset(sec, true, false, "y_bat_volt", scls.MinBatVolt, scls.MaxBatVolt)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateBuildUpSection( ): -> CreateSecDataset( ) -> bv ", bv)
 	sec.SecDats = append(sec.SecDats, *bv)
 
 	mv, err := job.CreateSecDataset(sec, true, false, "y_mot_volt", scls.MinMotVolt, scls.MaxMotVolt)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateBuildUpSection( ): -> CreateSecDataset( ) -> mv ", mv)
 	sec.SecDats = append(sec.SecDats, *mv)
@@ -244,11 +240,11 @@ func (job *Job) CreateBuildUpSection(rep *Report, start, end int64, name string,
 			job.CreateSecAnnotation(sec, true, true, evt)
 		}
 	}
-	
-	/* CALCULATE SSP 
-		GET SSP START / END
-		CREATE EVENT / ANNOTATION SSP START
-		CREATE EVENT / ANNOTATION SSP END
+
+	/* CALCULATE SSP
+	GET SSP START / END
+	CREATE EVENT / ANNOTATION SSP START
+	CREATE EVENT / ANNOTATION SSP END
 	*/
 
 }
@@ -257,7 +253,7 @@ func (job *Job) CreateVentSection(rep *Report, start, end int64, name string, cf
 
 	sec, err := job.CreateRepSection(rep, start, end, name)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	pkg.Json("CreateVentSection( ): -> CreateRepSection( ) -> sec ", sec)
 
@@ -267,49 +263,49 @@ func (job *Job) CreateVentSection(rep *Report, start, end int64, name string, cf
 
 	ch4, err := job.CreateSecDataset(sec, true, true, "y_ch4", scls.MinCH4, scls.MaxCH4)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> ch4 ", ch4)
 	sec.SecDats = append(sec.SecDats, *ch4)
-	
+
 	hf, err := job.CreateSecDataset(sec, true, false, "y_hi_flow", scls.MinHF, scls.MaxHF)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> hf ", hf)
 	sec.SecDats = append(sec.SecDats, *hf)
-	
+
 	lf, err := job.CreateSecDataset(sec, true, true, "y_lo_flow", scls.MinLF, scls.MaxLF)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> lf ", lf)
 	sec.SecDats = append(sec.SecDats, *lf)
 
 	p, err := job.CreateSecDataset(sec, true, true, "y_press", scls.MinPress, scls.MaxPress)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> p ", p)
 	sec.SecDats = append(sec.SecDats, *p)
 
 	ba, err := job.CreateSecDataset(sec, true, false, "y_bat_amp", scls.MinBatAmp, scls.MaxBatAmp)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> ba ", ba)
 	sec.SecDats = append(sec.SecDats, *ba)
 
 	bv, err := job.CreateSecDataset(sec, true, false, "y_bat_volt", scls.MinBatVolt, scls.MaxBatVolt)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> bv ", bv)
 	sec.SecDats = append(sec.SecDats, *bv)
 
 	mv, err := job.CreateSecDataset(sec, true, false, "y_mot_volt", scls.MinMotVolt, scls.MaxMotVolt)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> mv ", mv)
 	sec.SecDats = append(sec.SecDats, *mv)
@@ -321,14 +317,14 @@ func (job *Job) CreateVentSection(rep *Report, start, end int64, name string, cf
 			job.CreateSecAnnotation(sec, true, true, evt)
 		}
 	}
-	
+
 }
 
 func (job *Job) CreateFlowSection(rep *Report, start, end int64, name string, cfg Config) {
 
 	sec, err := job.CreateRepSection(rep, start, end, name)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	pkg.Json("CreateFlowSection( ): -> CreateRepSection( ) -> sec ", sec)
 
@@ -338,53 +334,53 @@ func (job *Job) CreateFlowSection(rep *Report, start, end int64, name string, cf
 
 	ch4, err := job.CreateSecDataset(sec, true, true, "y_ch4", scls.MinCH4, scls.MaxCH4)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateFlowSection( ): -> CreateSecDataset( ) -> ch4 ", ch4)
 	sec.SecDats = append(sec.SecDats, *ch4)
-	
+
 	plotHF := false
 	if scls.MaxLF > cfg.CfgFlowTog {
 		plotHF = true
 	}
 	hf, err := job.CreateSecDataset(sec, plotHF, plotHF, "y_hi_flow", scls.MinHF, scls.MaxHF)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateFlowSection( ): -> CreateSecDataset( ) -> hf ", hf)
 	sec.SecDats = append(sec.SecDats, *hf)
-	
+
 	lf, err := job.CreateSecDataset(sec, !plotHF, !plotHF, "y_lo_flow", scls.MinLF, scls.MaxLF)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateFlowSection( ): -> CreateSecDataset( ) -> lf ", lf)
 	sec.SecDats = append(sec.SecDats, *lf)
 
 	p, err := job.CreateSecDataset(sec, true, true, "y_press", scls.MinPress, scls.MaxPress)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateFlowSection( ): -> CreateSecDataset( ) -> p ", p)
 	sec.SecDats = append(sec.SecDats, *p)
 
 	ba, err := job.CreateSecDataset(sec, true, false, "y_bat_amp", scls.MinBatAmp, scls.MaxBatAmp)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateFlowSection( ): -> CreateSecDataset( ) -> ba ", ba)
 	sec.SecDats = append(sec.SecDats, *ba)
 
 	bv, err := job.CreateSecDataset(sec, true, false, "y_bat_volt", scls.MinBatVolt, scls.MaxBatVolt)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateFlowSection( ): -> CreateSecDataset( ) -> bv ", bv)
 	sec.SecDats = append(sec.SecDats, *bv)
 
 	mv, err := job.CreateSecDataset(sec, true, false, "y_mot_volt", scls.MinMotVolt, scls.MaxMotVolt)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	// pkg.Json("CreateVentSection( ): -> CreateSecDataset( ) -> mv ", mv)
 	sec.SecDats = append(sec.SecDats, *mv)
@@ -397,19 +393,13 @@ func (job *Job) CreateFlowSection(rep *Report, start, end int64, name string, cf
 		}
 	}
 
-	/* CALCULATE SCVF 
-		GET SCVF START / END
-		CREATE EVENT / ANNOTATION SCVF START
-		CREATE EVENT / ANNOTATION SCVF END
+	/* CALCULATE SCVF
+	GET SCVF START / END
+	CREATE EVENT / ANNOTATION SCVF START
+	CREATE EVENT / ANNOTATION SCVF END
 	*/
 
 }
-
-
-
-
-
-
 
 /* NOT CURRENTLY IN USE... */
 func (job *Job) GetJobData_Limited(limit int) (err error) {
@@ -428,7 +418,6 @@ func (job *Job) GetJobData_Limited(limit int) (err error) {
 	// pkg.Json("GetJobData(): job", job)
 	return
 }
-
 
 type XYPoint struct {
 	X int64   `json:"x"`

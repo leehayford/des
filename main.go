@@ -54,7 +54,7 @@ func main() {
 
 	/* IF DES DATABASE DIDN'T ALREADY EXIST, CREATE TABLES, OTHERWISE MIGRATE */
 	if err := pkg.DES.CreateDESTables(exists); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	/* MAIN SERVER */
@@ -105,7 +105,7 @@ func main() {
 			router.Post("/cancel_start", pkg.DesAuth, c001v001.HandleCancelStartJob)
 
 			router.Post("/end", pkg.DesAuth, c001v001.HandleEndJob)
-			
+
 			router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)
 			router.Post("/state", pkg.DesAuth, c001v001.HandleSetState)
 			router.Post("/header", pkg.DesAuth, c001v001.HandleSetHeader)

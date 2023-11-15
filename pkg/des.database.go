@@ -45,13 +45,14 @@ type DBClient struct {
 	ConnStr string
 	*gorm.DB
 
-	/* TODO: FINISH IMPLEMENTATION & TESTING 
+	/* TODO: FINISH IMPLEMENTATION & TESTING
 	WAIT GROUP USED TO PREVENT CONCURRENT ACCESS  OF MAPPED DEVICE STATE */
-	WG *sync.WaitGroup 
+	WG *sync.WaitGroup
 }
+
 func (dbc *DBClient) GetDBName() string {
 	str := strings.Split(dbc.ConnStr, "/")
-	if len(str) == 4 { 
+	if len(str) == 4 {
 		/* THIS IS A VALID CONNECTION STRING */
 		return str[3] /* TODO: IMPROVE VALIDATION ? */
 	} else {
@@ -59,36 +60,35 @@ func (dbc *DBClient) GetDBName() string {
 	}
 }
 
-
 func (dbc *DBClient) Connect( /* TODO: CONNECTION POOL OPTIONS */ ) (err error) {
 	/* TODO: SETUP CONNECTION POOLING FOR DIFFERENT TYPES OF CONNECTIONS
-			? "gorm.io/plugin/dbresolver" ?
+	? "gorm.io/plugin/dbresolver" ?
 
-			INITIALLY AIMING FOR 100 ACTIVE DEVICES / DES
-			
-			ADMIN DB POOL: 
-				USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
+	INITIALLY AIMING FOR 100 ACTIVE DEVICES / DES
 
-			DES DB: 
-				USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
-			
-			DEVICE DB POOL OR POOLS: 
-				CMDARCHIVE: 
-					USED BY DEVICE CLIENT -> A FEW TRANSACTIONS / PER DAY / DEVICE
-				ACTIVE JOB: 
-					USED BY DEVICE CLIENT -> ~ ONE TRANSACTION / SECOND / DEVCE
+	ADMIN DB POOL:
+		USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
 
-			JOB DB POOL: 
-				USED WHEN USERS ARE CREATING / VIEWING REPORTS/JOB DATA -> A FEW TRANSACTIONS / PER MINUTE
+	DES DB:
+		USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
+
+	DEVICE DB POOL OR POOLS:
+		CMDARCHIVE:
+			USED BY DEVICE CLIENT -> A FEW TRANSACTIONS / PER DAY / DEVICE
+		ACTIVE JOB:
+			USED BY DEVICE CLIENT -> ~ ONE TRANSACTION / SECOND / DEVCE
+
+	JOB DB POOL:
+		USED WHEN USERS ARE CREATING / VIEWING REPORTS/JOB DATA -> A FEW TRANSACTIONS / PER MINUTE
 	*/
 	if dbc.DB, err = gorm.Open(postgres.Open(dbc.ConnStr), &gorm.Config{}); err != nil {
 		fmt.Printf("\n(dbc *DBClient) Connect() -> %s -> FAILED! \n", dbc.GetDBName())
-		return TraceErr(err)
+		return LogErr(err)
 	}
 	dbc.DB.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
 	dbc.DB.Logger = logger.Default.LogMode(logger.Error)
 	dbc.WG = &sync.WaitGroup{}
-	
+
 	// fmt.Printf("\n(dbc *DBClient) Connect() -> %s -> connected... \n", dbc.GetDBName())
 	return err
 }
@@ -100,16 +100,15 @@ func (dbc DBClient) Disconnect() (err error) {
 
 	db, err := dbc.DB.DB()
 	if err != nil {
-		return TraceErr(err)
+		return LogErr(err)
 	}
 	if err = db.Close(); err != nil {
-		return TraceErr(err)
+		return LogErr(err)
 	}
 	// fmt.Printf("\n(dbc *DBClient) Disconnect() -> %s -> connection closed. \n", dbc.GetDBName())
 	dbc = DBClient{}
 	return
 }
-
 
 /*
 	ADMIN DATABASE
@@ -149,7 +148,7 @@ func (adb ADMINDatabase) DropAllDatabases() {
 	}
 	/* DEMO -> NOT FOR PRODUCTION */
 	if err := os.RemoveAll("demo"); err != nil {
-		TraceErr(err)
+		LogErr(err)
 	}
 }
 
@@ -200,8 +199,6 @@ func (des DESDatabase) CreateDESTables(exists bool) (err error) {
 
 	return err
 }
-
-
 
 // type WGTestThing struct {
 // 	Name string

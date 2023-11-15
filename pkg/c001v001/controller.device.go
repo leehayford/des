@@ -135,7 +135,7 @@ func DeviceClient_ConnectAll() {
 
 	regs, err := GetDeviceList()
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	for _, reg := range regs {
@@ -165,12 +165,12 @@ func (device *Device) DeviceClient_Connect() {
 
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting CMDARCHIVE... \n", device.DESDevSerial)
 	if err := device.ConnectCmdDBC(); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting ACTIVE JOB... \n", device.DESDevSerial)
 	if err := device.ConnectJobDBC(); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	device.JobDBC.Last(&device.ADM)
@@ -181,7 +181,7 @@ func (device *Device) DeviceClient_Connect() {
 	device.JobDBC.Last(&device.EVT)
 
 	if err := device.MQTTDeviceClient_Connect(); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	/* ADD TO Devices MAP */
@@ -199,13 +199,13 @@ func (device *Device) DeviceClient_Disconnect() {
 	fmt.Printf("\n\n(device *Device) DeviceClient_Disconnect() -> %s -> disconnecting... \n", device.DESDevSerial)
 
 	if err := device.CmdDBC.Disconnect(); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := device.JobDBC.Disconnect(); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := device.MQTTDeviceClient_Disconnect(); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	delete(Devices, device.DESDevSerial)
 }
@@ -359,7 +359,7 @@ func (device Device) GetCmdArchiveDESRegistration() (cmd Job) {
 
 	res := qry.Scan(&cmd.DESRegistration)
 	if res.Error != nil {
-		pkg.TraceErr(res.Error)
+		pkg.LogErr(res.Error)
 	}
 	// pkg.Json("(device *Device) GetCmdArchiveDESRegistration( )", cmd)
 	return
@@ -390,7 +390,7 @@ func (device *Device) GetCurrentJob() {
 
 	res := qry.Scan(&device.DESRegistration)
 	if res.Error != nil {
-		pkg.TraceErr(res.Error)
+		pkg.LogErr(res.Error)
 		return
 	}
 	// pkg.Json("(device *Device) GetCurrentJob( )", device.Job)
@@ -546,6 +546,10 @@ func (device *Device) StartJob(sta State) {
 	// /* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
 	// device.DESMQTTClient.WG.Wait()
 
+	/* TODO: CHECK device.STA.StaLogging
+	IF WE ARE ALREADY LOGGING, THE ACTIVE JOB MUST BE ENDED BEFORE A NEW ONE IST STARTED
+	*/
+
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 	hdr := device.HDR
@@ -575,12 +579,10 @@ func (device *Device) StartJob(sta State) {
 	}
 
 	fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n%v\n", device.DESJob)
+
 	/* CREATE A JOB RECORD IN THE DES DATABASE */
-	// if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
-	// 	pkg.TraceErr(res.Error)
-	// }
 	if err := pkg.WriteDESJob(&device.DESJob); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	/* CREATE DESJobSearch RECORD */
@@ -616,7 +618,7 @@ func (device *Device) StartJob(sta State) {
 				&SecDataset{},
 				&SecAnnotation{},
 			); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			for _, typ := range EVENT_TYPES {
@@ -627,20 +629,20 @@ func (device *Device) StartJob(sta State) {
 
 	/* WRITE INITIAL JOB RECORDS */
 	if err := WriteADM(device.ADM, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteSTA(sta, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteHDR(hdr, &device.JobDBC); err != nil {
 		// if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteEVT(device.EVT, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	/* WAIT FOR PENDING MQTT MESSAGES TO COMPLETE */
@@ -654,7 +656,8 @@ func (device *Device) StartJob(sta State) {
 	/* UPDATE THE DEVICES CLIENT MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
 
-	fmt.Printf("\n(device *Device) StartJob( ): COMPLETE: %s\n", device.JobDBC.GetDBName())
+	pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
+	// fmt.Printf("\n(device *Device) StartJob( ): COMPLETE: %s\n", device.JobDBC.GetDBName())
 }
 
 /* CALLED WHEN DES RECEIVES SAMPLES WITH AN UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST ) */
@@ -809,12 +812,12 @@ func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
 
 	res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s)
 	if res.Error != nil {
-		pkg.TraceErr(res.Error)
+		pkg.LogErr(res.Error)
 	}
 
 	s.DESJobJson = pkg.ModelToJSONString(device)
 	if res := pkg.DES.DB.Save(&s); res.Error != nil {
-		pkg.TraceErr(res.Error)
+		pkg.LogErr(res.Error)
 	}
 }
 
@@ -1116,7 +1119,7 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 		&Event{},
 		&Sample{},
 	); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	/* WRITE DEFAULT ADM, STA, HDR, CFG, EVT TO CMDARCHIVE */
@@ -1140,22 +1143,22 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 		WriteETYP(typ, &device.JobDBC)
 	}
 	if err := WriteADM(device.ADM, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteSTA(device.STA, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteEVT(device.EVT, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteSMP(device.SMP, &device.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	/* CLOSE TEMPORARY CONNECTION TO  CMDARCHIVE DB */

@@ -160,7 +160,7 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 		&Event{},
 		&Sample{},
 	); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	/* WRITE INITIAL JOB RECORDS */
@@ -168,22 +168,22 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 		WriteETYP(typ, &demo.JobDBC)
 	}
 	if err := WriteADM(demo.ADM, &demo.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteSTA(demo.STA, &demo.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteHDR(demo.HDR, &demo.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteCFG(demo.CFG, &demo.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteEVT(demo.EVT, &demo.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 	if err := WriteSMP(demo.SMP, &demo.JobDBC); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	demo.JobDBC.Disconnect()
@@ -214,7 +214,7 @@ func DemoDeviceClient_ConnectAll(qty int) {
 
 	regs, err := GetDemoDeviceList()
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	/* WHERE THERE ARE NO DEMO DEVICES, MAKE qty OF THEM */
@@ -270,7 +270,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	demo.TZero = make(chan time.Time)
 
 	if err := demo.MQTTDemoDeviceClient_Connect(); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	/* ADD TO DemoDeviceClients MAP */
@@ -292,7 +292,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
 	fmt.Printf("\n\n(demo *DemoDeviceClient) DemoDeviceClient_Disconnect() -> %s -> disconnecting... \n", demo.DESDevSerial)
 
 	if err := demo.MQTTDeviceClient_Disconnect(); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	close(demo.Stop)
@@ -348,7 +348,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 
 	/* DISCONNECT THE DESMQTTCLient */
 	if err = demo.DESMQTTClient_Disconnect(); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	fmt.Printf("\n(device) MQTTDemoDeviceClient_Dicconnect( ) -> %s -> disconnected.\n", demo.ClientID)
@@ -370,7 +370,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			adm := Admin{}
 			if err := json.Unmarshal(msg.Payload(), &adm); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -380,7 +380,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 			/* UPDATE SOURCE ADDRESS ONLY */
 			adm.AdmAddr = demo.DESDevSerial
 
-			if demo.EVT.EvtCode > OP_CODE_JOB_START_REQ {
+			if demo.STA.StaLogging  > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteAdmToFlash(demo.DESJobName, adm_rec)
@@ -444,7 +444,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			sta := State{}
 			if err := json.Unmarshal(msg.Payload(), &sta); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -463,7 +463,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 			sta.StaTime = time.Now().UTC().UnixMilli()
 			/* END TEMPORARY USE ********************************************************************/
 
-			if demo.STA.StaLogging == 1 {
+			if demo.STA.StaLogging  > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteStateToFlash(demo.DESJobName, sta_rec)
@@ -532,7 +532,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			hdr := Header{}
 			if err := json.Unmarshal(msg.Payload(), &hdr); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -542,7 +542,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 			/* UPDATE SOURCE ADDRESS ONLY */
 			hdr.HdrAddr = demo.DESDevSerial
 
-			if demo.EVT.EvtCode > OP_CODE_JOB_START_REQ {
+			if demo.STA.StaLogging  > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteHdrToFlash(demo.DESJobName, hdr_rec)
@@ -584,7 +584,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			cfg := Config{}
 			if err := json.Unmarshal(msg.Payload(), &cfg); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -594,7 +594,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 			/* UPDATE SOURCE ADDRESS ONLY */
 			cfg.CfgAddr = demo.DESDevSerial
 
-			if demo.EVT.EvtCode > OP_CODE_JOB_START_REQ {
+			if demo.STA.StaLogging  > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteCfgToFlash(demo.DESJobName, cfg_rec)
@@ -650,7 +650,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 
 			/* PARSE / STORE THE EVENT IN CMDARCHIVE */
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
-				pkg.TraceErr(err)
+				pkg.LogErr(err)
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
@@ -796,7 +796,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts M
 
 	b64, err := json.Marshal(mqtts)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	} // pkg.Json("MQTT_Sample:", b64)
 
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
@@ -847,7 +847,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 
 	/* WHERE JOB START ADMIN WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.ADM.AdmTime != evt.EvtTime {
-		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT ADMIN.\n")
+		pkg.LogChk("USING DEFAULT ADMIN")
 		demo.ADM.DefaultSettings_Admin(demo.DESRegistration)
 	}
 	demo.ADM.AdmTime = startTime
@@ -863,12 +863,12 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	sta.StaApp = evt.EvtApp
 	sta.StaLogFw = "0.0.009"
 	sta.StaModFw = "0.0.007"
-	sta.StaLogging = OP_CODE_JOB_STARTED 
+	sta.StaLogging = OP_CODE_JOB_STARTED
 	sta.StaJobName = demo.DESJobName
 
 	/* WHERE JOB START HEADER WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.HDR.HdrTime != evt.EvtTime {
-		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT HEADER\n")
+		pkg.LogChk("USING DEFAULT HEADER")
 		demo.HDR.DefaultSettings_Header(demo.DESRegistration)
 	}
 	demo.HDR.HdrTime = startTime
@@ -886,7 +886,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 
 	/* WHERE JOB START CONFIG WAS NOT RECEIVED, USE DEFAULT VALUES */
 	if demo.CFG.CfgTime != evt.EvtTime {
-		fmt.Printf("(demo *DemoDeviceClient) StartDemoJob -> USING DEFAULT CONFIG.\n")
+		pkg.LogChk("USING DEFAULT CONFIG")
 		demo.CFG.DefaultSettings_Config(demo.DESRegistration)
 	}
 	demo.CFG.CfgTime = startTime
@@ -944,8 +944,8 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 
 	demo.DESMQTTClient.WG.Wait()
 	demo.DESMQTTClient.WG.Add(1)
-	if demo.Stop != nil { 
-		demo.Stop <- struct{}{} 
+	if demo.Stop != nil {
+		demo.Stop <- struct{}{}
 	}
 
 	/* CAPTURE TIME VALUE FOR JOB TERMINATION: HDR, EVT */
@@ -1286,12 +1286,12 @@ func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	f, err := os.OpenFile(fmt.Sprintf("%s/%s.json", dir, fileName), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return pkg.TraceErr(err)
+		return pkg.LogErr(err)
 	}
 	defer f.Close()
 
@@ -1303,7 +1303,7 @@ func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error
 
 	_, err = f.WriteString(js)
 	if err != nil {
-		return pkg.TraceErr(err)
+		return pkg.LogErr(err)
 	}
 
 	f.Close()
@@ -1342,18 +1342,18 @@ func WriteModelBytesToFlashHEX(jobName, fileName string, buf []byte) (err error)
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 	}
 
 	f, err := os.OpenFile(fmt.Sprintf("%s/%s.bin", dir, fileName), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return pkg.TraceErr(err)
+		return pkg.LogErr(err)
 	}
 	defer f.Close()
 
 	_, err = f.Write(buf)
 	if err != nil {
-		return pkg.TraceErr(err)
+		return pkg.LogErr(err)
 	}
 
 	f.Close()
@@ -1366,7 +1366,7 @@ func ReadModelBytesFromFlashHEX(jobName, fileName string) (buf []byte, arr error
 	dir := fmt.Sprintf("demo/%s", jobName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/%s.bin", dir, fileName), os.O_RDONLY, 0600)
 	if err != nil {
-		return nil, pkg.TraceErr(err)
+		return nil, pkg.LogErr(err)
 	}
 
 	buf, err = ioutil.ReadAll(f)

@@ -11,7 +11,7 @@ import (
 /*
 	NOT TESTED
 
-RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
+# RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
 
 ALONG WITH THE ACTIVE JOB FOR EACH DEVICE
 IN THE FORM OF A DESRegistration
@@ -31,7 +31,7 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 	regs, err := GetDeviceList()
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": fmt.Sprintf("GetDeviceList(...) -> query failed:\n%s\n", err),
@@ -65,7 +65,7 @@ func HandleSearchDevices(c *fiber.Ctx) (err error) {
 	/* PARSE AND VALIDATE REQUEST DATA */
 	params := pkg.DESSearchParam{}
 	if err = c.BodyParser(&params); err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
@@ -75,7 +75,7 @@ func HandleSearchDevices(c *fiber.Ctx) (err error) {
 	/* SEARCH ACTIVE DEVICES BASED ON params */
 	regs, err := pkg.SearchDESDevices(params)
 	if err != nil {
-		pkg.TraceErr(err)
+		pkg.LogErr(err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": fmt.Sprintf("pkg.SearchDESDevices(...) -> query failed:\n%s\n", err),
@@ -303,11 +303,12 @@ func HandleGetAdmin(c *fiber.Ctx) (err error) {
 }
 
 /*
-	USED TO SET THE STATE VALUES FOR A GIVEN DEVICE
-	***NOTE*** 
-		THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
-		FUTURE VERSIONS WILL ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
-		CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
+USED TO SET THE STATE VALUES FOR A GIVEN DEVICE
+***NOTE***
+
+	THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
+	FUTURE VERSIONS WILL ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
+	CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
 */
 func HandleSetState(c *fiber.Ctx) (err error) {
 
@@ -470,8 +471,9 @@ func HandleCreateDeviceEvent(c *fiber.Ctx) (err error) {
 	})
 }
 
-/* TODO: TEST *** DO NOT USE ***
-	USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
+/*
+	 TODO: TEST *** DO NOT USE ***
+		USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
 
 PERFORMS DES DEVICE REGISTRATION
 PERFORMS CLASS/VERSION SPECIFIC REGISTRATION ACTIONS
@@ -512,5 +514,3 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 		"data":    fiber.Map{"device": &device},
 	})
 }
-
-

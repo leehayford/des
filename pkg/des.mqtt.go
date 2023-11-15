@@ -121,7 +121,7 @@ func (pub MQTTPublication) Pub(client DESMQTTClient) {
 		pub.Retained,
 		pub.Message,
 	); token.Wait() && token.Error() != nil {
-		TraceErr(token.Error())
+		LogErr(token.Error())
 	}
 }
 
@@ -129,17 +129,17 @@ func ModelToJSONB(mod interface{}) (jsonb []byte) {
 
 	jsonb, err := json.Marshal(mod)
 	if err != nil {
-		TraceErr(err)
+		LogErr(err)
 	}
 	// fmt.Printf("\n%s\n", string(jsonb))
-	return 
+	return
 }
 
 func ModelToJSONString(mod interface{}) (msg string) {
 
 	js, err := json.Marshal(mod)
 	if err != nil {
-		TraceErr(err)
+		LogErr(err)
 	}
 	// fmt.Printf("\n%s\n", string(js))
 	return string(js)
