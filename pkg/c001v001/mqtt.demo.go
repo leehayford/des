@@ -1000,6 +1000,28 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	time.Sleep(time.Second * 2) // ENSURE PREVIOUS MESSAGES HAVE BEEN PROCESSED
 	demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
 
+	/* GET DEFAULT MODELS AND UPDATE TIMES */
+	adm := demo.ADM
+	adm.DefaultSettings_Admin(demo.DESRegistration)
+	adm.AdmTime = time.Now().UTC().UnixMilli()
+
+	hdr.DefaultSettings_Header(demo.DESRegistration)
+	hdr.HdrTime = time.Now().UTC().UnixMilli()
+
+	cfg := demo.CFG
+	cfg.DefaultSettings_Config(demo.DESRegistration)
+	cfg.CfgTime = time.Now().UTC().UnixMilli()
+
+	/* TRANSMIT DEFAULT MODELS */
+	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
+	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
+	demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
+
+	/* LOAD DEFAULT MODELS INTO RAM */
+	demo.ADM = adm
+	demo.HDR = hdr
+	demo.CFG = cfg
+
 	demo.DESMQTTClient.WG.Done()
 
 	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) -> ENDED: %s\n", demo.STA.StaJobName)
