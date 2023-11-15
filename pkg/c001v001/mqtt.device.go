@@ -87,8 +87,8 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGPing() pkg.MQTTSubscripti
 				pkg.LogErr(err)
 			}
 
-			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-			device.UpdateMappedPING()
+			/* UPDATE THE DevicePingsMap - DO NOT CALL IN GOROUTINE  */
+			device.CheckPing()
 			device.DESMQTTClient.WG.Done()
 
 		},

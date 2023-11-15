@@ -81,7 +81,8 @@ type DevicesMap map[string]Device
 var Devices = make(DevicesMap)
 var DevicesRWMutex = sync.RWMutex{}
 
-const PING_DURATION = 30
+const PING_DURATION = 30000
+const PING_LIMIT = PING_DURATION + 1000
 type Ping struct { 
 	Time int64 `json:"time"` 
 }
@@ -89,7 +90,8 @@ type DevicePingsMap map[string]Ping
 var DevicePings = make(DevicePingsMap)
 func (device *Device) CheckPing() (ok bool) {
 	last := DevicePings[device.DESDevSerial]
-	if (device.PING.Time - last.Time) > PING_DURATION {
+	fmt.Printf("\n%s -> CheckPing( ) -> ping: %d,\t last: %d,\tdiff: %d\n", device.DESDevSerial, device.PING.Time, last.Time, (device.PING.Time - last.Time))
+	if device.PING.Time == 0 || last.Time == 0 || device.PING.Time > (last.Time + PING_LIMIT) {
 		ok = false
 	} else {
 		ok = true

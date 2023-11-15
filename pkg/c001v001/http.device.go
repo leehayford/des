@@ -120,7 +120,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 		})
 	} // pkg.Json("HandleStartJob(): -> c.BodyParser(&device) -> device", device)
 
-	/* TODO : MOVE TO DES
+	/* TODO : MOVE TO DES, CREATE CUSTOM Status ?
 	CHECK DEVICE AVAILABILITY */
 	if ok := device.CheckPing(); !ok {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
