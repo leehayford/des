@@ -120,6 +120,16 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 		})
 	} // pkg.Json("HandleStartJob(): -> c.BodyParser(&device) -> device", device)
 
+	/* TODO : MOVE TO DES
+	CHECK DEVICE AVAILABILITY */
+	if ok := device.CheckPing(); !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "Device not connected to broker",
+		})
+	} // pkg.Json("HandleStartJob(): -> device.CheckPing( ) -> device", device)
+	
+	
 	/* SEND START JOB REQUEST */
 	if err = device.StartJobRequest(c.IP()); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

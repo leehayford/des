@@ -69,6 +69,7 @@ type Device struct {
 	CFG                 Config       `json:"cfg"` // Last known Config value
 	EVT                 Event        `json:"evt"` // Last known Event value
 	SMP                 Sample       `json:"smp"` // Last known Sample value
+	PING				Ping 			`json:"ping"` // Last Ping received from device
 	CmdDBC              pkg.DBClient `json:"-"`   // Database Client for the CMDARCHIVE
 	JobDBC              pkg.DBClient `json:"-"`   // Database Client for the active job
 	pkg.DESMQTTClient   `json:"-"`   // MQTT client handling all subscriptions and publications for this device
@@ -79,6 +80,23 @@ type DevicesMap map[string]Device
 
 var Devices = make(DevicesMap)
 var DevicesRWMutex = sync.RWMutex{}
+
+const PING_DURATION = 30
+type Ping struct { 
+	Time int64 `json:"time"` 
+}
+type DevicePingsMap map[string]Ping
+var DevicePings = make(DevicePingsMap)
+func (device *Device) CheckPing() (ok bool) {
+	last := DevicePings[device.DESDevSerial]
+	if (device.PING.Time - last.Time) > PING_DURATION {
+		ok = false
+	} else {
+		ok = true
+	}
+	DevicePings[device.DESDevSerial] = device.PING
+	return
+}
 
 /* TODO: TEST WaitGroup vs. RWMutex ON SERVER TO PREVENT CONCURRENT MAP WRITES
 --> var DevicesMapWG = sync.WaitGroup{}
@@ -187,6 +205,10 @@ func (device *Device) DeviceClient_Connect() {
 	/* ADD TO Devices MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
 
+	/* ADD TO DevicePings MAP */
+	device.PING.Time = 0 
+	DevicePings[device.DESDevSerial] = device.PING
+
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connected... \n\n", device.DESDevSerial)
 }
 
@@ -207,6 +229,12 @@ func (device *Device) DeviceClient_Disconnect() {
 	if err := device.MQTTDeviceClient_Disconnect(); err != nil {
 		pkg.LogErr(err)
 	}
+	
+	/* REMOVE FROM DevicePings MAP */
+	device.PING.Time = 0 
+	delete(DevicePings, device.DESDevSerial)
+
+	/* REMOVE FROM Devices MAP */
 	delete(Devices, device.DESDevSerial)
 }
 
@@ -248,6 +276,12 @@ func (device *Device) GetMappedClients() {
 	d.DESMQTTClient.WG.Wait()
 	device.DESMQTTClient.WG.Wait()
 	device.DESMQTTClient = d.DESMQTTClient
+}
+
+/* HYDRATES THE DEVICE'S Ping STRUCT FROM THE DevicesMap */
+func (device *Device) GetMappedPING() {
+	d := device.ReadDevicesMap(device.DESDevSerial)
+	device.PING = d.PING
 }
 
 /* HYDRATES THE DEVICE'S Admin STRUCT FROM THE DevicesMap */
@@ -296,6 +330,13 @@ func UpdateDevicesMap(serial string, d Device) {
 	DevicesRWMutex.Lock()
 	Devices[serial] = d
 	DevicesRWMutex.Unlock()
+}
+
+/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Ping */
+func (device *Device) UpdateMappedPING() {
+	d := device.ReadDevicesMap(device.DESDevSerial)
+	d.PING = device.PING
+	UpdateDevicesMap(device.DESDevSerial, d)
 }
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Admin */

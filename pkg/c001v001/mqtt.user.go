@@ -173,6 +173,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 	// duc.DESMQTTClient.ClientOptions.ClientID:`,
 	// duc.DESMQTTClient.ClientOptions.ClientID)
 
+	duc.MQTTSubscription_DeviceUserClient_SIGPing().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGState().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGHeader().Sub(duc.DESMQTTClient)
@@ -187,6 +188,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
+	duc.MQTTSubscription_DeviceUserClient_SIGPing().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGState().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGHeader().UnSub(duc.DESMQTTClient)
@@ -202,6 +204,33 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 }
 
 /* SUBSCRIPTIONS ****************************************************************************************/
+
+/* SUBSCRIPTIONS -> PING  */
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGPing() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: duc.MQTTTopic_SIGPing(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* DECODE MESSAGE PAYLOAD TO Ping STRUCT */
+			ping := Ping{}
+			if err := json.Unmarshal(msg.Payload(), &ping); err != nil {
+				pkg.LogErr(err)
+			}
+
+			/* CREATE JSON WSMessage STRUCT */
+			js, err := json.Marshal(&WSMessage{Type: "ping", Data: ping})
+			if err != nil {
+				pkg.LogErr(err)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGPing(...) -> ping :", ping)
+
+			/* SEND WSMessage AS JSON STRING */
+			duc.DataOut <- string(js)
+
+		},
+	}
+}
 
 /* SUBSCRIPTIONS -> ADMIN  */
 func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQTTSubscription {

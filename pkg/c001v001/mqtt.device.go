@@ -38,6 +38,7 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 	}
 
 	/* SUBSCRIBE TO ALL MQTTSubscriptions */
+	device.MQTTSubscription_DeviceClient_SIGPing().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGAdmin().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGState().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGHeader().Sub(device.DESMQTTClient)
@@ -51,6 +52,7 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
+	device.MQTTSubscription_DeviceClient_SIGPing().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGAdmin().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGState().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGHeader().UnSub(device.DESMQTTClient)
@@ -69,6 +71,29 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 }
 
 /* SUBSCRIPTIONS ****************************************************************************************/
+
+/* SUBSCRIPTION -> PING  -> UPON RECEIPT, UPDATE DevicesMap */
+func (device *Device) MQTTSubscription_DeviceClient_SIGPing() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: device.MQTTTopic_SIGPing(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			device.DESMQTTClient.WG.Add(1)
+
+			/* PARSE THE PING MESSAGE */
+			if err := json.Unmarshal(msg.Payload(), &device.PING); err != nil {
+				pkg.LogErr(err)
+			}
+
+			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+			device.UpdateMappedPING()
+			device.DESMQTTClient.WG.Done()
+
+		},
+	}
+}
 
 /* SUBSCRIPTION -> ADMINISTRATION  -> UPON RECEIPT, WRITE TO JOB DATABASE */
 func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscription {
@@ -450,6 +475,9 @@ func (device *Device) MQTTTopic_CMDReport(baseTopic string) (topic string) {
 }
 
 /* MQTT TOPICS - SIGNAL */
+func (device *Device) MQTTTopic_SIGPing() (topic string) {
+	return fmt.Sprintf("%s/ping", device.MQTTTopic_SIGRoot())
+}
 func (device *Device) MQTTTopic_SIGAdmin() (topic string) {
 	return fmt.Sprintf("%s/admin", device.MQTTTopic_SIGRoot())
 }

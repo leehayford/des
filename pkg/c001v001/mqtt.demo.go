@@ -45,6 +45,7 @@ type DemoDeviceClient struct {
 	Rate  chan int32
 	Mode  chan int32
 	TZero chan time.Time
+	Live bool
 }
 
 type DemoDeviceClientsMap map[string]DemoDeviceClient
@@ -268,9 +269,11 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	demo.Rate = make(chan int32)
 	demo.Mode = make(chan int32)
 	demo.TZero = make(chan time.Time)
+	demo.Live = true
 
 	if err := demo.MQTTDemoDeviceClient_Connect(); err != nil {
 		pkg.LogErr(err)
+		demo.Live = false
 	}
 
 	/* ADD TO DemoDeviceClients MAP */
@@ -281,6 +284,14 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 		go demo.Demo_Simulation(demo.STA.StaJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
 		time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 	}
+
+	go func() {
+		for demo.Live {
+			demo.PING.Time = time.Now().UTC().UnixMilli()
+			demo.MQTTPublication_DemoDeviceClient_SIGPing()
+			time.Sleep(time.Second * PING_DURATION)
+		}
+	}( )
 
 	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
 }
@@ -306,6 +317,8 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
 
 	close(demo.TZero)
 	demo.TZero = nil
+
+	demo.Live = false
 
 	delete(DemoDeviceClients, demo.DESDevSerial)
 }
@@ -705,6 +718,23 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 }
 
 /* PUBLICATIONS ******************************************************************************************/
+
+/* PUBLICATION -> PING -> SIMULATED ADMINS */
+func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGPing() {
+	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
+	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
+	*/
+	sig := pkg.MQTTPublication{
+
+		Topic:    demo.MQTTTopic_SIGPing(),
+		Message:  pkg.ModelToJSONString(demo.PING),
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	}
+
+	sig.Pub(demo.DESMQTTClient)
+}
 
 /* PUBLICATION -> ADMIN -> SIMULATED ADMINS */
 func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGAdmin(adm Admin) {
