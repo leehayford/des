@@ -144,6 +144,7 @@ func GetDevices(regs []pkg.DESRegistration) (devices []Device) {
 		// pkg.Json("GetDevices( ) -> reg", reg)
 		device := (&Device{}).ReadDevicesMap(reg.DESDevSerial)
 		device.DESRegistration = reg
+		device.PING = DevicePings[device.DESDevSerial]
 		devices = append(devices, device)
 	}
 	// pkg.Json("GetDevices(): Devices", devices)
