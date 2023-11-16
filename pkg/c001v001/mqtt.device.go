@@ -3,6 +3,7 @@ package c001v001
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
 
@@ -72,7 +73,7 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 
 /* SUBSCRIPTIONS ****************************************************************************************/
 
-/* SUBSCRIPTION -> PING  -> UPON RECEIPT, UPDATE DevicesMap */
+/* SUBSCRIPTION -> PING  -> UPON RECEIPT, ALERT USER CLIENTS, UPDATE DevicePingsMap */
 func (device *Device) MQTTSubscription_DeviceClient_SIGPing() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
@@ -80,16 +81,18 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGPing() pkg.MQTTSubscripti
 		Topic: device.MQTTTopic_SIGPing(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			device.DESMQTTClient.WG.Add(1)
+			// /* TODO : PARSE THE PING MESSAGE - CHECK LATENCEY */
+			// if err := json.Unmarshal(msg.Payload(), &ping); err != nil {
+			// 	pkg.LogErr(err)
+			// }
 
-			/* PARSE THE PING MESSAGE */
-			if err := json.Unmarshal(msg.Payload(), &device.PING); err != nil {
-				pkg.LogErr(err)
-			}
+			/* IGNORE THE RECEIVED DEVICE TIME FOR NOW,
+			WE DON'T REALLY CARE FOR THIS PURPOSE */
+			ping := Ping{}
+			ping.Time = time.Now().UTC().UnixMilli()
+			ping.OK = true
 
-			/* UPDATE THE DevicePingsMap - DO NOT CALL IN GOROUTINE  */
-			device.CheckPing()
-			device.DESMQTTClient.WG.Done()
+			go device.UpdateDevicePing(ping)
 
 		},
 	}
@@ -168,12 +171,12 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscript
 				/* device.STA AND MappedSTA WILL BE UPDATED IN ONE OF THE CASES ABOVE */
 
 			} else {
-				
+
 				if sta.StaLogging > OP_CODE_JOB_START_REQ {
 
 					/* STORE THE STATE IN THE ACTIVE JOB;  CALL DB WRITE IN GOROUTINE */
 					go WriteSTA(sta, &device.JobDBC)
-					
+
 					device.STA = sta
 
 					/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
@@ -371,6 +374,23 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 
 /* PUBLICATIONS ******************************************************************************************/
 
+/*
+	DES PUBLICATION -> DEVICE CONNECTED
+
+SENT BY THE DES TO USER CLIENTS (WS) TO SIGNAL THE DEVICE'S BROKER CONNECTION STATUS
+*/
+func (device *Device) MQTTPublication_DeviceClient_DESPing(ping Ping) {
+	des := pkg.MQTTPublication{
+		Topic:    device.MQTTTopic_DESPing(),
+		Message:  pkg.ModelToJSONString(ping),
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_DESPing(): -> ping", ping)
+
+	des.Pub(device.DESMQTTClient)
+}
+
 /* PUBLICATION -> ADMINISTRATION */
 func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 
@@ -462,12 +482,16 @@ func (device *Device) MQTTTopic_DeviceRoot() (root string) {
 	return fmt.Sprintf("%s/%s/%s", device.DESDevClass, device.DESDevVersion, device.DESDevSerial)
 }
 
+func (device *Device) MQTTTopic_SIGRoot() (root string) {
+	return fmt.Sprintf("%s/sig", device.MQTTTopic_DeviceRoot())
+}
+
 func (device *Device) MQTTTopic_CMDRoot() (root string) {
 	return fmt.Sprintf("%s/cmd", device.MQTTTopic_DeviceRoot())
 }
 
-func (device *Device) MQTTTopic_SIGRoot() (root string) {
-	return fmt.Sprintf("%s/sig", device.MQTTTopic_DeviceRoot())
+func (device *Device) MQTTTopic_DESRoot() (root string) {
+	return fmt.Sprintf("%s/des", device.MQTTTopic_DeviceRoot())
 }
 
 func (device *Device) MQTTTopic_CMDReport(baseTopic string) (topic string) {
@@ -521,4 +545,9 @@ func (device *Device) MQTTTopic_CMDSample() (topic string) {
 }
 func (device *Device) MQTTTopic_CMDDiagSample() (topic string) {
 	return fmt.Sprintf("%s/diag_sample", device.MQTTTopic_CMDRoot())
+}
+
+/* MQTT TOPICS - DES MESSAGE */
+func (device *Device) MQTTTopic_DESPing() (topic string) {
+	return fmt.Sprintf("%s/ping", device.MQTTTopic_DESRoot())
 }

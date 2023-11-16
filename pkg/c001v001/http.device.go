@@ -122,7 +122,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 
 	/* TODO : MOVE TO DES, CREATE CUSTOM Status ?
 	CHECK DEVICE AVAILABILITY */
-	if ok := device.CheckPing(); !ok {
+	if ok := DevicePings[device.DESDevSerial].OK; !ok {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "Device not connected to broker",

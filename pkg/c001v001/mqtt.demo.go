@@ -45,7 +45,7 @@ type DemoDeviceClient struct {
 	Rate  chan int32
 	Mode  chan int32
 	TZero chan time.Time
-	Live bool
+	Live  bool
 }
 
 type DemoDeviceClientsMap map[string]DemoDeviceClient
@@ -102,8 +102,8 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 		DESJobName:  fmt.Sprintf("%s_CMDARCHIVE", serial),
 		DESJobStart: 0,
 		DESJobEnd:   0,
-		DESJobLng:  DEFAULT_GEO_LNG,
-		DESJobLat: DEFAULT_GEO_LAT,
+		DESJobLng:   DEFAULT_GEO_LNG,
+		DESJobLat:   DEFAULT_GEO_LAT,
 		DESJobDevID: des_dev.DESDevID,
 	}
 	pkg.DES.DB.Create(&des_job)
@@ -289,9 +289,9 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 		for demo.Live {
 			demo.PING.Time = time.Now().UTC().UnixMilli()
 			demo.MQTTPublication_DemoDeviceClient_SIGPing()
-			time.Sleep(time.Millisecond * PING_DURATION)
+			time.Sleep(time.Millisecond * PING_TIMEOUT)
 		}
-	}( )
+	}()
 
 	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
 }
@@ -393,7 +393,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 			/* UPDATE SOURCE ADDRESS ONLY */
 			adm.AdmAddr = demo.DESDevSerial
 
-			if demo.STA.StaLogging  > OP_CODE_JOB_START_REQ {
+			if demo.STA.StaLogging > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteAdmToFlash(demo.DESJobName, adm_rec)
@@ -476,7 +476,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 			sta.StaTime = time.Now().UTC().UnixMilli()
 			/* END TEMPORARY USE ********************************************************************/
 
-			if demo.STA.StaLogging  > OP_CODE_JOB_START_REQ {
+			if demo.STA.StaLogging > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteStateToFlash(demo.DESJobName, sta_rec)
@@ -555,7 +555,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 			/* UPDATE SOURCE ADDRESS ONLY */
 			hdr.HdrAddr = demo.DESDevSerial
 
-			if demo.STA.StaLogging  > OP_CODE_JOB_START_REQ {
+			if demo.STA.StaLogging > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteHdrToFlash(demo.DESJobName, hdr_rec)
@@ -607,7 +607,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 			/* UPDATE SOURCE ADDRESS ONLY */
 			cfg.CfgAddr = demo.DESDevSerial
 
-			if demo.STA.StaLogging  > OP_CODE_JOB_START_REQ {
+			if demo.STA.StaLogging > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteCfgToFlash(demo.DESJobName, cfg_rec)
