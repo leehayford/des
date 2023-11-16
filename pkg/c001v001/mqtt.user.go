@@ -214,7 +214,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESPing() pkg.MQT
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* DECODE MESSAGE PAYLOAD TO Ping STRUCT */
-			ping := Ping{}
+			ping := pkg.Ping{}
 			if err := json.Unmarshal(msg.Payload(), &ping); err != nil {
 				pkg.LogErr(err)
 			}

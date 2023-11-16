@@ -81,18 +81,23 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGPing() pkg.MQTTSubscripti
 		Topic: device.MQTTTopic_SIGPing(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			// /* TODO : PARSE THE PING MESSAGE - CHECK LATENCEY */
+			// /* TODO : PARSE THE PING MESSAGE */
 			// if err := json.Unmarshal(msg.Payload(), &ping); err != nil {
 			// 	pkg.LogErr(err)
 			// }
+			ping := pkg.Ping{ 
+				Time: time.Now().UTC().UnixMilli(),
+				OK: true, 
+			}
 
-			/* IGNORE THE RECEIVED DEVICE TIME FOR NOW,
-			WE DON'T REALLY CARE FOR THIS PURPOSE */
-			ping := Ping{}
-			ping.Time = time.Now().UTC().UnixMilli()
-			ping.OK = true
-
+			/* CALL IN GO ROUTINE BECAUSE A MESSGE WILL BE PUBLISHED */
 			go device.UpdateDevicePing(ping)
+
+			/* TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME 
+				- IGNORE THE RECEIVED DEVICE TIME FOR NOW, 
+				- WE DON'T REALLY CARE FOR KEEP-ALIVE PURPOSES 
+			
+			*/ // go ping.LatencyCheck()
 
 		},
 	}
@@ -372,14 +377,14 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 	}
 }
 
-/* PUBLICATIONS ******************************************************************************************/
+/* DES PUBLICATIONS **************************************************************************************/
 
 /*
 	DES PUBLICATION -> DEVICE CONNECTED
 
 SENT BY THE DES TO USER CLIENTS (WS) TO SIGNAL THE DEVICE'S BROKER CONNECTION STATUS
 */
-func (device *Device) MQTTPublication_DeviceClient_DESPing(ping Ping) {
+func (device *Device) MQTTPublication_DeviceClient_DESPing(ping pkg.Ping) {
 	des := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_DESPing(),
 		Message:  pkg.ModelToJSONString(ping),
@@ -390,6 +395,9 @@ func (device *Device) MQTTPublication_DeviceClient_DESPing(ping Ping) {
 
 	des.Pub(device.DESMQTTClient)
 }
+
+
+/* CMD PUBLICATIONS **************************************************************************************/
 
 /* PUBLICATION -> ADMINISTRATION */
 func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {

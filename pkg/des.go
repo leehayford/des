@@ -37,6 +37,15 @@ const ROLE_USER = "user"
 // var ROLE_EDITOR = DESRole{ Code: 2, Name: "editor", }
 // var ROLE_USER = DESRole{ Code: 3, Name: "user", }
 
+type Ping struct {
+	Time int64 `json:"time"`
+	OK   bool  `json:"ok"`
+}
+func (p *Ping) LatencyCheck() (ms int64, err error) {
+	/* TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME */
+	return
+}
+
 
 type DESRegistration struct {
 	DESDev //`json:"des_dev"`
