@@ -92,7 +92,7 @@ func (device *Device) UpdateDevicePing(ping pkg.Ping) {
 	if !ping.OK || ping.Time == 0 {
 		ping.Time = DevicePings[device.DESDevSerial].Time
 		ping.OK = false
-		fmt.Printf("\n%s -> UpdateDevicePing( ) -> Timeout.", device.DESDevSerial )
+		// fmt.Printf("\n%s -> UpdateDevicePing( ) -> Timeout.", device.DESDevSerial )
 	} 
 
 	/* UPDATE device.PING AND DevicePings MAP */
