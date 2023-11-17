@@ -62,7 +62,7 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER{
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be a registered user to view job data",
+			"message": "You must be a registered user to view job data.",
 		})
 	}
 
@@ -72,10 +72,15 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("HandleGetJobData(): -> c.BodyParser(&reg) -> reg", reg)
+	}  // pkg.Json("HandleGetJobData(): -> c.BodyParser(&reg) -> reg", reg)
 
 	job := Job{DESRegistration: reg}
-	job.GetJobData()
+	if err = job.GetJobData(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
@@ -166,6 +171,30 @@ func HandleJobNewHeader(c *fiber.Ctx) (err error) {
 /*
 
 */
+func HandleGetJobEvents(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleGetJobEvents( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be a registered user to view job data",
+		})
+	}
+
+	/*
+	GET []Event{}
+
+	RETURN []Event{}
+	*/
+
+	return
+}
+
+/*
+
+*/
 func HandleJobNewEvent(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleJobNewEvent( )\n")
 
@@ -174,7 +203,7 @@ func HandleJobNewEvent(c *fiber.Ctx) (err error) {
 	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be a registered user to edit job data",
+			"message": "You must be an operator to edit job data",
 		})
 	}
 

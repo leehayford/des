@@ -60,18 +60,32 @@ func GetJobs(regs []pkg.DESRegistration) (jobs []Job) {
 /* RETURNS ALL DATA ASSOCIATED WITH A JOB */
 func (job *Job) GetJobData() (err error) {
 	db := job.JDB()
-	db.Connect()
+	if err = db.Connect(); err != nil {
+		return
+	}
 	defer db.Disconnect()
+
 	db.Select("*").Table("admins").Order("adm_time ASC").Scan(&job.Admins)
+
 	db.Select("*").Table("states").Order("sta_time ASC").Scan(&job.States)
+
 	db.Select("*").Table("headers").Order("hdr_time ASC").Scan(&job.Headers)
+
 	db.Select("*").Table("configs").Order("cfg_time ASC").Scan(&job.Configs)
+
 	db.Select("*").Table("events").Order("evt_time ASC").Scan(&job.Events)
+
 	db.Select("*").Table("samples").Order("smp_time ASC").Scan(&job.Samples)
 	for _, smp := range job.Samples {
 		job.XYPoints.AppendXYSample(smp)
 	}
-	db.Preload("RepSecs.SecDats").Preload("RepSecs.SecAnns.AnnEvt").Preload(clause.Associations).Find(&job.Reports)
+
+	x := db.Preload("RepSecs.SecDats").Preload("RepSecs.SecAnns.AnnEvt").Preload(clause.Associations).Find(&job.Reports)
+	if x.Error != nil {
+		err = x.Error
+		return 
+	} // pkg.Json("GetJobData() -> Reports ", x.Error)
+
 	db.Disconnect()
 	return
 }

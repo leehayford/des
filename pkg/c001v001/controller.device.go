@@ -155,6 +155,19 @@ func GetDevices(regs []pkg.DESRegistration) (devices []Device) {
 	return
 }
 
+/* RETURNS ALL EVENTS ASSOCIATED WITH THE ACTIVE JOB */
+func (device *Device) GetActiveJobEvents() (evts *[]Event, err error) {
+	
+	/* SYNC DEVICE WITH DevicesMap */
+	device.DESMQTTClient = pkg.DESMQTTClient{}
+	device.DESMQTTClient.WG = &sync.WaitGroup{}
+	device.GetMappedClients()
+
+	res := device.JobDBC.Select("*").Table("events").Where("evt_addr = ?", device.DESDevSerial).Order("evt_time DESC").Scan(&evts)
+	err = res.Error
+	return
+}
+
 /* CALLED ON SERVER STARTUP */
 func DeviceClient_ConnectAll() {
 

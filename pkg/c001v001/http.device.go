@@ -477,6 +477,45 @@ func HandleCreateDeviceEvent(c *fiber.Ctx) (err error) {
 	})
 }
 
+func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleGetActiveJobEvents( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER{
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be a registered user to view job evens.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}  
+	pkg.Json("HandleGetActiveJobEvents(): -> c.BodyParser(&device) -> device", device)
+
+	evts, err := device.GetActiveJobEvents()
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} 
+	pkg.Json("HandleGetActiveJobEvents(): -> device.GetActiveJobEvents() -> evts", evts)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "You are a tolerable person!",
+		"data":    fiber.Map{"events": &evts},
+	})
+
+}
+
 /*
 	 TODO: TEST *** DO NOT USE ***
 		USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
