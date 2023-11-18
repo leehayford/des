@@ -43,7 +43,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != "admin" && role != "viewer" {
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER {
 		/* CREATE JSON WSMessage STRUCT */
 		res := AuthResponse{
 			Status:  "fail",
@@ -83,7 +83,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	duc.Close = make(chan struct{})
 	duc.Kill = make(chan struct{})
 
-	duc.MQTTDeviceUserClient_Connect()
+	duc.MQTTDeviceUserClient_Connect( /* TODO: PASS IN USER ROLE */ )
 
 	/* LISTEN FOR MESSAGES FROM CONNECTED USER */
 	go func() {
@@ -156,7 +156,7 @@ func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
 	return
 }
 
-func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ ) (err error) {
+func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /* TODO: PASS IN USER ROLE */ ) (err error) {
 
 	/* TODO: replace with user specific credentials */
 	user := pkg.MQTT_USER
@@ -173,7 +173,8 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 	// duc.DESMQTTClient.ClientOptions.ClientID:`,
 	// duc.DESMQTTClient.ClientOptions.ClientID)
 
-	duc.MQTTSubscription_DeviceUserClient_DESPing().Sub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_DESDeviceClientPing().Sub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_DESDevicePing().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGState().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGHeader().Sub(duc.DESMQTTClient)
@@ -185,10 +186,11 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /*user, pw string*/ )
 	fmt.Printf("\n(duc) MQTTDeviceUserClient_Connect( ) -> ClientID: %s\n", duc.ClientID)
 	return err
 }
-func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
+func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( /* TODO: PASS IN USER ROLE */ ) {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
-	duc.MQTTSubscription_DeviceUserClient_DESPing().UnSub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_DESDeviceClientPing().UnSub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_DESDevicePing().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGState().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGHeader().UnSub(duc.DESMQTTClient)
@@ -205,12 +207,39 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 /* SUBSCRIPTIONS ****************************************************************************************/
 
-/* SUBSCRIPTIONS -> DES PING  */
-func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESPing() pkg.MQTTSubscription {
+/* SUBSCRIPTIONS -> DES DEVICE PING  */
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESDeviceClientPing( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
-		Topic: duc.MQTTTopic_DESPing(),
+		Topic: duc.MQTTTopic_DESDeviceClientPing(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* DECODE MESSAGE PAYLOAD TO Ping STRUCT */
+			ping := pkg.Ping{}
+			if err := json.Unmarshal(msg.Payload(), &ping); err != nil {
+				pkg.LogErr(err)
+			}
+
+			/* CREATE JSON WSMessage STRUCT */
+			js, err := json.Marshal(&WSMessage{Type: "des_ping", Data: ping})
+			if err != nil {
+				pkg.LogErr(err)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_DESDeviceClientPing(...) -> ping :", ping)
+
+			/* SEND WSMessage AS JSON STRING */
+			duc.DataOut <- string(js)
+
+		},
+	}
+}
+
+/* SUBSCRIPTIONS -> DES DEVICE PING  */
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESDevicePing( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: duc.MQTTTopic_DESDevicePing(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* DECODE MESSAGE PAYLOAD TO Ping STRUCT */
@@ -223,7 +252,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESPing() pkg.MQT
 			js, err := json.Marshal(&WSMessage{Type: "ping", Data: ping})
 			if err != nil {
 				pkg.LogErr(err)
-			} // pkg.Json("MQTTSubscription_DeviceUserClient_DESPing(...) -> ping :", ping)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_DESDevicePing(...) -> ping :", ping)
 
 			/* SEND WSMessage AS JSON STRING */
 			duc.DataOut <- string(js)
@@ -233,7 +262,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESPing() pkg.MQT
 }
 
 /* SUBSCRIPTIONS -> ADMIN  */
-func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQTTSubscription {
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
@@ -260,7 +289,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin() pkg.MQ
 }
 
 /* SUBSCRIPTIONS -> HARDWARE ID  */
-func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGState() pkg.MQTTSubscription {
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGState( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
@@ -287,7 +316,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGState() pkg.MQ
 }
 
 /* SUBSCRIPTION -> HEADER   */
-func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader() pkg.MQTTSubscription {
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
@@ -314,7 +343,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader() pkg.M
 }
 
 /* SUBSCRIPTION -> CONFIG */
-func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.MQTTSubscription {
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
@@ -341,7 +370,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig() pkg.M
 }
 
 /* SUBSCRIPTION -> EVENT */
-func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQTTSubscription {
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
@@ -368,7 +397,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent() pkg.MQ
 }
 
 /* SUBSCRIPTION -> SAMPLE   */
-func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.MQTTSubscription {
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
@@ -404,7 +433,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample() pkg.M
 }
 
 /* SUBSCRIPTION -> DIAG SAMPLE   */
-func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGDiagSample() pkg.MQTTSubscription {
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGDiagSample( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,

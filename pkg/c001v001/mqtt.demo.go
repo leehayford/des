@@ -289,7 +289,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 		for demo.Live {
 			demo.PING.Time = time.Now().UTC().UnixMilli()
 			demo.MQTTPublication_DemoDeviceClient_SIGPing()
-			time.Sleep(time.Millisecond * PING_TIMEOUT)
+			time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 		}
 	}()
 
@@ -726,7 +726,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGPing() {
 	*/
 	sig := pkg.MQTTPublication{
 
-		Topic:    demo.MQTTTopic_SIGPing(),
+		Topic:    demo.MQTTTopic_SIGDevicePing(),
 		Message:  pkg.ModelToJSONString(demo.PING),
 		Retained: false,
 		WaitMS:   0,

@@ -39,7 +39,7 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 	}
 
 	/* SUBSCRIBE TO ALL MQTTSubscriptions */
-	device.MQTTSubscription_DeviceClient_SIGPing().Sub(device.DESMQTTClient)
+	device.MQTTSubscription_DeviceClient_SIGDevicePing().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGAdmin().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGState().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGHeader().Sub(device.DESMQTTClient)
@@ -53,7 +53,7 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
-	device.MQTTSubscription_DeviceClient_SIGPing().UnSub(device.DESMQTTClient)
+	device.MQTTSubscription_DeviceClient_SIGDevicePing().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGAdmin().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGState().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGHeader().UnSub(device.DESMQTTClient)
@@ -74,29 +74,29 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 /* SUBSCRIPTIONS ****************************************************************************************/
 
 /* SUBSCRIPTION -> PING  -> UPON RECEIPT, ALERT USER CLIENTS, UPDATE DevicePingsMap */
-func (device *Device) MQTTSubscription_DeviceClient_SIGPing() pkg.MQTTSubscription {
+func (device *Device) MQTTSubscription_DeviceClient_SIGDevicePing() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
-		Topic: device.MQTTTopic_SIGPing(),
+		Topic: device.MQTTTopic_SIGDevicePing(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			// /* TODO : PARSE THE PING MESSAGE */
 			// if err := json.Unmarshal(msg.Payload(), &ping); err != nil {
 			// 	pkg.LogErr(err)
 			// }
-			ping := pkg.Ping{ 
+			ping := pkg.Ping{
 				Time: time.Now().UTC().UnixMilli(),
-				OK: true, 
+				OK:   true,
 			}
 
 			/* CALL IN GO ROUTINE BECAUSE A MESSGE WILL BE PUBLISHED */
 			go device.UpdateDevicePing(ping)
 
-			/* TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME 
-				- IGNORE THE RECEIVED DEVICE TIME FOR NOW, 
-				- WE DON'T REALLY CARE FOR KEEP-ALIVE PURPOSES 
-			
+			/* TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME
+			- IGNORE THE RECEIVED DEVICE TIME FOR NOW,
+			- WE DON'T REALLY CARE FOR KEEP-ALIVE PURPOSES
+
 			*/ // go ping.LatencyCheck()
 
 		},
@@ -380,22 +380,38 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 /* DES PUBLICATIONS **************************************************************************************/
 
 /*
-	DES PUBLICATION -> DEVICE CONNECTED
+	DES PUBLICATION -> DEVICE CLIENT CONNECTED
 
-SENT BY THE DES TO USER CLIENTS (WS) TO SIGNAL THE DEVICE'S BROKER CONNECTION STATUS
+SENT BY THE DES TO USER CLIENTS (WS) TO SIGNAL THIS DEVICE CLIENT'S BROKER CONNECTION STATUS
 */
-func (device *Device) MQTTPublication_DeviceClient_DESPing(ping pkg.Ping) {
+func (device *Device) MQTTPublication_DeviceClient_DESDeviceClientPing(ping pkg.Ping) {
 	des := pkg.MQTTPublication{
-		Topic:    device.MQTTTopic_DESPing(),
+		Topic:    device.MQTTTopic_DESDeviceClientPing(),
 		Message:  pkg.ModelToJSONString(ping),
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
-	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_DESPing(): -> ping", ping)
+	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_DESDeviceClientPing(): -> ping", ping)
 
 	des.Pub(device.DESMQTTClient)
 }
 
+/*
+	DES PUBLICATION -> DEVICE CONNECTED
+
+SENT BY THE DES TO USER CLIENTS (WS) TO SIGNAL THE DEVICE'S BROKER CONNECTION STATUS
+*/
+func (device *Device) MQTTPublication_DeviceClient_DESDevicePing(ping pkg.Ping) {
+	des := pkg.MQTTPublication{
+		Topic:    device.MQTTTopic_DESDevicePing(),
+		Message:  pkg.ModelToJSONString(ping),
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_DESDevicePing(): -> ping", ping)
+
+	des.Pub(device.DESMQTTClient)
+}
 
 /* CMD PUBLICATIONS **************************************************************************************/
 
@@ -507,7 +523,7 @@ func (device *Device) MQTTTopic_CMDReport(baseTopic string) (topic string) {
 }
 
 /* MQTT TOPICS - SIGNAL */
-func (device *Device) MQTTTopic_SIGPing() (topic string) {
+func (device *Device) MQTTTopic_SIGDevicePing() (topic string) {
 	return fmt.Sprintf("%s/ping", device.MQTTTopic_SIGRoot())
 }
 func (device *Device) MQTTTopic_SIGAdmin() (topic string) {
@@ -556,6 +572,10 @@ func (device *Device) MQTTTopic_CMDDiagSample() (topic string) {
 }
 
 /* MQTT TOPICS - DES MESSAGE */
-func (device *Device) MQTTTopic_DESPing() (topic string) {
+func (device *Device) MQTTTopic_DESDeviceClientPing() (topic string) {
+	return fmt.Sprintf("%s/des_ping", device.MQTTTopic_DESRoot())
+}
+
+func (device *Device) MQTTTopic_DESDevicePing() (topic string) {
 	return fmt.Sprintf("%s/ping", device.MQTTTopic_DESRoot())
 }

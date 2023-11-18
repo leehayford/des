@@ -22,7 +22,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/websocket/v2"
+	// "github.com/gofiber/websocket/v2"
 
 	"github.com/leehayford/des/pkg"
 	"github.com/leehayford/des/pkg/c001v001"
@@ -88,7 +88,9 @@ func main() {
 			AllowCredentials: true,
 		}))
 
-		/* AUTH & USER ROUTES */
+		/* AUTH & USER ROUTES 
+			TODO: MOVE TO DES HTTP
+		*/
 		api.Route("/user", func(router fiber.Router) {
 			router.Post("/signup", pkg.SignUpUser)
 			router.Post("/login", pkg.SignInUser)
@@ -98,45 +100,56 @@ func main() {
 		})
 
 		/* C001V001 DEVICE ROUTES */
-		api.Route("/001/001/device", func(router fiber.Router) {
-			router.Post("/register", pkg.DesAuth, c001v001.HandleRegisterDevice)
+		c001v001.InitializeDeviceRoutes( app, api )
 
-			router.Post("/start", pkg.DesAuth, c001v001.HandleStartJob)
-			router.Post("/cancel_start", pkg.DesAuth, c001v001.HandleCancelStartJob)
+		// api.Route("/001/001/device", func(router fiber.Router) {
 
-			router.Post("/end", pkg.DesAuth, c001v001.HandleEndJob)
+		// 	/* DEVICE-ADMIN-LEVEL OPERATIONS */
+		// 	router.Post("/register", pkg.DesAuth, c001v001.HandleRegisterDevice)
+		// 	router.Post("/connect", pkg.DesAuth, c001v001.HandleConnectDevice)
+		// 	router.Post("/disconnect", pkg.DesAuth, c001v001.HandleDisconnectDevice)
 
-			router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)
-			router.Post("/state", pkg.DesAuth, c001v001.HandleSetState)
-			router.Post("/header", pkg.DesAuth, c001v001.HandleSetHeader)
-			router.Post("/config", pkg.DesAuth, c001v001.HandleSetConfig)
-			router.Post("/event", pkg.DesAuth, c001v001.HandleCreateDeviceEvent)
-			router.Post("/job_events", pkg.DesAuth, c001v001.HandleGetActiveJobEvents)
-			router.Post("/search", pkg.DesAuth, c001v001.HandleSearchDevices)
-			router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
+		// 	/* DEVICE-OPERATOR-LEVEL OPERATIONS */
+		// 	router.Post("/start", pkg.DesAuth, c001v001.HandleStartJob)
+		// 	router.Post("/cancel_start", pkg.DesAuth, c001v001.HandleCancelStartJob)
+		// 	router.Post("/end", pkg.DesAuth, c001v001.HandleEndJob)
+		// 	router.Post("/admin", pkg.DesAuth, c001v001.HandleSetAdmin)
+		// 	router.Post("/state", pkg.DesAuth, c001v001.HandleSetState)
+		// 	router.Post("/header", pkg.DesAuth, c001v001.HandleSetHeader)
+		// 	router.Post("/config", pkg.DesAuth, c001v001.HandleSetConfig)
+		// 	router.Post("/event", pkg.DesAuth, c001v001.HandleCreateDeviceEvent)
+			
+		// 	/* DEVICE-VIEWER-LEVEL OPERATIONS */
+		// 	router.Post("/job_events", pkg.DesAuth, c001v001.HandleGetActiveJobEvents)
+		// 	router.Post("/search", pkg.DesAuth, c001v001.HandleSearchDevices)
+		// 	router.Get("/list", pkg.DesAuth, c001v001.HandleGetDeviceList)
 
-			app.Use("/ws", func(c *fiber.Ctx) error {
-				if websocket.IsWebSocketUpgrade(c) {
-					c.Locals("allowed", true)
-					return c.Next()
-				}
-				return fiber.ErrUpgradeRequired
-			})
-			router.Get("/ws", pkg.DesAuth, websocket.New(
-				(&c001v001.DeviceUserClient{}).WSDeviceUserClient_Connect,
-			))
-		})
+		// 	/* TODO: ROLES HANDLED PER MQTT TOPIC / WS */
+		// 	app.Use("/ws", func(c *fiber.Ctx) error {
+		// 		if websocket.IsWebSocketUpgrade(c) {
+		// 			c.Locals("allowed", true)
+		// 			return c.Next()
+		// 		}
+		// 		return fiber.ErrUpgradeRequired
+		// 	})
+		// 	router.Get("/ws", pkg.DesAuth, websocket.New(
+		// 		(&c001v001.DeviceUserClient{}).WSDeviceUserClient_Connect,
+		// 	))
+
+		// })
 
 		/* C001V001 JOB / REPORTING ROUTES */
-		api.Route("/001/001/job", func(router fiber.Router) {
-			router.Get("/event/list", c001v001.HandleGetEventTypeLists)
+		c001v001.InitializeJobRoutes(app, api)
 
-			router.Get("/list", pkg.DesAuth, c001v001.HandleGetJobList)
-			router.Post("/data", pkg.DesAuth, c001v001.HandleGetJobData)
-			router.Post("/new_report", pkg.DesAuth, c001v001.HandleNewReport)
-			router.Post("/new_header", pkg.DesAuth, c001v001.HandleJobNewHeader)
-			router.Post("/new_event", pkg.DesAuth, c001v001.HandleJobNewEvent)
-		})
+		// api.Route("/001/001/job", func(router fiber.Router) {
+		// 	router.Get("/event/list", c001v001.HandleGetEventTypeLists)
+
+		// 	router.Get("/list", pkg.DesAuth, c001v001.HandleGetJobList)
+		// 	router.Post("/data", pkg.DesAuth, c001v001.HandleGetJobData)
+		// 	router.Post("/new_report", pkg.DesAuth, c001v001.HandleNewReport)
+		// 	router.Post("/new_header", pkg.DesAuth, c001v001.HandleJobNewHeader)
+		// 	router.Post("/new_event", pkg.DesAuth, c001v001.HandleJobNewEvent)
+		// })
 
 	}
 

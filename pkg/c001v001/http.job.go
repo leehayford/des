@@ -7,6 +7,21 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
+
+func InitializeJobRoutes(app, api *fiber.App) (err error) {
+
+	api.Route("/001/001/job", func(router fiber.Router) {
+		router.Get("/event/list", HandleGetEventTypeLists)
+
+		router.Get("/list", pkg.DesAuth, HandleGetJobList)
+		router.Post("/data", pkg.DesAuth, HandleGetJobData)
+		router.Post("/new_report", pkg.DesAuth, HandleNewReport)
+		router.Post("/new_header", pkg.DesAuth, HandleJobNewHeader)
+		router.Post("/new_event", pkg.DesAuth, HandleJobNewEvent)
+	})
+	return
+}
+
 /*
 RETURNS THE LIST OF JOBS REGISTERED TO THIS DES
 

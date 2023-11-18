@@ -63,15 +63,17 @@ SEVERAL DEDICATED CONNECTIONS:
 */
 type Device struct {
 	pkg.DESRegistration `json:"reg"` // Contains registration data for both the device and active job
-	ADM                 Admin        `json:"adm"`  // Last known Admin value
-	STA                 State        `json:"sta"`  // Last known State value
-	HDR                 Header       `json:"hdr"`  // Last known Header value
-	CFG                 Config       `json:"cfg"`  // Last known Config value
-	EVT                 Event        `json:"evt"`  // Last known Event value
-	SMP                 Sample       `json:"smp"`  // Last known Sample value
-	PING                pkg.Ping         `json:"ping"` // Last Ping received from device
-	CmdDBC              pkg.DBClient `json:"-"`    // Database Client for the CMDARCHIVE
-	JobDBC              pkg.DBClient `json:"-"`    // Database Client for the active job
+	ADM                 Admin        `json:"adm"`      // Last known Admin value
+	STA                 State        `json:"sta"`      // Last known State value
+	HDR                 Header       `json:"hdr"`      // Last known Header value
+	CFG                 Config       `json:"cfg"`      // Last known Config value
+	EVT                 Event        `json:"evt"`      // Last known Event value
+	SMP                 Sample       `json:"smp"`      // Last known Sample value
+	PING                pkg.Ping     `json:"ping"`     // Last Ping received from device
+	DESPING             pkg.Ping     `json:"des_ping"` // Last Ping sent from this DES device client
+	DESPingStop       chan struct{} `json:"-"`        // Send DESPingStop when DeviceClients are disconnected
+	CmdDBC              pkg.DBClient `json:"-"`        // Database Client for the CMDARCHIVE
+	JobDBC              pkg.DBClient `json:"-"`        // Database Client for the active job
 	pkg.DESMQTTClient   `json:"-"`   // MQTT client handling all subscriptions and publications for this device
 
 }
@@ -81,10 +83,27 @@ type DevicesMap map[string]Device
 var Devices = make(DevicesMap)
 var DevicesRWMutex = sync.RWMutex{}
 
-const PING_TIMEOUT = 30000
-const PING_LIMIT = PING_TIMEOUT + 1000
+const DEVICE_PING_TIMEOUT = 30000
+const DEVICE_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
+
+const DES_PING_TIMEOUT = 10000
+const DES_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
 
 type DevicePingsMap map[string]pkg.Ping
+
+var DeviceClientPings = make(DevicePingsMap)
+
+func (device *Device) UpdateDeviceClientPing(ping pkg.Ping) {
+
+	/* UPDATE device.PING AND DevicePings MAP */
+	DeviceClientPings[device.DESDevSerial] = ping
+	device.DESPING = ping
+
+	/* CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
+	go device.MQTTPublication_DeviceClient_DESDeviceClientPing(ping)
+}
+
+
 var DevicePings = make(DevicePingsMap)
 
 func (device *Device) UpdateDevicePing(ping pkg.Ping) {
@@ -93,16 +112,15 @@ func (device *Device) UpdateDevicePing(ping pkg.Ping) {
 		ping.Time = DevicePings[device.DESDevSerial].Time
 		ping.OK = false
 		// fmt.Printf("\n%s -> UpdateDevicePing( ) -> Timeout.", device.DESDevSerial )
-	} 
+	}
 
 	/* UPDATE device.PING AND DevicePings MAP */
 	DevicePings[device.DESDevSerial] = ping
 	device.PING = ping
 
 	/* CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
-	go device.MQTTPublication_DeviceClient_DESPing(ping)
+	go device.MQTTPublication_DeviceClient_DESDevicePing(ping)
 }
-
 
 /* TODO: TEST WaitGroup vs. RWMutex ON SERVER TO PREVENT CONCURRENT MAP WRITES
 --> var DevicesMapWG = sync.WaitGroup{}
@@ -149,15 +167,25 @@ func GetDevices(regs []pkg.DESRegistration) (devices []Device) {
 		device := (&Device{}).ReadDevicesMap(reg.DESDevSerial)
 		device.DESRegistration = reg
 		device.PING = DevicePings[device.DESDevSerial]
+		device.DESPING = DeviceClientPings[device.DESDevSerial]
 		devices = append(devices, device)
 	}
 	// pkg.Json("GetDevices(): Devices", devices)
 	return
 }
 
+func (device *Device) GetDeviceDESRegistration(serial string) (err error) {
+
+	res := pkg.DES.DB.
+		Order("des_dev_reg_time desc").
+		First(&device.DESRegistration.DESDev, "des_dev_serial =?", serial)
+	err = res.Error
+	return
+}
+
 /* RETURNS ALL EVENTS ASSOCIATED WITH THE ACTIVE JOB */
 func (device *Device) GetActiveJobEvents() (evts *[]Event, err error) {
-	
+
 	/* SYNC DEVICE WITH DevicesMap */
 	device.DESMQTTClient = pkg.DESMQTTClient{}
 	device.DESMQTTClient.WG = &sync.WaitGroup{}
@@ -179,7 +207,6 @@ func DeviceClient_ConnectAll() {
 	for _, reg := range regs {
 		device := Device{}
 		device.DESRegistration = reg
-		device.PING = pkg.Ping{}
 		device.DESMQTTClient = pkg.DESMQTTClient{}
 		device.DeviceClient_Connect()
 	}
@@ -198,76 +225,107 @@ func DeviceClient_DisconnectAll() {
 }
 
 /* CONNECT DEVICE DATABASE AND MQTT CLIENTS ADD CONNECTED DEVICE TO DevicesMap */
-func (device *Device) DeviceClient_Connect() {
+func (device *Device) DeviceClient_Connect() (err error) {
 
 	fmt.Printf("\n\n(device *Device) DeviceClient_Connect() -> %s -> connecting... \n", device.DESDevSerial)
 
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting CMDARCHIVE... \n", device.DESDevSerial)
 	if err := device.ConnectCmdDBC(); err != nil {
-		pkg.LogErr(err)
+		return pkg.LogErr(err)
 	}
 
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting ACTIVE JOB... \n", device.DESDevSerial)
 	if err := device.ConnectJobDBC(); err != nil {
-		pkg.LogErr(err)
+		return pkg.LogErr(err)
 	}
 
-	device.JobDBC.Last(&device.ADM)
-	device.JobDBC.Last(&device.STA)
-	device.JobDBC.Last(&device.HDR)
-	device.JobDBC.Last(&device.CFG)
-	device.JobDBC.Last(&device.SMP)
-	device.JobDBC.Last(&device.EVT)
+	if res := device.JobDBC.Last(&device.ADM); res.Error != nil {
+		return pkg.LogErr(res.Error)
+	}
+	if res := device.JobDBC.Last(&device.STA); res.Error != nil {
+		return pkg.LogErr(res.Error)
+	}
+	if res := device.JobDBC.Last(&device.HDR); res.Error != nil {
+		return pkg.LogErr(res.Error)
+	}
+	if res := device.JobDBC.Last(&device.CFG); res.Error != nil {
+		return pkg.LogErr(res.Error)
+	}
+	if res := device.JobDBC.Last(&device.SMP); res.Error != nil {
+		return pkg.LogErr(res.Error)
+	}
+	if res := device.JobDBC.Last(&device.EVT); res.Error != nil {
+		return pkg.LogErr(res.Error)
+	}
 
 	if err := device.MQTTDeviceClient_Connect(); err != nil {
-		pkg.LogErr(err)
+		return pkg.LogErr(err)
 	}
+
+
+	/* UPDATE DevicePings MAP. START THE KEEP-ALIVE */
+	device.UpdateDevicePing(device.PING)
+
+	/* UPDATE DeviceClientPings MAP. START THE KEEP-ALIVE */
+	device.UpdateDeviceClientPing(device.DESPING)
+
+	/* START DES DEVICE CLIENT PING */
+	
+	device.DESPingStop = make(chan struct{})
+	live := true
+	go func() {
+		for live {
+			select {
+			
+			case <- device.DESPingStop:
+				live = false
+				
+			default:
+				time.Sleep(time.Millisecond * DES_PING_TIMEOUT)
+				device.UpdateDeviceClientPing(pkg.Ping{
+					Time: time.Now().UTC().UnixMilli(),
+					OK: true,
+				})
+				// fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING... \n\n", device.DESDevSerial)
+			}
+		}
+		device.DESPING = pkg.Ping{}
+		delete(DeviceClientPings, device.DESDevSerial)
+		fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING STOPPED. \n\n", device.DESDevSerial)
+	}()
 
 	/* ADD TO Devices MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
 
-	/* UPDATE DevicePings MAP. START THE KEEP-ALIVE */
-	device.UpdateDevicePing(device.PING)
-	go func() {
-		for {
-			last := DevicePings[device.DESDevSerial]
-			now := time.Now().UTC().UnixMilli()
-			if (now - last.Time) > PING_LIMIT {
-				
-				ping := pkg.Ping{ Time: last.Time, OK: false, }
-				device.UpdateDevicePing(ping)
-			}
-			time.Sleep(time.Millisecond * PING_TIMEOUT)
-		}
-	}()
-
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connected... \n\n", device.DESDevSerial)
+	return
 }
 
 /* DISCONNECT DEVICE DATABASE AND MQTT CLIENTS; REMOVE CONNECTED DEVICE FROM DevicesMap */
-func (device *Device) DeviceClient_Disconnect() {
+func (device *Device) DeviceClient_Disconnect() (err error) {
 	/* TODO: TEST WHEN IMPLEMENTING
 	- UNREGISTER DEVICE
 	- GRACEFUL SHUTDOWN
 	*/
 	fmt.Printf("\n\n(device *Device) DeviceClient_Disconnect() -> %s -> disconnecting... \n", device.DESDevSerial)
 
+	/* KILL DES DEVICE CLIENT PING REMOVE FROM DeviceClientPings MAP */
+	device.DESPingStop<- struct{}{}
+	
 	if err := device.CmdDBC.Disconnect(); err != nil {
-		pkg.LogErr(err)
+		return pkg.LogErr(err)
 	}
 	if err := device.JobDBC.Disconnect(); err != nil {
-		pkg.LogErr(err)
+		return pkg.LogErr(err)
 	}
 	if err := device.MQTTDeviceClient_Disconnect(); err != nil {
-		pkg.LogErr(err)
+		return pkg.LogErr(err)
 	}
-
-	/* REMOVE FROM DevicePings MAP */
-	device.PING.Time = 0
-	delete(DevicePings, device.DESDevSerial)
 
 	/* REMOVE FROM Devices MAP */
 	delete(Devices, device.DESDevSerial)
+
+	return
 }
 
 /*
@@ -310,11 +368,11 @@ func (device *Device) GetMappedClients() {
 	device.DESMQTTClient = d.DESMQTTClient
 }
 
-/* HYDRATES THE DEVICE'S Ping STRUCT FROM THE DevicesMap */
-func (device *Device) GetMappedPING() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
-	device.PING = d.PING
-}
+// /* HYDRATES THE DEVICE'S Ping STRUCT FROM THE DevicesMap */
+// func (device *Device) GetMappedPING() {
+// 	d := device.ReadDevicesMap(device.DESDevSerial)
+// 	device.PING = d.PING
+// }
 
 /* HYDRATES THE DEVICE'S Admin STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedADM() {
@@ -364,12 +422,12 @@ func UpdateDevicesMap(serial string, d Device) {
 	DevicesRWMutex.Unlock()
 }
 
-/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Ping */
-func (device *Device) UpdateMappedPING() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
-	d.PING = device.PING
-	UpdateDevicesMap(device.DESDevSerial, d)
-}
+// /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Ping */
+// func (device *Device) UpdateMappedPING() {
+// 	d := device.ReadDevicesMap(device.DESDevSerial)
+// 	d.PING = device.PING
+// 	UpdateDevicesMap(device.DESDevSerial, d)
+// }
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Admin */
 func (device *Device) UpdateMappedADM() {

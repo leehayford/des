@@ -4,9 +4,49 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/websocket/v2"
 
 	"github.com/leehayford/des/pkg"
 )
+
+func InitializeDeviceRoutes(app, api *fiber.App) {
+	api.Route("/001/001/device", func(router fiber.Router) {
+
+		/* DEVICE-ADMIN-LEVEL OPERATIONS */
+		router.Post("/register", pkg.DesAuth, HandleRegisterDevice)
+		router.Post("/connect", pkg.DesAuth, HandleConnectDevice)
+		router.Post("/disconnect", pkg.DesAuth, HandleDisconnectDevice)
+
+		/* DEVICE-OPERATOR-LEVEL OPERATIONS */
+		router.Post("/start", pkg.DesAuth, HandleStartJob)
+		router.Post("/cancel_start", pkg.DesAuth, HandleCancelStartJob)
+		router.Post("/end", pkg.DesAuth, HandleEndJob)
+		router.Post("/admin", pkg.DesAuth, HandleSetAdmin)
+		router.Post("/state", pkg.DesAuth, HandleSetState)
+		router.Post("/header", pkg.DesAuth, HandleSetHeader)
+		router.Post("/config", pkg.DesAuth, HandleSetConfig)
+		router.Post("/event", pkg.DesAuth, HandleCreateDeviceEvent)
+		
+		/* DEVICE-VIEWER-LEVEL OPERATIONS */
+		router.Post("/job_events", pkg.DesAuth, HandleGetActiveJobEvents)
+		router.Post("/search", pkg.DesAuth, HandleSearchDevices)
+		router.Get("/list", pkg.DesAuth, HandleGetDeviceList)
+
+		/* TODO: ROLES HANDLED PER MQTT TOPIC / WS */
+		app.Use("/ws", func(c *fiber.Ctx) error {
+			if websocket.IsWebSocketUpgrade(c) {
+				c.Locals("allowed", true)
+				return c.Next()
+			}
+			return fiber.ErrUpgradeRequired
+		})
+		router.Get("/ws", pkg.DesAuth, websocket.New(
+			(&DeviceUserClient{}).WSDeviceUserClient_Connect,
+		))
+
+	})
+}
+
 
 /*
 	NOT TESTED
@@ -145,6 +185,10 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	})
 }
 
+/* 
+	NOT IMPLEMENTED ON FRONT END 
+	THIS MAY BE UNNECESSARY DUE TO THE ADDITION OF PING (KEEP-ALIVE)
+*/
 func HandleCancelStartJob(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleCancelStartJob( )\n")
 
@@ -310,8 +354,8 @@ func HandleGetAdmin(c *fiber.Ctx) (err error) {
 }
 
 /*
-USED TO SET THE STATE VALUES FOR A GIVEN DEVICE
-***NOTE***
+	USED TO SET THE STATE VALUES FOR A GIVEN DEVICE
+	***NOTE***
 
 	THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
 	FUTURE VERSIONS WILL ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
@@ -437,9 +481,9 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 }
 
 /*
-USED TO CREATE AN EVENT FOR A GIVEN DEVICE, BOTH:
-- DURING A JOB AND
-- TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. )
+	USED TO CREATE AN EVENT FOR A GIVEN DEVICE, BOTH:
+	- DURING A JOB AND
+	- TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. )
 */
 func HandleCreateDeviceEvent(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleCreateDeviceEvent( )\n")
@@ -482,7 +526,7 @@ func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER{
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be a registered user to view job evens.",
@@ -559,3 +603,107 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 		"data":    fiber.Map{"device": &device},
 	})
 }
+
+func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleDisconnectDevice( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != pkg.ROLE_ADMIN {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to view disconnect devices.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}  
+	pkg.Json("HandleDisconnectDevice(): -> c.BodyParser(&device) -> device", device)
+
+	d := Devices[device.DESDevSerial]
+	/* CLOSE DEVICE CLIENT CONNECTIONS */
+	if err = d.DeviceClient_Disconnect(); err != nil {
+		msg := fmt.Sprintf(
+			"Failed to close existing device connectsions for %s\n%s\n", 
+			device.DESDevSerial, 
+			err.Error(),
+		)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": msg,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": fmt.Sprintf("%s DES client disconnected.", device.DESDevSerial),
+		"data":    fiber.Map{"device": &device},
+	})
+}
+
+
+func HandleConnectDevice(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleConnectDevice( )\n")
+
+	/* CHECK USER PERMISSION */
+	role := c.Locals("role")
+	if role != pkg.ROLE_ADMIN {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to connect devices.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}  // pkg.Json("HandleConnectDevice(): -> c.BodyParser(&device) -> device", device)
+
+	/* GET / VALIDATE DESRegistration */
+	ser := device.DESDevSerial
+	if err = device.GetDeviceDESRegistration(ser); err != nil {		
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": fmt.Sprintf("DES Registration for %s was not found.\n%s\nDB ERROR", ser, err.Error()),
+		})
+	}  // pkg.Json("HandleConnectDevice(): -> device.GetDeviceDESRegistration -> device", device)
+	
+	d := Devices[device.DESDevSerial]
+	/* CLOSE ANY EXISTING CONNECTIONS */
+	if err = d.DeviceClient_Disconnect(); err != nil {
+		msg := fmt.Sprintf(
+			"Failed to close existing device connectsions for %s\n%s\n", 
+			device.DESDevSerial, 
+			err.Error(),
+		)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": msg,
+		})
+	}
+
+	/* CONNECT THE DES DEVICE CLIENTS */
+	if err = d.DeviceClient_Connect(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": fmt.Sprintf("%s DES client connected.", d.DESDevSerial),
+		"data":    fiber.Map{"device": &d},
+	})
+}
+
