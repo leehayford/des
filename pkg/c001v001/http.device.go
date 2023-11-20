@@ -60,8 +60,7 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleGetDeviceList( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to view device list",
@@ -92,8 +91,7 @@ func HandleSearchDevices(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSearchDevices( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to search devices",
@@ -143,8 +141,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleStartJob( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to start a job",
@@ -193,8 +190,7 @@ func HandleCancelStartJob(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleCancelStartJob( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to cancel start a job",
@@ -238,8 +234,7 @@ func HandleEndJob(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleEndtJob( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to end a job",
@@ -279,8 +274,7 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSetAdmin( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to alter device administration data.",
@@ -320,8 +314,7 @@ func HandleGetAdmin(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleGetAdmin( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to see device administration data.",
@@ -365,8 +358,7 @@ func HandleSetState(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSetState( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to see device hardware ID data.",
@@ -407,8 +399,7 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSetHeader( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to alter job header data.",
@@ -448,8 +439,7 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSetConfig( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to alter job configuration data.",
@@ -489,8 +479,7 @@ func HandleCreateDeviceEvent(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleCreateDeviceEvent( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to create Events.",
@@ -525,8 +514,7 @@ func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleGetActiveJobEvents( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER {
+	if !pkg.UserRole_Viewer(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be a registered user to view job evens.",
@@ -571,8 +559,7 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleRegisterDevice( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN {
+	if !pkg.UserRole_Admin(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an administrator to register devices",
@@ -608,8 +595,7 @@ func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleDisconnectDevice( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN {
+	if !pkg.UserRole_Admin(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an administrator to view disconnect devices.",
@@ -652,8 +638,7 @@ func HandleConnectDevice(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleConnectDevice( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN {
+	if !pkg.UserRole_Admin(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an administrator to connect devices.",

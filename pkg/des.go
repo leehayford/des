@@ -26,6 +26,16 @@ import (
 const ROLE_ADMIN = "admin"
 const ROLE_OPERATOR = "operator"
 const ROLE_USER = "user"
+func UserRole_Admin( role interface{} ) bool {
+	
+	return role == ROLE_ADMIN 
+}
+func UserRole_Operator( role interface{} ) bool {
+	return role == ROLE_ADMIN || role == ROLE_OPERATOR
+}
+func UserRole_Viewer( role interface{} ) bool {
+	return role == ROLE_ADMIN || role == ROLE_OPERATOR || role == ROLE_USER
+}
 
 /* TODO : IMPLEMENT DESRole STRUCT */
 // type DESRole struct {

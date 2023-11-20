@@ -32,8 +32,7 @@ func HandleGetJobList(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleGetJobList( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER{
+	if !pkg.UserRole_Viewer(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be a registered user to view job list",
@@ -73,8 +72,7 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleGetJobData( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER{
+	if !pkg.UserRole_Viewer(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be a registered user to view job data.",
@@ -123,8 +121,7 @@ func HandleNewReport(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleNewReport( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator user to create a report",
@@ -166,8 +163,7 @@ func HandleJobNewHeader(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleJobNewHeader( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be a registered user to edit job data",
@@ -190,8 +186,7 @@ func HandleGetJobEvents(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleGetJobEvents( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be a registered user to view job data",
@@ -214,8 +209,7 @@ func HandleJobNewEvent(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleJobNewEvent( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR {
+	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be an operator to edit job data",
