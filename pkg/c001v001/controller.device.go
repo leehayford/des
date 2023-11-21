@@ -46,7 +46,7 @@ const MODE_LO_FLOW int32 = 6
 
 /* END VALVE POSITIONS ******************************************************************************/
 
-const MIN_SAMPLE_PERIOD int32 = 200
+const MIN_SAMPLE_PERIOD int32 = 1000
 
 /*
 FOR EACH REGISTERED DEVICE, THE DES MAINTAINS:
@@ -311,7 +311,7 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 
 	/* KILL DES DEVICE CLIENT PING REMOVE FROM DeviceClientPings MAP */
 	device.DESPingStop<- struct{}{}
-	
+
 	if err := device.CmdDBC.Disconnect(); err != nil {
 		return pkg.LogErr(err)
 	}
