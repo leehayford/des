@@ -528,8 +528,7 @@ func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}  
-	pkg.Json("HandleGetActiveJobEvents(): -> c.BodyParser(&device) -> device", device)
+	}  // pkg.Json("HandleGetActiveJobEvents(): -> c.BodyParser(&device) -> device", device)
 
 	evts, err := device.GetActiveJobEvents()
 	if err != nil {
@@ -537,8 +536,7 @@ func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} 
-	pkg.Json("HandleGetActiveJobEvents(): -> device.GetActiveJobEvents() -> evts", evts)
+	}  // pkg.Json("HandleGetActiveJobEvents(): -> device.GetActiveJobEvents() -> evts", evts)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",

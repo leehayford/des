@@ -870,7 +870,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 		DESJobName:  fmt.Sprintf("%s_%d", demo.DESDevSerial, startTime),
 		DESJobStart: startTime,
 		DESJobEnd:   0,
-		DESJobLng:   -114.75 + rand.Float64()*(-110.15+114.75),
+		DESJobLng:  -114.75 + rand.Float64()*(-110.15+114.75),
 		DESJobLat:   51.85 + rand.Float64()*(54.35-51.85),
 		DESJobDevID: demo.DESDevID,
 	}
@@ -930,7 +930,7 @@ func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
 	evt.EvtAddr = demo.DESDevSerial
 	evt.EvtCode = OP_CODE_JOB_STARTED
 	evt.EvtTitle = "JOB STARTED"
-	evt.EvtMsg = demo.STA.StaJobName
+	evt.EvtMsg = sta.StaJobName
 
 	/* WRITE TO FLASH - CMDARCHIVE */
 	demo.WriteAdmToFlash(demo.CmdArchiveName(), demo.ADM)

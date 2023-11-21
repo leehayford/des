@@ -17,7 +17,7 @@ type Event struct {
 
 	EvtCode  int32    `json:"evt_code"`
 	EvtTitle string   `gorm:"varchar(36)" json:"evt_title"`
-	EvtMsg   string   `gorm:"varchar(128)" json:"evt_msg"`
+	EvtMsg   string   `gorm:"varchar(512)" json:"evt_msg"`
 	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:EvtTypCode" json:"-"`
 }
 
@@ -92,7 +92,7 @@ func (evt *Event) Validate() {
 	evt.EvtApp = pkg.ValidateStringLength(evt.EvtApp, 36)
 
 	evt.EvtTitle = pkg.ValidateStringLength(evt.EvtTitle, 36)
-	evt.EvtMsg = pkg.ValidateStringLength(evt.EvtMsg, 128)
+	evt.EvtMsg = pkg.ValidateStringLength(evt.EvtMsg, 512)
 }
 
 type EventTyp struct {
