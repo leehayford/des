@@ -484,8 +484,10 @@ func (device *Device) MQTTPublication_DeviceClient_CMDStartJob() {
 
 	start := StartJob{
 		ADM: device.ADM,
+		STA: device.STA,
 		HDR: device.HDR,
 		CFG: device.CFG,
+		EVT: device.EVT,
 	}
 
 	cmd := pkg.MQTTPublication{

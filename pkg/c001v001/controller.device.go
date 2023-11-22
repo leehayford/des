@@ -789,20 +789,12 @@ func (device *Device) StartJobX(start StartJob) {
 	IF WE ARE ALREADY LOGGING, THE ACTIVE JOB MUST BE ENDED BEFORE A NEW ONE IST STARTED
 	*/
 
-	evt := Event{
-		EvtTime: start.STA.StaTime,
-		EvtAddr: start.STA.StaAddr,
-		EvtUserID: start.STA.StaUserID,
-		EvtApp: start.STA.StaApp,
-		EvtCode: OP_CODE_JOB_STARTED,
-		EvtMsg: start.STA.StaJobName,
-	}
 	/* CALL DB WRITE IN GOROUTINE */
 	WriteADM(start.ADM, &device.CmdDBC)
 	WriteSTA(start.STA, &device.CmdDBC)
 	WriteHDR(start.HDR, &device.CmdDBC)
 	WriteCFG(start.CFG, &device.CmdDBC)
-	WriteEVT(evt, &device.CmdDBC)
+	WriteEVT(start.EVT, &device.CmdDBC)
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
@@ -831,6 +823,11 @@ func (device *Device) StartJobX(start StartJob) {
 		device.DESJobLat = start.HDR.HdrGeoLat
 	}
 
+	fmt.Printf("\n(device *Device) StartJob() Check Well Name -> %s\n", device.HDR.HdrWellName)
+	if device.HDR.HdrWellName == "" || device.HDR.HdrWellName == device.CmdArchiveName() {
+		device.HDR.HdrWellName = device.STA.StaJobName
+	}
+	
 	fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n%v\n", device.DESJob)
 
 	/* CREATE A JOB RECORD IN THE DES DATABASE */
@@ -893,7 +890,7 @@ func (device *Device) StartJobX(start StartJob) {
 	if err := WriteCFG(start.CFG, &device.JobDBC); err != nil {
 		pkg.LogErr(err)
 	}
-	if err := WriteEVT(evt, &device.JobDBC); err != nil {
+	if err := WriteEVT(start.EVT, &device.JobDBC); err != nil {
 		pkg.LogErr(err)
 	}
 
@@ -907,7 +904,7 @@ func (device *Device) StartJobX(start StartJob) {
 	device.STA = start.STA
 	device.HDR = start.HDR
 	device.CFG = start.CFG
-	device.EVT = evt
+	device.EVT = start.EVT
 
 	/* UPDATE THE DEVICES CLIENT MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)

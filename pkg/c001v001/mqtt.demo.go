@@ -1037,34 +1037,26 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
 		DESJobDevID: demo.DESDevID,
 	}
 
+	demo.ADM = start.ADM
 	demo.ADM.AdmTime = startTime
 	demo.ADM.AdmAddr = demo.DESDevSerial
-	demo.ADM.AdmUserID = start.STA.StaUserID
-	demo.ADM.AdmApp = start.STA.StaApp
 
 	/* CREATE A LOCAL STATE VARIABLE TO AVOID ALTERING LOGGING MODE PREMATURELY */
-	sta := demo.STA
+	sta := start.STA
 	sta.StaTime = startTime
 	sta.StaAddr = demo.DESDevSerial
-	sta.StaUserID = start.STA.StaUserID
-	sta.StaApp = start.STA.StaApp
 	sta.StaLogFw = "0.0.009"
 	sta.StaModFw = "0.0.007"
 	sta.StaLogging = OP_CODE_JOB_STARTED
 	sta.StaJobName = demo.DESJobName
 
+	demo.HDR = start.HDR
 	demo.HDR.HdrTime = startTime
 	demo.HDR.HdrAddr = demo.DESDevSerial
-	demo.HDR.HdrUserID = start.STA.StaUserID
-	demo.HDR.HdrApp = start.STA.StaApp
 	demo.HDR.HdrJobStart = startTime
 	demo.HDR.HdrJobEnd = 0
 	demo.HDR.HdrGeoLng = demo.DESJobLng
 	demo.HDR.HdrGeoLat = demo.DESJobLat
-	fmt.Printf("(demo *DemoDeviceClient) Check Well Name -> %s\n", demo.HDR.HdrWellName)
-	if demo.HDR.HdrWellName == "" || demo.HDR.HdrWellName == demo.CmdArchiveName() {
-		demo.HDR.HdrWellName = sta.StaJobName
-	}
 
 	demo.CFG.CfgTime = startTime
 	demo.CFG.CfgAddr = demo.DESDevSerial
@@ -1073,17 +1065,25 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
 	demo.CFG.CfgVlvTgt = MODE_VENT
 	demo.CFG.Validate()
 
+	demo.EVT.EvtTime = startTime
+	demo.EVT.EvtAddr = demo.DESDevSerial
+	demo.EVT.EvtCode = OP_CODE_JOB_STARTED
+	demo.EVT.EvtMsg = demo.DESJobName
+
+
 	/* WRITE TO FLASH - CMDARCHIVE */
 	demo.WriteAdmToFlash(demo.CmdArchiveName(), demo.ADM)
 	demo.WriteStateToFlash(demo.CmdArchiveName(), sta)
 	demo.WriteHdrToFlash(demo.CmdArchiveName(), demo.HDR)
 	demo.WriteCfgToFlash(demo.CmdArchiveName(), demo.CFG)
+	demo.WriteEvtToFlash(demo.CmdArchiveName(), demo.EVT)
 
 	/* WRITE TO FLASH - JOB */
 	demo.WriteAdmToFlash(demo.DESJobName, demo.ADM)
 	demo.WriteStateToFlash(demo.DESJobName, sta)
 	demo.WriteHdrToFlash(demo.DESJobName, demo.HDR)
 	demo.WriteCfgToFlash(demo.DESJobName, demo.CFG)
+	demo.WriteEvtToFlash(demo.DESJobName, demo.EVT)
 
 	/* SEND CONFIRMATION */
 	response := StartJob{
@@ -1091,6 +1091,7 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
 		STA: sta,
 		HDR: start.HDR,
 		CFG: demo.CFG,
+		EVT: demo.EVT,
 	}
 	demo.MQTTPublication_DemoDeviceClient_SIGStartJob(response)
 

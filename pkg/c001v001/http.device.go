@@ -145,6 +145,7 @@ type StartJob struct {
 	STA State  `json:"sta"`
 	HDR Header `json:"hdr"`
 	CFG Config `json:"cfg"`
+	EVT Event `json:"evt"`
 }
 
 func HandleStartJob(c *fiber.Ctx) (err error) {
