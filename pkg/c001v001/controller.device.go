@@ -789,6 +789,8 @@ func (device *Device) StartJobX(start StartJob) {
 	IF WE ARE ALREADY LOGGING, THE ACTIVE JOB MUST BE ENDED BEFORE A NEW ONE IST STARTED
 	*/
 
+	pkg.Json("(device *Device) StartJobX(start StartJob): ", start)
+
 	/* CALL DB WRITE IN GOROUTINE */
 	WriteADM(start.ADM, &device.CmdDBC)
 	WriteSTA(start.STA, &device.CmdDBC)
@@ -827,7 +829,7 @@ func (device *Device) StartJobX(start StartJob) {
 	if device.HDR.HdrWellName == "" || device.HDR.HdrWellName == device.CmdArchiveName() {
 		device.HDR.HdrWellName = device.STA.StaJobName
 	}
-	
+
 	fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n%v\n", device.DESJob)
 
 	/* CREATE A JOB RECORD IN THE DES DATABASE */
@@ -901,16 +903,15 @@ func (device *Device) StartJobX(start StartJob) {
 	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
 	*/
 	device.ADM = start.ADM
-	device.STA = start.STA
 	device.HDR = start.HDR
 	device.CFG = start.CFG
 	device.EVT = start.EVT
+	device.STA = start.STA
 
 	/* UPDATE THE DEVICES CLIENT MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
 
 	pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
-	// fmt.Printf("\n(device *Device) StartJob( ): COMPLETE: %s\n", device.JobDBC.GetDBName())
 }
 
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB STARTED' EVENT FROM THE DEVICE */

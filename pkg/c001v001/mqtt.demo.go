@@ -1068,8 +1068,8 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
 	demo.EVT.EvtTime = startTime
 	demo.EVT.EvtAddr = demo.DESDevSerial
 	demo.EVT.EvtCode = OP_CODE_JOB_STARTED
+	demo.EVT.EvtTitle = "JOB STARTED"
 	demo.EVT.EvtMsg = demo.DESJobName
-
 
 	/* WRITE TO FLASH - CMDARCHIVE */
 	demo.WriteAdmToFlash(demo.CmdArchiveName(), demo.ADM)
