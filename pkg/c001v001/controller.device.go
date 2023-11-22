@@ -191,8 +191,6 @@ func (device *Device) GetDeviceDESRegistration(serial string) (err error) {
 func (device *Device) GetActiveJobEvents() (evts *[]Event, err error) {
 
 	/* SYNC DEVICE WITH DevicesMap */
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	res := device.JobDBC.Select("*").Table("events").Where("evt_addr = ?", device.DESDevSerial).Order("evt_time DESC").Scan(&evts)
@@ -347,6 +345,9 @@ func ReadDevicesMap(serial string) (device Device) {
 
 /* HYDRATES THE DEVICE'S DB & MQTT CLIENT OBJECTS OF THE DEVICE FROM DevicesMap */
 func (device *Device) GetMappedClients() {
+
+	device.DESMQTTClient = pkg.DESMQTTClient{}
+	device.DESMQTTClient.WG = &sync.WaitGroup{}
 
 	/* GET THE DEVICE CLIENT DATA FROM THE DEVICES CLIENT MAP */
 	d := ReadDevicesMap(device.DESDevSerial)
@@ -559,8 +560,6 @@ func (device *Device) ConnectJobDBC() (err error) {
 func (device *Device) StartJobRequest(src string) (err error) {
 
 	/* SYNC DEVICE WITH DevicesMap */
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	/* START NEW JOB
@@ -668,8 +667,6 @@ func (device *Device) CancelStartJobRequest(src string) (err error) {
 	device.GetMappedHDR()
 	device.GetMappedCFG()
 	device.GetMappedSMP()
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	device.EVT = Event{
@@ -863,8 +860,6 @@ func (device *Device) EndJobRequest(src string) (err error) {
 	device.GetMappedHDR()
 	device.GetMappedCFG()
 	device.GetMappedSMP()
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	device.EVT = Event{
@@ -997,8 +992,6 @@ func (device *Device) SetAdminRequest(src string) (err error) {
 	device.GetMappedCFG() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped CFG gotten")
 	device.GetMappedEVT() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped EVT gotten")
 	device.GetMappedSMP() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped SMP gotten")
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped Clients gotten")
 
 	/* LOG ADM CHANGE REQUEST TO  CMDARCHIVE */
@@ -1037,8 +1030,6 @@ func (device *Device) GetAdminRequest(src string) (err error) {
 	device.GetMappedCFG()
 	device.GetMappedEVT()
 	device.GetMappedSMP()
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	/* MQTT PUB CMD: ADM */
@@ -1088,8 +1079,6 @@ func (device *Device) SetStateRequest(src string) (err error) {
 	device.GetMappedCFG()
 	device.GetMappedEVT()
 	device.GetMappedSMP()
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	/* LOG STA CHANGE REQUEST TO CMDARCHIVE */
@@ -1128,8 +1117,6 @@ func (device *Device) SetHeaderRequest(src string) (err error) {
 	device.GetMappedCFG()
 	device.GetMappedEVT()
 	device.GetMappedSMP()
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	/* LOG HDR CHANGE REQUEST TO CMDARCHIVE */
@@ -1165,8 +1152,6 @@ func (device *Device) SetConfigRequest(src string) (err error) {
 	device.CFG.Validate()
 	device.GetMappedEVT()
 	device.GetMappedSMP()
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients()
 
 	/* LOG CFG CHANGE REQUEST TO CMDARCHIVE */
@@ -1199,8 +1184,6 @@ func (device *Device) CreateEventRequest(src string) (err error) {
 	device.GetMappedHDR() // fmt.Printf("\nCreateEventRequest( ) -> Mapped HDR gotten")
 	device.GetMappedCFG() // fmt.Printf("\nCreateEventRequest( ) -> Mapped CFG gotten")
 	device.GetMappedSMP() // fmt.Printf("\nCreateEventRequest( ) -> Mapped SMP gotten")
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
 	device.GetMappedClients() // fmt.Printf("\nCreateEventRequest( ) -> Mapped Clients gotten")
 
 	/* LOG EVT CHANGE REQUEST TO  CMDARCHIVE */
@@ -1236,6 +1219,26 @@ func (device *Device) SetDebug() (err error) {
 
 	device.UpdateMappedDBG(true)
 	/* TODO: ERROR CHECKING */
+	return
+}
+
+func (device *Device) TestMsgLimit() (size int, err error) {
+
+	/* 1468 Byte Kafka*/
+	msg := MsgLimit{ 
+		Kafka: `One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin. He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections. The bedding was hardly able to cover it and seemed ready to slide off any moment. His many legs, pitifully thin compared with the size of the rest of him, waved about helplessly as he looked. "What's happened to me?" he thought. It wasn't a dream. His room, a proper human room although a little too small, lay peacefully between its four familiar walls. A collection of textile samples lay spread out on the table - Samsa was a travelling salesman - and above it there hung a picture that he had recently cut out of an illustrated magazine and housed in a nice, gilded frame. It showed a lady fitted out with a fur hat and fur boa who sat upright, raising a heavy fur muff that covered the whole of her lower arm towards the viewer. Gregor then turned to look out the window at the dull weather. Drops of rain could be heard hitting the pane, which made him feel quite sad. "How about if I sleep a little bit longer and forget all this nonsense", he thought, but that was something he was unable to do because he was used to sleeping on his right, and in his present state couldn't get into that position. However hard he threw himself onto his right, he always rolled back to where he was.`,
+	}
+	out := pkg.ModelToJSONString(msg)
+	size = len(out)
+	fmt.Printf("\nTestMsgLimit( ) -> length: %d\n", size)
+
+	// fmt.Printf("\nTestMsgLimit( ) -> getting mapped clients...\n")
+	device.GetMappedClients()
+	
+	/* MQTT PUB CMD: EVT */
+	// fmt.Printf("\nTestMsgLimit( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	device.MQTTPublication_DeviceClient_CMDMsgLimit(msg)
+
 	return
 }
 

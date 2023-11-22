@@ -735,12 +735,11 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDMsgLimit() pk
 			kafka := MsgLimit{}
 			if err := json.Unmarshal(msg.Payload(), &kafka); err != nil {
 				pkg.LogErr(err)
-			}
-
+			} // pkg.Json("MQTTSubscription_DemoDeviceClient_CMDMsgLimit(): -> kafka", kafka)
+			
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGMsgLimit(kafka)
 
-			demo.DESMQTTClient.WG.Done()
 		},
 	}
 }

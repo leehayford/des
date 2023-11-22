@@ -184,7 +184,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /* TODO: PASS IN USER
 	duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().Sub(duc.DESMQTTClient)
 	
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
-	duc.MQTTSubscription_DeviceUserClient_SIGMsgLimit().UnSub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_SIGMsgLimit().Sub(duc.DESMQTTClient)
 
 	fmt.Printf("\n(duc) MQTTDeviceUserClient_Connect( ) -> ClientID: %s\n", duc.ClientID)
 	return err
@@ -470,12 +470,10 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGMsgLimit() pkg
 			js, err := json.Marshal(&WSMessage{Type: "msg_limit", Data: kafka})
 			if err != nil {
 				pkg.LogErr(err)
-			} // pkg.Json("MQTTSubscription_DemoDeviceClient_SIGMsgLimit(...) -> kafka :", kafka)
+			}  // pkg.Json("MQTTSubscription_DemoDeviceClient_SIGMsgLimit(...) -> kafka :", kafka)
 
 			/* SEND WSMessage AS JSON STRING */
 			duc.DataOut <- string(js)
-
-			duc.DESMQTTClient.WG.Done()
 		},
 	}
 }
