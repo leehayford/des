@@ -213,6 +213,34 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( /* TODO: PASS IN U
 
 /* SUBSCRIPTIONS ****************************************************************************************/
 
+
+/* SUBSCRIPTIONS -> ADMIN  */
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGStartJob( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: duc.MQTTTopic_SIGStartJob(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* DECODE MESSAGE PAYLOAD TO Admin STRUCT */
+			start := StartJob{}
+			if err := json.Unmarshal(msg.Payload(), &start); err != nil {
+				pkg.LogErr(err)
+			}
+
+			/* CREATE JSON WSMessage STRUCT */
+			js, err := json.Marshal(&WSMessage{Type: "start", Data: start})
+			if err != nil {
+				pkg.LogErr(err)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGStartJob(...) -> start :", start)
+
+			/* SEND WSMessage AS JSON STRING */
+			duc.DataOut <- string(js)
+
+		},
+	}
+}
+
 /* SUBSCRIPTIONS -> DES DEVICE PING  */
 func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESDeviceClientPing( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{

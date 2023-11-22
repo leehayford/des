@@ -39,9 +39,11 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 	}
 
 	/* SUBSCRIBE TO ALL MQTTSubscriptions */
+	device.MQTTSubscription_DeviceClient_SIGStartJob().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGDevicePing().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGAdmin().Sub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGState().Sub(device.DESMQTTClient)
+	device.MQTTSubscription_DeviceClient_SIGStateX().Sub(device.DESMQTTClient)
+	// device.MQTTSubscription_DeviceClient_SIGState().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGHeader().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGConfig().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGEvent().Sub(device.DESMQTTClient)
@@ -53,9 +55,11 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
+	device.MQTTSubscription_DeviceClient_SIGStartJob().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGDevicePing().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGAdmin().UnSub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGState().UnSub(device.DESMQTTClient)
+	device.MQTTSubscription_DeviceClient_SIGStateX().UnSub(device.DESMQTTClient)
+	// device.MQTTSubscription_DeviceClient_SIGState().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGHeader().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGConfig().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGEvent().UnSub(device.DESMQTTClient)
@@ -73,6 +77,26 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 
 /* SUBSCRIPTIONS ****************************************************************************************/
 
+/* SUBSCRIPTION -> START JOB  -> UPON RECEIPT, WRITE TO JOB DATABASE */
+func (device *Device) MQTTSubscription_DeviceClient_SIGStartJob() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: device.MQTTTopic_SIGStartJob(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
+			start := StartJob{}
+			if err := json.Unmarshal(msg.Payload(), &start); err != nil {
+				pkg.LogErr(err)
+			}
+
+			go device.StartJobX(start)
+
+		},
+	}
+}
+
 /* SUBSCRIPTION -> PING  -> UPON RECEIPT, ALERT USER CLIENTS, UPDATE DevicePingsMap */
 func (device *Device) MQTTSubscription_DeviceClient_SIGDevicePing() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
@@ -81,24 +105,30 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDevicePing() pkg.MQTTSubs
 		Topic: device.MQTTTopic_SIGDevicePing(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
+			device.DESMQTTClient.WG.Add(1)
+
 			// /* TODO : PARSE THE PING MESSAGE */
 			// if err := json.Unmarshal(msg.Payload(), &ping); err != nil {
 			// 	pkg.LogErr(err)
 			// }
+
 			ping := pkg.Ping{
 				Time: time.Now().UTC().UnixMilli(),
 				OK:   true,
 			}
 
-			/* CALL IN GO ROUTINE BECAUSE A MESSGE WILL BE PUBLISHED */
-			go device.UpdateDevicePing(ping)
-
 			/* TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME
 			- IGNORE THE RECEIVED DEVICE TIME FOR NOW,
 			- WE DON'T REALLY CARE FOR KEEP-ALIVE PURPOSES
+			*/
 
-			*/ // go ping.LatencyCheck()
+			/* CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
+			go device.MQTTPublication_DeviceClient_DESDevicePing(ping)
 
+			/* UPDATE THE DevicesPingMap - DO NOT CALL IN GOROUTINE */
+			device.UpdateDevicePing(ping)
+
+			device.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -135,6 +165,40 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			device.UpdateMappedADM()
 			device.DESMQTTClient.WG.Done()
 
+		},
+	}
+}
+
+/* SUBSCRIPTION -> STATE  -> UPON RECEIPT, WRITE TO JOB DATABASE */
+func (device *Device) MQTTSubscription_DeviceClient_SIGStateX() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: device.MQTTTopic_SIGState(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			device.DESMQTTClient.WG.Add(1)
+
+			/* PARSE / STORE THE STATE IN CMDARCHIVE */
+			sta := State{}
+			if err := json.Unmarshal(msg.Payload(), &sta); err != nil {
+				pkg.LogErr(err)
+			}
+
+			/* CALL DB WRITE IN GOROUTINE */
+			go WriteSTA(sta, &device.CmdDBC)
+
+			if sta.StaLogging > OP_CODE_JOB_START_REQ {
+
+				/* STORE THE STATE IN THE ACTIVE JOB;  CALL DB WRITE IN GOROUTINE */
+				go WriteSTA(sta, &device.JobDBC)
+			}
+
+			device.STA = sta
+
+			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+			device.UpdateMappedSTA()
+			device.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -415,6 +479,40 @@ func (device *Device) MQTTPublication_DeviceClient_DESDevicePing(ping pkg.Ping) 
 
 /* CMD PUBLICATIONS **************************************************************************************/
 
+/* PUBLICATION -> START JOB */
+func (device *Device) MQTTPublication_DeviceClient_CMDStartJob() {
+
+	start := StartJob{
+		ADM: device.ADM,
+		HDR: device.HDR,
+		CFG: device.CFG,
+	}
+
+	cmd := pkg.MQTTPublication{
+		Topic:    device.MQTTTopic_CMDStartJob(),
+		Message:  pkg.ModelToJSONString(start),
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDAdmin(): -> cmd", cmd)
+
+	cmd.Pub(device.DESMQTTClient)
+}
+
+/* PUBLICATION -> END JOB */
+func (device *Device) MQTTPublication_DeviceClient_CMDEndJob(evt Event) {
+
+	cmd := pkg.MQTTPublication{
+		Topic:    device.MQTTTopic_CMDEndJob(),
+		Message:  pkg.ModelToJSONString(evt),
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDEndJob(): -> cmd", cmd)
+
+	cmd.Pub(device.DESMQTTClient)
+}
+
 /* PUBLICATION -> ADMINISTRATION */
 func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 
@@ -537,6 +635,12 @@ func (device *Device) MQTTTopic_CMDReport(baseTopic string) (topic string) {
 }
 
 /* MQTT TOPICS - SIGNAL */
+func (device *Device) MQTTTopic_SIGStartJob() (topic string) {
+	return fmt.Sprintf("%s/start", device.MQTTTopic_SIGRoot())
+}
+func (device *Device) MQTTTopic_SIGEndJob() (topic string) {
+	return fmt.Sprintf("%s/end", device.MQTTTopic_SIGRoot())
+}
 func (device *Device) MQTTTopic_SIGDevicePing() (topic string) {
 	return fmt.Sprintf("%s/ping", device.MQTTTopic_SIGRoot())
 }
@@ -567,6 +671,12 @@ func (device *Device) MQTTTopic_SIGMsgLimit() (topc string) {
 }
 
 /* MQTT TOPICS - COMMAND */
+func (device *Device) MQTTTopic_CMDStartJob() (topic string) {
+	return fmt.Sprintf("%s/start", device.MQTTTopic_CMDRoot())
+}
+func (device *Device) MQTTTopic_CMDEndJob() (topic string) {
+	return fmt.Sprintf("%s/end", device.MQTTTopic_CMDRoot())
+}
 func (device *Device) MQTTTopic_CMDAdmin() (topic string) {
 	return fmt.Sprintf("%s/admin", device.MQTTTopic_CMDRoot())
 }
