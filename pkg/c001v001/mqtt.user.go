@@ -182,6 +182,9 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /* TODO: PASS IN USER
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGSample().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().Sub(duc.DESMQTTClient)
+	
+	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+	duc.MQTTSubscription_DeviceUserClient_SIGMsgLimit().UnSub(duc.DESMQTTClient)
 
 	fmt.Printf("\n(duc) MQTTDeviceUserClient_Connect( ) -> ClientID: %s\n", duc.ClientID)
 	return err
@@ -198,6 +201,9 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( /* TODO: PASS IN U
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGSample().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().UnSub(duc.DESMQTTClient)
+	
+	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+	duc.MQTTSubscription_DeviceUserClient_SIGMsgLimit().UnSub(duc.DESMQTTClient)
 
 	/* DISCONNECT THE DESMQTTCLient */
 	duc.DESMQTTClient_Disconnect()
@@ -445,6 +451,35 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGDiagSample( /*
 		},
 	}
 }
+
+/* SUBSCRIPTIONS -> MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGMsgLimit() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: duc.MQTTTopic_SIGMsgLimit(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* PARSE MsgLimit IN CMDARCHIVE */
+			kafka := MsgLimit{}
+			if err := json.Unmarshal(msg.Payload(), &kafka); err != nil {
+				pkg.LogErr(err)
+			}
+
+			/* CREATE JSON WSMessage STRUCT */
+			js, err := json.Marshal(&WSMessage{Type: "msg_limit", Data: kafka})
+			if err != nil {
+				pkg.LogErr(err)
+			} // pkg.Json("MQTTSubscription_DemoDeviceClient_SIGMsgLimit(...) -> kafka :", kafka)
+
+			/* SEND WSMessage AS JSON STRING */
+			duc.DataOut <- string(js)
+
+			duc.DESMQTTClient.WG.Done()
+		},
+	}
+}
+
 
 /* PUBLICATIONS ******************************************************************************************/
 /* NONE; WE DON'T DO THAT;

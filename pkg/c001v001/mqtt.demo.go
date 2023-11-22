@@ -348,6 +348,9 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
 
+	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().Sub(demo.DESMQTTClient)
+
 	return err
 }
 func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
@@ -358,6 +361,9 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
+	
+	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().UnSub(demo.DESMQTTClient)
 
 	/* DISCONNECT THE DESMQTTCLient */
 	if err = demo.DESMQTTClient_Disconnect(); err != nil {
@@ -717,6 +723,28 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 	}
 }
 
+/* SUBSCRIPTIONS -> MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDMsgLimit() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: demo.MQTTTopic_CMDMsgLimit(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* PARSE MsgLimit IN CMDARCHIVE */
+			kafka := MsgLimit{}
+			if err := json.Unmarshal(msg.Payload(), &kafka); err != nil {
+				pkg.LogErr(err)
+			}
+
+			/* SEND CONFIRMATION */
+			go demo.MQTTPublication_DemoDeviceClient_SIGMsgLimit(kafka)
+
+			demo.DESMQTTClient.WG.Done()
+		},
+	}
+}
+
 /* PUBLICATIONS ******************************************************************************************/
 
 /* PUBLICATION -> PING -> SIMULATED ADMINS */
@@ -843,6 +871,24 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGSample(mqtts M
 
 	sig.Pub(demo.DESMQTTClient)
 }
+
+/* PUBLICATION -> MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT***  */
+func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGMsgLimit(msg MsgLimit) {
+	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
+	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
+	*/
+	sig := pkg.MQTTPublication{
+
+		Topic:    demo.MQTTTopic_SIGMsgLimit(),
+		Message:  pkg.ModelToJSONString(msg),
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	}
+
+	sig.Pub(demo.DESMQTTClient)
+}
+
 
 /* SIMULATIONS *******************************************************************************************/
 

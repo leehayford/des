@@ -499,6 +499,20 @@ func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) {
 	cmd.Pub(device.DESMQTTClient)
 }
 
+/* PUBLICATION -> MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+func (device *Device) MQTTPublication_DeviceClient_CMDMsgLimit(msg MsgLimit) {
+
+	cmd := pkg.MQTTPublication{
+		Topic:    device.MQTTTopic_CMDMsgLimit(),
+		Message:  pkg.ModelToJSONString(msg),
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	}
+
+	cmd.Pub(device.DESMQTTClient)
+}
+
 /* MQTT TOPICS ************************************************************************
 THESE ARE USED BY ALL TYPES OF CLIENTS: Device, User, Demo */
 
@@ -547,6 +561,10 @@ func (device *Device) MQTTTopic_SIGSample() (topic string) {
 func (device *Device) MQTTTopic_SIGDiagSample() (topic string) {
 	return fmt.Sprintf("%s/diag_sample", device.MQTTTopic_SIGRoot())
 }
+func (device *Device) MQTTTopic_SIGMsgLimit() (topc string) {
+	/*** TODO: REMOVE AFTER DEVELOPMENT ***/
+	return fmt.Sprintf("%s/msg_limit", device.MQTTTopic_SIGRoot())
+}
 
 /* MQTT TOPICS - COMMAND */
 func (device *Device) MQTTTopic_CMDAdmin() (topic string) {
@@ -569,6 +587,10 @@ func (device *Device) MQTTTopic_CMDSample() (topic string) {
 }
 func (device *Device) MQTTTopic_CMDDiagSample() (topic string) {
 	return fmt.Sprintf("%s/diag_sample", device.MQTTTopic_CMDRoot())
+}
+func (device *Device) MQTTTopic_CMDMsgLimit() (topc string) {
+	/*** TODO: REMOVE AFTER DEVELOPMENT ***/
+	return fmt.Sprintf("%s/msg_limit", device.MQTTTopic_CMDRoot())
 }
 
 /* MQTT TOPICS - DES MESSAGE */
