@@ -62,20 +62,25 @@ SEVERAL DEDICATED CONNECTIONS:
 	DEVICE-SPECIFIC MQTT CLIENT ( FOR LIFE )
 */
 type Device struct {
-	pkg.DESRegistration `json:"reg"` // Contains registration data for both the device and active job
-	ADM                 Admin        `json:"adm"`      // Last known Admin value
-	STA                 State        `json:"sta"`      // Last known State value
-	HDR                 Header       `json:"hdr"`      // Last known Header value
-	CFG                 Config       `json:"cfg"`      // Last known Config value
-	EVT                 Event        `json:"evt"`      // Last known Event value
-	SMP                 Sample       `json:"smp"`      // Last known Sample value
-	PING                pkg.Ping     `json:"ping"`     // Last Ping received from device
-	DESPING             pkg.Ping     `json:"des_ping"` // Last Ping sent from this DES device client
-	DESPingStop       chan struct{} `json:"-"`        // Send DESPingStop when DeviceClients are disconnected
-	CmdDBC              pkg.DBClient `json:"-"`        // Database Client for the CMDARCHIVE
-	JobDBC              pkg.DBClient `json:"-"`        // Database Client for the active job
-	pkg.DESMQTTClient   `json:"-"`   // MQTT client handling all subscriptions and publications for this device
+	pkg.DESRegistration `json:"reg"`  // Contains registration data for both the device and active job
+	ADM                 Admin         `json:"adm"`      // Last known Admin value
+	STA                 State         `json:"sta"`      // Last known State value
+	HDR                 Header        `json:"hdr"`      // Last known Header value
+	CFG                 Config        `json:"cfg"`      // Last known Config value
+	EVT                 Event         `json:"evt"`      // Last known Event value
+	SMP                 Sample        `json:"smp"`      // Last known Sample value
+	DBG                 Debug         `json:"dbg"`      // Settings used while debugging
+	PING                pkg.Ping      `json:"ping"`     // Last Ping received from device
+	DESPING             pkg.Ping      `json:"des_ping"` // Last Ping sent from this DES device client
+	DESPingStop         chan struct{} `json:"-"`        // Send DESPingStop when DeviceClients are disconnected
+	CmdDBC              pkg.DBClient  `json:"-"`        // Database Client for the CMDARCHIVE
+	JobDBC              pkg.DBClient  `json:"-"`        // Database Client for the active job
+	pkg.DESMQTTClient   `json:"-"`    // MQTT client handling all subscriptions and publications for this device
 
+}
+
+type Debug struct {
+	MQTTDelay int32 `json:"mqtt_delay"`
 }
 
 type DevicesMap map[string]Device
@@ -102,7 +107,6 @@ func (device *Device) UpdateDeviceClientPing(ping pkg.Ping) {
 	/* CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
 	go device.MQTTPublication_DeviceClient_DESDeviceClientPing(ping)
 }
-
 
 var DevicePings = make(DevicePingsMap)
 
@@ -164,7 +168,7 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 func GetDevices(regs []pkg.DESRegistration) (devices []Device) {
 	for _, reg := range regs {
 		// pkg.Json("GetDevices( ) -> reg", reg)
-		device := (&Device{}).ReadDevicesMap(reg.DESDevSerial)
+		device := ReadDevicesMap(reg.DESDevSerial)
 		device.DESRegistration = reg
 		device.PING = DevicePings[device.DESDevSerial]
 		device.DESPING = DeviceClientPings[device.DESDevSerial]
@@ -262,7 +266,6 @@ func (device *Device) DeviceClient_Connect() (err error) {
 		return pkg.LogErr(err)
 	}
 
-
 	/* UPDATE DevicePings MAP. START THE KEEP-ALIVE */
 	device.UpdateDevicePing(device.PING)
 
@@ -270,21 +273,21 @@ func (device *Device) DeviceClient_Connect() (err error) {
 	device.UpdateDeviceClientPing(device.DESPING)
 
 	/* START DES DEVICE CLIENT PING */
-	
+
 	device.DESPingStop = make(chan struct{})
 	live := true
 	go func() {
 		for live {
 			select {
-			
-			case <- device.DESPingStop:
+
+			case <-device.DESPingStop:
 				live = false
-				
+
 			default:
 				time.Sleep(time.Millisecond * DES_PING_TIMEOUT)
 				device.UpdateDeviceClientPing(pkg.Ping{
 					Time: time.Now().UTC().UnixMilli(),
-					OK: true,
+					OK:   true,
 				})
 				// fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING... \n\n", device.DESDevSerial)
 			}
@@ -310,7 +313,7 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 	fmt.Printf("\n\n(device *Device) DeviceClient_Disconnect() -> %s -> disconnecting... \n", device.DESDevSerial)
 
 	/* KILL DES DEVICE CLIENT PING REMOVE FROM DeviceClientPings MAP */
-	device.DESPingStop<- struct{}{}
+	device.DESPingStop <- struct{}{}
 
 	if err := device.CmdDBC.Disconnect(); err != nil {
 		return pkg.LogErr(err)
@@ -333,10 +336,10 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 
 TODO: TEST WaitGroup vs. RWMutex ON SERVER TO PREVENT CONCURRENT MAP WRITES
 */
-func (device *Device) ReadDevicesMap(serial string) (d Device) {
+func ReadDevicesMap(serial string) (device Device) {
 
 	DevicesRWMutex.Lock()
-	d = Devices[serial]
+	device = Devices[serial]
 	DevicesRWMutex.Unlock()
 
 	return
@@ -346,7 +349,7 @@ func (device *Device) ReadDevicesMap(serial string) (d Device) {
 func (device *Device) GetMappedClients() {
 
 	/* GET THE DEVICE CLIENT DATA FROM THE DEVICES CLIENT MAP */
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 
 	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
 	d.CmdDBC.WG.Wait()
@@ -376,38 +379,44 @@ func (device *Device) GetMappedClients() {
 
 /* HYDRATES THE DEVICE'S Admin STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedADM() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	device.ADM = d.ADM
 }
 
 /* HYDRATES THE DEVICE'S State STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedSTA() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	device.STA = d.STA
 }
 
 /* HYDRATES THE DEVICE'S Header STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedHDR() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	device.HDR = d.HDR
 }
 
 /* HYDRATES THE DEVICE'S Config STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedCFG() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	device.CFG = d.CFG
 }
 
 /* HYDRATES THE DEVICE'S Event STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedEVT() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	device.EVT = d.EVT
 }
 
 /* HYDRATES THE DEVICE'S Sample STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedSMP() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	device.SMP = d.SMP
+}
+
+/* HYDRATES THE DEVICE'S Debug STRUCT FROM THE DevicesMap */
+func (device *Device) GetMappedDBG() {
+	d := ReadDevicesMap(device.DESDevSerial)
+	device.DBG = d.DBG
 }
 
 /*
@@ -431,14 +440,14 @@ func UpdateDevicesMap(serial string, d Device) {
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Admin */
 func (device *Device) UpdateMappedADM() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	d.ADM = device.ADM
 	UpdateDevicesMap(device.DESDevSerial, d)
 }
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT State */
 func (device *Device) UpdateMappedSTA() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	d.STA = device.STA
 	UpdateDevicesMap(device.DESDevSerial, d)
 }
@@ -446,7 +455,7 @@ func (device *Device) UpdateMappedSTA() {
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Header */
 // func (device *Device) UpdateMappedHDR(hdr Header) {
 func (device *Device) UpdateMappedHDR() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	// d.HDR = hdr
 	d.HDR = device.HDR
 	UpdateDevicesMap(device.DESDevSerial, d)
@@ -454,23 +463,33 @@ func (device *Device) UpdateMappedHDR() {
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Config */
 func (device *Device) UpdateMappedCFG() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	d.CFG = device.CFG
 	UpdateDevicesMap(device.DESDevSerial, d)
 }
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Event */
 func (device *Device) UpdateMappedEVT() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	d.EVT = device.EVT
 	UpdateDevicesMap(device.DESDevSerial, d)
 }
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Sample */
 func (device *Device) UpdateMappedSMP() {
-	d := device.ReadDevicesMap(device.DESDevSerial)
+	d := ReadDevicesMap(device.DESDevSerial)
 	d.SMP = device.SMP
 	UpdateDevicesMap(device.DESDevSerial, d)
+}
+
+/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Debug */
+func (device *Device) UpdateMappedDBG(sync bool) {
+	d := ReadDevicesMap(device.DESDevSerial)
+	d.DBG = device.DBG
+	UpdateDevicesMap(device.DESDevSerial, d)
+	if sync {
+		device = &d
+	}
 }
 
 /* RETURNS THE CMDARCHIVE NAME  */
@@ -611,12 +630,24 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.CmdDBC.Create(&device.CFG) /* TODO: USE WriteCFG... */
 	device.CmdDBC.Create(&device.EVT) /* TODO: USE WriteEVT... */
 
-	// /* MQTT PUB CMD: ADM, HDR, CFG, EVT */
+	/* MQTT PUB CMD: ADM, HDR, CFG, EVT */
 	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+
+	/* DEBUG: ENABLE MQTT MESSAGE DELAY */
+	device.GetMappedDBG()
+
 	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
+	time.Sleep(time.Second * time.Duration(device.DBG.MQTTDelay))
+
 	device.MQTTPublication_DeviceClient_CMDState(device.STA)
+	time.Sleep(time.Second * time.Duration(device.DBG.MQTTDelay))
+
 	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
+	time.Sleep(time.Second * time.Duration(device.DBG.MQTTDelay))
+
 	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
+	time.Sleep(time.Second * time.Duration(device.DBG.MQTTDelay))
+
 	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
@@ -1080,6 +1111,14 @@ func (device *Device) SetStateRequest(src string) (err error) {
 /* PREPARE, LOG, AND SEND A SET HEADER REQUEST TO THE DEVICE */
 func (device *Device) SetHeaderRequest(src string) (err error) {
 
+	// hdr := device.HDR
+	// hdr.HdrTime = time.Now().UTC().UnixMilli()
+	// hdr.HdrAddr = src
+	// hdr.Validate()
+	// d := ReadDevicesMap(device.DESDevSerial)
+	// d.HDR = hdr
+	// device = &d
+
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedADM()
 	device.HDR.HdrTime = time.Now().UTC().UnixMilli()
@@ -1183,6 +1222,20 @@ func (device *Device) CreateEventRequest(src string) (err error) {
 	/* UPDATE DevicesMap */
 	UpdateDevicesMap(device.DESDevSerial, *device)
 
+	return
+}
+
+/*
+UPDATE THE MAPPED DES DEVICE WITH NEW Debug SETTINGS
+***NOTE***
+
+	DEBUG SETINGS ARE NOT LOGGED TO ANY DATABASE
+	NOR ARE THEY TRANSMITTED TO THE PHYSICAL DEVICE
+*/
+func (device *Device) SetDebug() (err error) {
+
+	device.UpdateMappedDBG(true)
+	/* TODO: ERROR CHECKING */
 	return
 }
 

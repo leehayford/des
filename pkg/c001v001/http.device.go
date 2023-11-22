@@ -26,7 +26,8 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 		router.Post("/header", pkg.DesAuth, HandleSetHeader)
 		router.Post("/config", pkg.DesAuth, HandleSetConfig)
 		router.Post("/event", pkg.DesAuth, HandleCreateDeviceEvent)
-		
+		router.Post("/debug", pkg.DesAuth, HandleSetDebug)
+
 		/* DEVICE-VIEWER-LEVEL OPERATIONS */
 		router.Post("/job_events", pkg.DesAuth, HandleGetActiveJobEvents)
 		router.Post("/search", pkg.DesAuth, HandleSearchDevices)
@@ -46,7 +47,6 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 
 	})
 }
-
 
 /*
 	NOT TESTED
@@ -165,8 +165,7 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 			"message": "Device not connected to broker",
 		})
 	} // pkg.Json("HandleStartJob(): -> device.CheckPing( ) -> device", device)
-	
-	
+
 	/* SEND START JOB REQUEST */
 	if err = device.StartJobRequest(c.IP()); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -182,9 +181,9 @@ func HandleStartJob(c *fiber.Ctx) (err error) {
 	})
 }
 
-/* 
-	NOT IMPLEMENTED ON FRONT END 
-	THIS MAY BE UNNECESSARY DUE TO THE ADDITION OF PING (KEEP-ALIVE)
+/*
+NOT IMPLEMENTED ON FRONT END
+THIS MAY BE UNNECESSARY DUE TO THE ADDITION OF PING (KEEP-ALIVE)
 */
 func HandleCancelStartJob(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleCancelStartJob( )\n")
@@ -347,12 +346,12 @@ func HandleGetAdmin(c *fiber.Ctx) (err error) {
 }
 
 /*
-	USED TO SET THE STATE VALUES FOR A GIVEN DEVICE
-	***NOTE***
+USED TO SET THE STATE VALUES FOR A GIVEN DEVICE
+***NOTE***
 
-	THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
-	FUTURE VERSIONS WILL ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
-	CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
+THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
+FUTURE VERSIONS WILL ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
+CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
 */
 func HandleSetState(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleSetState( )\n")
@@ -471,9 +470,9 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 }
 
 /*
-	USED TO CREATE AN EVENT FOR A GIVEN DEVICE, BOTH:
-	- DURING A JOB AND
-	- TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. )
+USED TO CREATE AN EVENT FOR A GIVEN DEVICE, BOTH:
+- DURING A JOB AND
+- TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. )
 */
 func HandleCreateDeviceEvent(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleCreateDeviceEvent( )\n")
@@ -528,7 +527,7 @@ func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}  // pkg.Json("HandleGetActiveJobEvents(): -> c.BodyParser(&device) -> device", device)
+	} // pkg.Json("HandleGetActiveJobEvents(): -> c.BodyParser(&device) -> device", device)
 
 	evts, err := device.GetActiveJobEvents()
 	if err != nil {
@@ -536,14 +535,55 @@ func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}  // pkg.Json("HandleGetActiveJobEvents(): -> device.GetActiveJobEvents() -> evts", evts)
+	} // pkg.Json("HandleGetActiveJobEvents(): -> device.GetActiveJobEvents() -> evts", evts)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "You are a tolerable person!",
 		"data":    fiber.Map{"events": &evts},
 	})
+}
 
+/*
+	USED TO ALTER THE DEBUG SETTINGS FOR A GIVEN DEVICE
+
+THIS INFORMATION IS NOT LOGGED TO THE DATABASE OR SENT TO THE PHYSICAL DEVICE
+*/
+func HandleSetDebug(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleSetDebug( )\n")
+
+	/* CHECK USER PERMISSION */
+	if !pkg.UserRole_Admin(c.Locals("role")) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to change debug settings.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	pkg.Json("HandleSetDebug(): -> c.BodyParser(&device) -> device", device)
+
+	/* UPDATE THE MAPPED DES DEVICE DBG */
+	if err := device.SetDebug(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	pkg.Json("HandleSetDebug(): ->device.SetDebugRequest() -> device.DBG", device.DBG)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Debug settings updated.",
+		"data":    fiber.Map{"device": &device},
+	})
 }
 
 /*
@@ -607,15 +647,15 @@ func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}  
+	}
 	pkg.Json("HandleDisconnectDevice(): -> c.BodyParser(&device) -> device", device)
 
 	d := Devices[device.DESDevSerial]
 	/* CLOSE DEVICE CLIENT CONNECTIONS */
 	if err = d.DeviceClient_Disconnect(); err != nil {
 		msg := fmt.Sprintf(
-			"Failed to close existing device connectsions for %s\n%s\n", 
-			device.DESDevSerial, 
+			"Failed to close existing device connectsions for %s\n%s\n",
+			device.DESDevSerial,
 			err.Error(),
 		)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -630,7 +670,6 @@ func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
 		"data":    fiber.Map{"device": &device},
 	})
 }
-
 
 func HandleConnectDevice(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleConnectDevice( )\n")
@@ -650,23 +689,23 @@ func HandleConnectDevice(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}  // pkg.Json("HandleConnectDevice(): -> c.BodyParser(&device) -> device", device)
+	} // pkg.Json("HandleConnectDevice(): -> c.BodyParser(&device) -> device", device)
 
 	/* GET / VALIDATE DESRegistration */
 	ser := device.DESDevSerial
-	if err = device.GetDeviceDESRegistration(ser); err != nil {		
+	if err = device.GetDeviceDESRegistration(ser); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": fmt.Sprintf("DES Registration for %s was not found.\n%s\nDB ERROR", ser, err.Error()),
 		})
-	}  // pkg.Json("HandleConnectDevice(): -> device.GetDeviceDESRegistration -> device", device)
-	
+	} // pkg.Json("HandleConnectDevice(): -> device.GetDeviceDESRegistration -> device", device)
+
 	d := Devices[device.DESDevSerial]
 	/* CLOSE ANY EXISTING CONNECTIONS */
 	if err = d.DeviceClient_Disconnect(); err != nil {
 		msg := fmt.Sprintf(
-			"Failed to close existing device connectsions for %s\n%s\n", 
-			device.DESDevSerial, 
+			"Failed to close existing device connectsions for %s\n%s\n",
+			device.DESDevSerial,
 			err.Error(),
 		)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -689,4 +728,3 @@ func HandleConnectDevice(c *fiber.Ctx) (err error) {
 		"data":    fiber.Map{"device": &d},
 	})
 }
-
