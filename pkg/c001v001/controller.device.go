@@ -825,9 +825,9 @@ func (device *Device) StartJobX(start StartJob) {
 		device.DESJobLat = start.HDR.HdrGeoLat
 	}
 
-	fmt.Printf("\n(device *Device) StartJob() Check Well Name -> %s\n", device.HDR.HdrWellName)
-	if device.HDR.HdrWellName == "" || device.HDR.HdrWellName == device.CmdArchiveName() {
-		device.HDR.HdrWellName = device.STA.StaJobName
+	fmt.Printf("\n(device *Device) StartJob() Check Well Name -> %s\n", start.HDR.HdrWellName)
+	if start.HDR.HdrWellName == "" || start.HDR.HdrWellName == device.CmdArchiveName() {
+		start.HDR.HdrWellName = start.STA.StaJobName
 	}
 
 	fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n%v\n", device.DESJob)

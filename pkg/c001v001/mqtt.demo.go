@@ -1092,7 +1092,7 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
 		AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS 
 		AND BEFORE WE SEND THE RESPONSE
 	*/
-	demo.STA = start.STA
+	demo.STA = sta
 
 	/* SEND CONFIRMATION */
 	response := StartJob{
