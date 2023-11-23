@@ -343,6 +343,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 
 	/* SUBSCRIBE TO ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDStartJob().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDEndJob().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDState().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
@@ -358,6 +359,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDStartJob().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDEndJob().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDState().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
@@ -1089,7 +1091,7 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
 	response := StartJob{
 		ADM: demo.ADM,
 		STA: sta,
-		HDR: start.HDR,
+		HDR: demo.HDR,
 		CFG: demo.CFG,
 		EVT: demo.EVT,
 	}
@@ -1257,7 +1259,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	evt.EvtAddr = demo.DESDevSerial
 	evt.EvtCode = OP_CODE_JOB_ENDED
 	evt.EvtTitle = "JOB ENDED"
-	evt.EvtMsg = demo.STA.StaJobName
+	evt.EvtMsg = demo.STA.StaJobName // BEFORE WE CHANGE IT
 
 	sta := demo.STA
 	sta.StaTime = endTime
