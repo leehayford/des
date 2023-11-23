@@ -1060,13 +1060,13 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
 	demo.HDR.HdrGeoLng = demo.DESJobLng
 	demo.HDR.HdrGeoLat = demo.DESJobLat
 
+	demo.CFG = start.CFG
 	demo.CFG.CfgTime = startTime
 	demo.CFG.CfgAddr = demo.DESDevSerial
-	demo.CFG.CfgUserID = start.STA.StaUserID
-	demo.CFG.CfgApp = start.STA.StaApp
 	demo.CFG.CfgVlvTgt = MODE_VENT
 	demo.CFG.Validate()
 
+	demo.EVT = start.EVT
 	demo.EVT.EvtTime = startTime
 	demo.EVT.EvtAddr = demo.DESDevSerial
 	demo.EVT.EvtCode = OP_CODE_JOB_STARTED
@@ -1087,21 +1087,22 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
 	demo.WriteCfgToFlash(demo.DESJobName, demo.CFG)
 	demo.WriteEvtToFlash(demo.DESJobName, demo.EVT)
 
+	/* LOAD VALUE INTO SIM 'RAM'
+		UPDATE THE DEVICE STATE ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB
+		AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS 
+		AND BEFORE WE SEND THE RESPONSE
+	*/
+	demo.STA = start.STA
+
 	/* SEND CONFIRMATION */
 	response := StartJob{
 		ADM: demo.ADM,
-		STA: sta,
+		STA: demo.STA,
 		HDR: demo.HDR,
 		CFG: demo.CFG,
 		EVT: demo.EVT,
 	}
 	demo.MQTTPublication_DemoDeviceClient_SIGStartJob(response)
-
-	/* LOAD VALUE INTO SIM 'RAM'
-		UPDATE THE DEVICE STATE ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB
-		AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS AND SENT THE RESPONSE
-	*/
-	demo.STA = start.STA
 
 	/* RUN JOB... */
 	go demo.Demo_Simulation(demo.STA.StaJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
