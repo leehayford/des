@@ -40,6 +40,7 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 
 	/* SUBSCRIBE TO ALL MQTTSubscriptions */
 	device.MQTTSubscription_DeviceClient_SIGStartJob().Sub(device.DESMQTTClient)
+	device.MQTTSubscription_DeviceClient_SIGEndJob().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGDevicePing().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGAdmin().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGStateX().Sub(device.DESMQTTClient)
@@ -56,6 +57,7 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	device.MQTTSubscription_DeviceClient_SIGStartJob().UnSub(device.DESMQTTClient)
+	device.MQTTSubscription_DeviceClient_SIGEndJob().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGDevicePing().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGAdmin().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGStateX().UnSub(device.DESMQTTClient)
@@ -92,6 +94,26 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGStartJob() pkg.MQTTSubscr
 			}
 
 			go device.StartJobX(start)
+
+		},
+	}
+}
+
+/* SUBSCRIPTION -> START JOB  -> UPON RECEIPT, WRITE TO JOB DATABASE */
+func (device *Device) MQTTSubscription_DeviceClient_SIGEndJob() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: device.MQTTTopic_SIGEndJob(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
+			sta := State{}
+			if err := json.Unmarshal(msg.Payload(), &sta); err != nil {
+				pkg.LogErr(err)
+			}
+
+			go device.EndJobX(sta)
 
 		},
 	}

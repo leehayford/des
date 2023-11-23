@@ -419,7 +419,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEndJob() pkg.
 				pkg.LogErr(err)
 			}
 
-			go demo.EndDemoJob(evt)
+			go demo.EndDemoJobX(evt)
 
 			demo.DESMQTTClient.WG.Done()
 		},
@@ -865,6 +865,23 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGStartJob(start
 	sig.Pub(demo.DESMQTTClient)
 }
 
+/* PUBLICATION -> END JOB -> SIMULATED JOB STARTED RESPONSE */
+func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGEndJob(sta State) {
+	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
+	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
+	*/
+	sig := pkg.MQTTPublication{
+
+		Topic:    demo.MQTTTopic_SIGEndJob(),
+		Message:  pkg.ModelToJSONString(sta),
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	}
+
+	sig.Pub(demo.DESMQTTClient)
+}
+
 /* PUBLICATION -> PING -> SIMULATED ADMINS */
 func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGPing() {
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
@@ -1011,7 +1028,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGMsgLimit(msg M
 /* SIMULATIONS *******************************************************************************************/
 
 func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
-	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( )...\n")
+	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( X )...\n")
 
 	/* TODO: MAKE SURE THE PREVIOUS JOB IS ENDED */
 	// if state > STATUS_JOB_START_REQ {
@@ -1110,6 +1127,96 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
 	demo.DESMQTTClient.WG.Done()
 
 	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( ) -> RUNNING %s...\n", demo.STA.StaJobName)
+}
+
+func (demo *DemoDeviceClient) EndDemoJobX(evt Event) {
+	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( X )...\n")
+
+	demo.DESMQTTClient.WG.Wait()
+	demo.DESMQTTClient.WG.Add(1)
+	if demo.Stop != nil {
+		demo.Stop <- struct{}{}
+	}
+
+	/* CAPTURE TIME VALUE FOR JOB TERMINATION: HDR, EVT */
+	endTime := time.Now().UTC().UnixMilli()
+
+	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) at:\t%d\n", endTime)
+	// demo.GetHdrFromFlash(demo.CmdArchiveName(), &demo.HDR)
+	hdr := demo.HDR
+	hdr.HdrTime = endTime
+	hdr.HdrAddr = demo.DESDevSerial
+	hdr.HdrUserID = evt.EvtUserID
+	hdr.HdrApp = evt.EvtApp
+	hdr.HdrJobEnd = endTime
+
+	evt.EvtTime = endTime
+	evt.EvtAddr = demo.DESDevSerial
+	evt.EvtCode = OP_CODE_JOB_ENDED
+	evt.EvtTitle = "JOB ENDED"
+	evt.EvtMsg = demo.STA.StaJobName // BEFORE WE CHANGE IT
+
+	sta := demo.STA
+	sta.StaTime = endTime
+	sta.StaAddr = demo.DESDevSerial
+	sta.StaUserID = evt.EvtUserID
+	sta.StaApp = evt.EvtApp
+	sta.StaLogFw = "0.0.009"
+	sta.StaModFw = "0.0.007"
+	sta.StaLogging = OP_CODE_JOB_ENDED
+	sta.StaJobName = demo.CmdArchiveName()
+
+	/* LOAD VALUE INTO SIM 'RAM'
+	UPDATE THE DEVICE EVENT CODE, AND STATE DISABLING MQTT MESSAGE WRITES TO ACTIVE JOB
+	BEFORE WE HAVE WRITTEN THE FINAL JOB RECORDS
+	*/
+	demo.HDR = hdr
+	demo.EVT = evt
+	demo.STA = sta
+
+	/* WRITE TO FLASH - CMDARCHIVE */
+	demo.WriteHdrToFlash(demo.CmdArchiveName(), hdr)
+	demo.WriteEvtToFlash(demo.CmdArchiveName(), evt)
+	demo.WriteStateToFlash(demo.CmdArchiveName(), sta)
+
+	/* WRITE TO FLASH - JOB */
+	demo.WriteHdrToFlash(demo.DESJobName, hdr)
+	demo.WriteEvtToFlash(demo.DESJobName, evt)
+	demo.WriteStateToFlash(demo.DESJobName, sta)
+
+	/* SEND FINAL DATA MODELS */
+	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
+	demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
+	demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
+
+	/* SEND END JOB CONFIRMATION */
+	demo.MQTTPublication_DemoDeviceClient_SIGEndJob(sta)
+
+	/* GET DEFAULT MODELS AND UPDATE TIMES */
+	adm := demo.ADM
+	adm.DefaultSettings_Admin(demo.DESRegistration)
+	adm.AdmTime = time.Now().UTC().UnixMilli()
+
+	hdr.DefaultSettings_Header(demo.DESRegistration)
+	hdr.HdrTime = time.Now().UTC().UnixMilli()
+
+	cfg := demo.CFG
+	cfg.DefaultSettings_Config(demo.DESRegistration)
+	cfg.CfgTime = time.Now().UTC().UnixMilli()
+
+	/* TRANSMIT DEFAULT MODELS */
+	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
+	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
+	demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
+
+	/* LOAD DEFAULT MODELS INTO RAM */
+	demo.ADM = adm
+	demo.HDR = hdr
+	demo.CFG = cfg
+
+	demo.DESMQTTClient.WG.Done()
+
+	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) -> ENDED: %s\n", demo.STA.StaJobName)
 }
 
 func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
