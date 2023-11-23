@@ -173,6 +173,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /* TODO: PASS IN USER
 	// duc.DESMQTTClient.ClientOptions.ClientID:`,
 	// duc.DESMQTTClient.ClientOptions.ClientID)
 
+	duc.MQTTSubscription_DeviceUserClient_SIGStartJob().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_DESDeviceClientPing().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_DESDevicePing().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().Sub(duc.DESMQTTClient)
@@ -192,6 +193,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /* TODO: PASS IN USER
 func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( /* TODO: PASS IN USER ROLE */ ) {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
+	duc.MQTTSubscription_DeviceUserClient_SIGStartJob().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_DESDeviceClientPing().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_DESDevicePing().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().UnSub(duc.DESMQTTClient)

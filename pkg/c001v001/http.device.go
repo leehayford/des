@@ -232,7 +232,7 @@ func HandleStartJobX(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
 		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 Job Start Reqest sent to device.",
+		"message": "C001V001 Job Start Request sent to device.",
 	})
 }
 
