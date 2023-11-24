@@ -348,7 +348,8 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	demo.MQTTSubscription_DemoDeviceClient_CMDState().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDEventX().Sub(demo.DESMQTTClient)
+	// demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
 
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().Sub(demo.DESMQTTClient)
@@ -364,7 +365,8 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 	demo.MQTTSubscription_DemoDeviceClient_CMDState().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDEventX().UnSub(demo.DESMQTTClient)
+	// demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
 	
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().UnSub(demo.DESMQTTClient)
@@ -443,8 +445,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
-			demo.WriteAdmToFlash(demo.CmdArchiveName(), adm)
 			adm_rec := adm
+			demo.WriteAdmToFlash(demo.CmdArchiveName(), adm_rec)
 
 			/* UPDATE SOURCE ADDRESS AND TIME */
 			adm.AdmAddr = demo.DESDevSerial
@@ -511,8 +513,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
-			demo.WriteStateToFlash(demo.CmdArchiveName(), sta)
 			sta_rec := sta
+			demo.WriteStateToFlash(demo.CmdArchiveName(), sta_rec)
 
 			/* TEMPORARY OUT: UNCOMMENT THIS WHEN STATE WRITES ARE ENABLED
 			// UPDATE SOURCE ADDRESS ONLY
@@ -530,11 +532,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteStateToFlash(demo.DESJobName, sta_rec)
-
-				/* TEMPORARY OUT : UNCOMMENT THIS WHEN STATE WRITES ARE ENABLED
-				// UPDATE TIME ONLY WHEN LOGGING
-				sta.StaTime = time.Now().UTC().UnixMilli()
-				**********************************************************************************/
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
 				demo.WriteStateToFlash(demo.DESJobName, sta)
@@ -595,8 +592,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
-			demo.WriteHdrToFlash(demo.CmdArchiveName(), hdr)
 			hdr_rec := hdr
+			demo.WriteHdrToFlash(demo.CmdArchiveName(), hdr_rec)
 
 			/* UPDATE SOURCE ADDRESS AND TIME */
 			hdr.HdrAddr = demo.DESDevSerial
@@ -645,8 +642,8 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
-			demo.WriteCfgToFlash(demo.CmdArchiveName(), cfg)
 			cfg_rec := cfg
+			demo.WriteCfgToFlash(demo.CmdArchiveName(), cfg_rec)
 
 			/* UPDATE SOURCE ADDRESS AND TIME */
 			cfg.CfgAddr = demo.DESDevSerial
@@ -703,19 +700,17 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEventX() pkg.
 			}
 
 			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
-			demo.WriteEvtToFlash(demo.CmdArchiveName(), evt)
 			evt_rec := evt
+			demo.WriteEvtToFlash(demo.CmdArchiveName(), evt_rec)
 
-			/* UPDATE SOURCE ADDRESS ONLY */
+			/* UPDATE SOURCE ADDRESS AND TIME */
 			evt.EvtAddr = demo.DESDevSerial
+			evt.EvtTime = time.Now().UTC().UnixMilli()
 
 			if demo.STA.StaLogging > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteEvtToFlash(demo.DESJobName, evt_rec)
-
-				/* UPDATE TIME( ONLY WHEN LOGGING) */
-				evt.EvtTime = time.Now().UTC().UnixMilli()
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
 				demo.WriteEvtToFlash(demo.DESJobName, evt)
