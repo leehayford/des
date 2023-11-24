@@ -18,6 +18,7 @@ func InitializeJobRoutes(app, api *fiber.App) (err error) {
 		router.Post("/new_report", pkg.DesAuth, HandleNewReport)
 		router.Post("/new_header", pkg.DesAuth, HandleJobNewHeader)
 		router.Post("/new_event", pkg.DesAuth, HandleJobNewEvent)
+		router.Post("/event_list", pkg.DesAuth, HandleGetJobEvents)
 	})
 	return
 }
@@ -183,23 +184,39 @@ func HandleJobNewHeader(c *fiber.Ctx) (err error) {
 
 */
 func HandleGetJobEvents(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleGetJobEvents( )\n")
+	fmt.Printf("\nHandleGetJobEvents( )\n")
 
 	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Operator(c.Locals("role")) {
+	if !pkg.UserRole_Viewer(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
 			"message": "You must be a registered user to view job data",
 		})
 	}
 
-	/*
-	GET []Event{}
+	job := Job{}
+	if err = c.BodyParser(&job); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}  
+	pkg.Json("HandleGetJobEvents(): -> c.BodyParser(&job) -> job.DESRegistration", job.DESRegistration)
 
-	RETURN []Event{}
-	*/
+	if err = job.GetJobEvents(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	pkg.Json("HandleGetJobEvents(): -> job.GetJobEvents() -> job.Events", job.Events)
 
-	return
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "You are a tolerable person!",
+		"data":    fiber.Map{"evts": job.Events},
+	})
+
 }
 
 /*

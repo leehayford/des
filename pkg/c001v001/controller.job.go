@@ -90,6 +90,21 @@ func (job *Job) GetJobData() (err error) {
 	return
 }
 
+/* RETURNS ALL EVENTS FOR THIS JOB */
+func (job *Job) GetJobEvents() (err error) {
+	db := job.JDB()
+	if err = db.Connect(); err != nil {
+		return
+	}
+	defer db.Disconnect()
+	
+	res := db.Select("*").Table("events").Order("evt_time ASC").Scan(&job.Events)
+	err = res.Error
+
+	db.Disconnect()
+	return
+}
+ 
 /* RUNS AUTOMATICALLY WHEN A JOB HAS ENDED */
 func (job *Job) CreateDefaultReport(rep *Report) {
 
