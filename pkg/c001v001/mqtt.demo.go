@@ -446,16 +446,14 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 			demo.WriteAdmToFlash(demo.CmdArchiveName(), adm)
 			adm_rec := adm
 
-			/* UPDATE SOURCE ADDRESS ONLY */
+			/* UPDATE SOURCE ADDRESS AND TIME */
 			adm.AdmAddr = demo.DESDevSerial
+			adm.AdmTime = time.Now().UTC().UnixMilli()
 
 			if demo.STA.StaLogging > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteAdmToFlash(demo.DESJobName, adm_rec)
-
-				/* UPDATE TIME ONLY WHEN LOGGING */
-				adm.AdmTime = time.Now().UTC().UnixMilli()
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
 				demo.WriteAdmToFlash(demo.DESJobName, adm)
@@ -487,10 +485,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdminReport()
 
 			/* MAKE A COPY OF THE ADM TO PUBLISH IN A GO ROUTINE */
 			adm := demo.ADM
-
-			/* UPDATE SOURCE ADDRESS AND TIME */
-			adm.AdmAddr = demo.DESDevSerial
-			adm.AdmTime = time.Now().UTC().UnixMilli()
 
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
@@ -576,11 +570,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStateReport()
 			/* MAKE A COPY OF THE ADM TO PUBLISH IN A GO ROUTINE */
 			sta := demo.STA
 
-			/* UPDATE SOURCE ADDRESS AND TIME */
-			sta.StaAddr = demo.DESDevSerial
-			sta.StaTime = time.Now().UTC().UnixMilli()
-
-			/* SEND HwID */
+			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
 
 			demo.DESMQTTClient.WG.Done()
@@ -608,16 +598,14 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 			demo.WriteHdrToFlash(demo.CmdArchiveName(), hdr)
 			hdr_rec := hdr
 
-			/* UPDATE SOURCE ADDRESS ONLY */
+			/* UPDATE SOURCE ADDRESS AND TIME */
 			hdr.HdrAddr = demo.DESDevSerial
+			hdr.HdrTime = time.Now().UTC().UnixMilli()
 
 			if demo.STA.StaLogging > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteHdrToFlash(demo.DESJobName, hdr_rec)
-
-				/* UPDATE TIME ONLY WHEN LOGGING */
-				hdr.HdrTime = time.Now().UTC().UnixMilli()
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
 				demo.WriteHdrToFlash(demo.DESJobName, hdr)
@@ -660,26 +648,24 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 			demo.WriteCfgToFlash(demo.CmdArchiveName(), cfg)
 			cfg_rec := cfg
 
-			/* UPDATE SOURCE ADDRESS ONLY */
+			/* UPDATE SOURCE ADDRESS AND TIME */
 			cfg.CfgAddr = demo.DESDevSerial
+			cfg.CfgTime = time.Now().UTC().UnixMilli()
 
 			if demo.STA.StaLogging > OP_CODE_JOB_START_REQ {
 
 				/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
 				demo.WriteCfgToFlash(demo.DESJobName, cfg_rec)
 
-				/* UPDATE TIME( ONLY WHEN LOGGING) */
-				cfg.CfgTime = time.Now().UTC().UnixMilli()
-
-				/* IF SAMPLE DATE HAS CHANGED, SEND UPDATE THE SIMULATION */
-				if exCFG.CfgOpSample != cfg.CfgOpSample {
-					demo.Rate <- cfg.CfgOpSample
-				}
-
 				/* IF VALVE TARGET HAS CHANGED, START A NEW MODE TRANSITION */
 				if exCFG.CfgVlvTgt != cfg.CfgVlvTgt {
 					demo.Mode <- cfg.CfgVlvTgt
 					demo.TZero <- time.Now().UTC()
+				}
+
+				/* IF SAMPLE DATE HAS CHANGED, SEND UPDATE THE SIMULATION */
+				if exCFG.CfgOpSample != cfg.CfgOpSample {
+					demo.Rate <- cfg.CfgOpSample
 				}
 
 				/* WRITE (AS LOADED) TO SIM 'FLASH' */

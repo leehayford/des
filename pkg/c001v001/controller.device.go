@@ -1066,7 +1066,7 @@ func (device *Device) EndJobRequestX(src string) (err error) {
 	device.STA.StaSerial = device.DESDevSerial
 	device.STA.StaVersion = DEVICE_VERSION
 	device.STA.StaClass = DEVICE_CLASS
-	device.STA.StaLogging = OP_CODE_JOB_END_REQ // This means there is a pending request for the device to start a new job
+	device.STA.StaLogging = OP_CODE_JOB_END_REQ // This means there is a pending request for the device to end the current job
 	device.STA.StaJobName = device.CmdArchiveName()
 	device.STA.Validate()
 	// pkg.Json("HandleStartJob(): -> device.STA", device.STA)
