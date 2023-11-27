@@ -133,8 +133,25 @@ FAILING THAT, LOOK INTO:
 /* GET THE CURRENT DESRegistration FOR ALL DEVICES ON THIS DES */
 func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 
-	/* WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 ) WE WANT THE LATEST */
-	subQryLatestJob := pkg.DES.DB.
+	/* OLD...
+	SELECT des_devs.*, des_jobs.*, j.max_time
+	FROM des_jobs
+
+	JOIN (
+		SELECT des_job_dev_id, MAX( des_job_reg_time ) AS max_time 
+		FROM des_jobs
+		WHERE des_job_end = 0
+		GROUP BY des_job_dev_id
+	) AS j 
+		ON des_jobs.des_job_dev_id = j.des_job_dev_id
+		AND des_jobs.des_job_reg_time = j.max_time
+
+	JOIN des_devs ON des_devs.des_dev_id = des_jobs.des_job_dev_id
+
+	ORDER BY des_job_id ASC 
+
+		// WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 ) WE WANT THE LATEST
+		subQryLatestJob := pkg.DES.DB.
 		Table("des_jobs").
 		Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
 		Where("des_job_end = 0").
@@ -146,14 +163,38 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
 		Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
 		Order("des_devs.des_dev_serial DESC")
+	*/
 
-	// qry := pkg.DES.DB.
-	// 	Table("des_jobs").
-	// 	Select("des_devs.*, des_jobs.*, des_job_searches.*").
-	// 	Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
-	// 	Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
-	// 	Joins("JOIN des_job_searches ON des_jobs.des_job_id = des_job_searches.des_job_key").
-	// 	Order("des_devs.des_dev_serial DESC")
+	/* NEW 20231127 *********************************************************** */
+	/*
+		SELECT des_devs.*, des_jobs.*
+		FROM des_devs
+
+		JOIN des_jobs ON des_jobs.des_job_dev_id = des_devs.des_dev_id
+
+		JOIN (
+			SELECT des_job_dev_id, MAX( des_job_reg_time ) AS max_time 
+			FROM des_jobs
+			WHERE des_job_end = 0
+			GROUP BY des_job_dev_id
+		) AS j 
+			ON des_jobs.des_job_dev_id = j.des_job_dev_id
+			AND des_jobs.des_job_reg_time = j.max_time
+			
+		ORDER BY j.max_time DESC
+	*/
+
+	/* WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 ) WE WANT THE LATEST */
+	subQryLatestJob := pkg.DES.DB.
+		Table("des_jobs").Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
+		Where("des_job_end = 0").
+		Group("des_job_dev_id")
+
+	qry := pkg.DES.DB.
+		Table("des_devs").Select("des_devs.*, des_jobs.*").
+		Joins("JOIN des_jobs ON des_jobs.des_job_dev_id = des_devs.des_dev_id").
+		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_jobs.des_job_reg_time = j.max_time`, subQryLatestJob).
+		Order("j.max_time DESC")
 
 	res := qry.Scan(&devices)
 	// pkg.Json("GetDeviceList(): DESRegistrations", res)
@@ -329,7 +370,9 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 /*
 	READ THE DevicesMap
 
-TODO: TEST WaitGroup vs. RWMutex ON SERVER TO PREVENT CONCURRENT MAP WRITES
+WRITE LOCK IS USED TO PREVENT DEVICE MAP READS DURING WRITE OPERATIONS
+	- WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
+	- ONCE THIS READ OPERATION ESTABLISHES A LOCK, ALL READ & WRITE OPERATIONS ARE BLOCKED UNTIL THIS READ IS COMPLETE
 */
 func ReadDevicesMap(serial string) (device Device) {
 
@@ -420,7 +463,9 @@ func (device *Device) GetMappedDBG() {
 /*
 	UPDATE THE DevicesMap
 
-TODO: TEST WaitGroup vs. RWMutex ON SERVER TO PREVENT CONCURRENT MAP WRITES
+WRITE LOCK IS USED TO PREVENT DEVICE MAP READS DURING WRITE OPERATIONS
+	- WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
+	- ONCE THIS WRITE OPERATION ESTABLISHES A LOCK, ALL READ & WRITE  OPERATIONS ARE BLOCKED UNTIL THIS WRITE IS COMPLETE
 */
 func UpdateDevicesMap(serial string, d Device) {
 
@@ -509,7 +554,7 @@ func (device Device) GetCmdArchiveDESRegistration() (cmd Job) {
 	if res.Error != nil {
 		pkg.LogErr(res.Error)
 	}
-	// pkg.Json("(device *Device) GetCmdArchiveDESRegistration( )", cmd)
+	pkg.Json("(device *Device) GetCmdArchiveDESRegistration( )", cmd)
 	return
 }
 
@@ -638,16 +683,7 @@ func (device *Device) StartJobRequestX(src string) (err error) {
 }
 /* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB STARTED' EVENT FROM THE DEVICE */
 func (device *Device) StartJobX(start StartJob) {
-	fmt.Printf("\n(device *Device) StartJob() -> start:\n%v\n", start)
-
-	// /* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
-	// device.DESMQTTClient.WG.Wait()
-
-	/* TODO: CHECK device.STA.StaLogging
-	IF WE ARE ALREADY LOGGING, THE ACTIVE JOB MUST BE ENDED BEFORE A NEW ONE IST STARTED
-	*/
-
-	pkg.Json("(device *Device) StartJobX(start StartJob): ", start)
+	// pkg.Json("(device *Device) StartJobX(start StartJob): ", start)
 
 	/* CALL DB WRITE IN GOROUTINE */
 	WriteADM(start.ADM, &device.CmdDBC)
@@ -694,9 +730,6 @@ func (device *Device) StartJobX(start StartJob) {
 	if err := pkg.WriteDESJob(&device.DESJob); err != nil {
 		pkg.LogErr(err)
 	}
-
-	/* CREATE DESJobSearch RECORD */
-	start.HDR.Create_DESJobSearch(device.DESRegistration)
 
 	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
 	if pkg.ADB.CheckDatabaseExists(device.DESJobName) {
@@ -769,267 +802,10 @@ func (device *Device) StartJobX(start StartJob) {
 	/* UPDATE THE DEVICES CLIENT MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
 
-	pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
-}
-
-
-/* PREPARE, LOG, AND SEND A START JOB REQUEST */
-func (device *Device) StartJobRequest(src string) (err error) {
-
-	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedClients()
-
-	/* START NEW JOB
-	MAKE ADM, HDR, CFG, EVT ( START JOB )
-	ENSURE ADM, HDR, CFG, & EVT HAVE THE SAME TIME STAMP / SIGNATURE
-	*/
-	startTime := time.Now().UTC().UnixMilli()
-
-	device.DESRegistration.DESJobRegTime = startTime
-	// device.Job.DESRegistration = device.DESRegistration
-
-	device.ADM.AdmTime = startTime
-	device.ADM.AdmAddr = src
-	device.ADM.AdmUserID = device.DESJobRegUserID
-	device.ADM.AdmApp = device.DESJobRegApp
-	device.ADM.AdmDefHost = pkg.MQTT_HOST
-	device.ADM.AdmDefPort = pkg.MQTT_PORT
-	device.ADM.AdmOpHost = pkg.MQTT_HOST
-	device.ADM.AdmOpPort = pkg.MQTT_PORT
-	device.ADM.Validate()
-	// pkg.Json("HandleStartJob(): -> device.ADM", device.ADM)
-
-	device.STA.StaTime = startTime
-	device.STA.StaAddr = src
-	device.STA.StaUserID = device.DESJobRegUserID
-	device.STA.StaApp = device.DESJobRegApp
-	device.STA.StaSerial = device.DESDevSerial
-	device.STA.StaVersion = DEVICE_VERSION
-	device.STA.StaClass = DEVICE_CLASS
-	device.STA.StaLogging = OP_CODE_JOB_START_REQ // This means there is a pending request for the device to start a new job
-	device.STA.StaJobName = device.CmdArchiveName()
-	device.STA.Validate()
-	// pkg.Json("HandleStartJob(): -> device.STA", device.STA)
-
-	device.HDR.HdrTime = startTime
-	device.HDR.HdrAddr = src
-	device.HDR.HdrUserID = device.DESJobRegUserID
-	device.HDR.HdrApp = device.DESJobRegApp
-	device.HDR.HdrJobStart = startTime // This is displays the time/date of the request while pending
-	device.HDR.HdrJobEnd = 0
-	device.HDR.HdrGeoLng = DEFAULT_GEO_LNG
-	device.HDR.HdrGeoLat = DEFAULT_GEO_LAT
-	device.HDR.Validate()
-	// pkg.Json("HandleStartJob(): -> device.HDR", device.HDR)
-
-	device.CFG.CfgTime = startTime
-	device.CFG.CfgAddr = src
-	device.CFG.CfgUserID = device.DESJobRegUserID
-	device.CFG.CfgApp = device.DESJobRegApp
-	device.CFG.Validate()
-	// pkg.Json("HandleStartJob(): -> device.CFG", device.CFG)
-
-	device.EVT = Event{
-		EvtTime:   startTime,
-		EvtAddr:   src,
-		EvtUserID: device.DESJobRegUserID,
-		EvtApp:    device.DESJobRegApp,
-		EvtCode:   OP_CODE_JOB_START_REQ,
-		EvtTitle:  "START JOB REQUEST",
-		EvtMsg:    "",
-	}
-
-	/* LOG START JOB REQUEST TO CMDARCHIVE */
-	device.CmdDBC.Create(&device.ADM) /* TODO: USE WriteADM... */
-	device.CmdDBC.Create(&device.STA) /* TODO: USE WriteSTA... */
-	device.CmdDBC.Create(&device.HDR) /* TODO: USE WriteHDR... */
-	device.CmdDBC.Create(&device.CFG) /* TODO: USE WriteCFG... */
-	device.CmdDBC.Create(&device.EVT) /* TODO: USE WriteEVT... */
-
-	/* MQTT PUB CMD: ADM, HDR, CFG, EVT */
-	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-
-	/* DEBUG: ENABLE MQTT MESSAGE DELAY */
-	device.GetMappedDBG()
-
-	device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
-	time.Sleep(time.Second * time.Duration(device.DBG.MQTTDelay))
-
-	device.MQTTPublication_DeviceClient_CMDState(device.STA)
-	time.Sleep(time.Second * time.Duration(device.DBG.MQTTDelay))
-
-	device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
-	time.Sleep(time.Second * time.Duration(device.DBG.MQTTDelay))
-
-	device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
-	time.Sleep(time.Second * time.Duration(device.DBG.MQTTDelay))
-
-	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
-
-	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, *device)
-
-	return
-}
-
-func (device *Device) CancelStartJobRequest(src string) (err error) {
-	fmt.Printf("\nCancelStartJobRequest( )...")
-
-	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedADM()
-	device.GetMappedSTA()
-	device.STA.StaTime = time.Now().UTC().UnixMilli()
-	device.STA.StaAddr = src
-	device.STA.StaLogging = OP_CODE_JOB_END_REQ
-	device.GetMappedHDR()
-	device.GetMappedCFG()
-	device.GetMappedSMP()
-	device.GetMappedClients()
-
-	device.EVT = Event{
-		EvtTime:   time.Now().UTC().UnixMilli(),
-		EvtAddr:   src,
-		EvtUserID: device.DESJobRegUserID,
-		EvtApp:    device.DESJobRegApp,
-		EvtCode:   OP_CODE_JOB_END_REQ,
-		EvtTitle:  "CANCEL START JOB REQUEST",
-		EvtMsg:    "",
-	}
-
-	/* LOG CANCEL START JOB REQUEST TO CMDARCHIVE */
-	WriteSTA(device.STA, &device.CmdDBC)
-
-	// device.CmdDBC.Create(&device.EVT)
-	WriteEVT(device.EVT, &device.CmdDBC)
-
-	/* MQTT PUB CMD: EVT */
-	fmt.Printf("\nCancelStartJobRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	// device.MQTTPublication_DeviceClient_CMDState(device.STA)
-	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
-
-	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, *device)
-	return err
-}
-/* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB STARTED' EVENT FROM THE DEVICE */
-func (device *Device) StartJob(sta State) {
-	fmt.Printf("\n(device *Device) StartJob() -> sta:\n%v\n", sta)
-
-	// /* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
-	// device.DESMQTTClient.WG.Wait()
-
-	/* TODO: CHECK device.STA.StaLogging
-	IF WE ARE ALREADY LOGGING, THE ACTIVE JOB MUST BE ENDED BEFORE A NEW ONE IST STARTED
-	*/
-
-	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
-	device.JobDBC.Disconnect()
-	hdr := device.HDR
-
-	device.DESJobRegTime = sta.StaTime
-	device.DESJobRegAddr = sta.StaAddr
-	device.DESJobRegUserID = sta.StaUserID
-	device.DESJobRegApp = sta.StaApp
-
-	device.DESJobName = sta.StaJobName
-	device.DESJobStart = sta.StaTime
-	device.DESJobEnd = 0
-	device.DESJobDevID = device.DESDevID
-
-	/* GET LOCATION DATA */
-	if hdr.HdrTime == sta.StaTime {
-		device.DESJobLng = device.HDR.HdrGeoLng
-		device.DESJobLat = device.HDR.HdrGeoLat
-	} else {
-		/* Header WAS NOT RECEIVED */
-		fmt.Printf("\n(device *Device) StartJob() -> Header WAS NOT RECEIVED\n")
-		device.DESJobLng = DEFAULT_GEO_LNG
-		device.DESJobLat = DEFAULT_GEO_LAT
-		/*
-			TODO: SEND LOCATION REQUEST
-		*/
-	}
-
-	fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n%v\n", device.DESJob)
-
-	/* CREATE A JOB RECORD IN THE DES DATABASE */
-	if err := pkg.WriteDESJob(&device.DESJob); err != nil {
-		pkg.LogErr(err)
-	}
-
 	/* CREATE DESJobSearch RECORD */
-	hdr.Create_DESJobSearch(device.DESRegistration)
-
-	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
-	if pkg.ADB.CheckDatabaseExists(device.DESJobName) {
-		device.JobDBC = device.CmdDBC
-		fmt.Printf("\n(device *Device) StartJob( ): DATABASE ALREADY EXISTS! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
-	} else {
-		/* CREATE NEW JOB DATABASE */
-		pkg.ADB.CreateDatabase(device.DESJobName)
-
-		/* CONNECT TO THE NEW ACTIVE JOB DATABASE, ON FAILURE, LOG TO CMDARCHIVE */
-		if err := device.ConnectJobDBC(); err != nil {
-			device.JobDBC = device.CmdDBC
-			fmt.Printf("\n(device *Device) StartJob( ): CONNECTION FAILED! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
-
-		} else {
-			fmt.Printf("\n(device *Device) StartJob( ): CONNECTED TO: %s\n", device.JobDBC.GetDBName())
-
-			/* CREATE JOB DB TABLES */
-			if err := device.JobDBC.Migrator().CreateTable(
-				&Admin{},
-				&State{},
-				&Header{},
-				&Config{},
-				&Sample{},
-				&EventTyp{},
-				&Event{},
-				&Report{},
-				&RepSection{},
-				&SecDataset{},
-				&SecAnnotation{},
-			); err != nil {
-				pkg.LogErr(err)
-			}
-
-			for _, typ := range EVENT_TYPES {
-				WriteETYP(typ, &device.JobDBC)
-			}
-		}
-	}
-
-	/* WRITE INITIAL JOB RECORDS */
-	if err := WriteADM(device.ADM, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteSTA(sta, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteHDR(hdr, &device.JobDBC); err != nil {
-		// if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteEVT(device.EVT, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-
-	/* WAIT FOR PENDING MQTT MESSAGES TO COMPLETE */
-	device.DESMQTTClient.WG.Wait()
-
-	/* UPDATE THE DEVICE STATE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB
-	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
-	*/
-	device.STA = sta
-
-	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, *device)
+	device.Create_DESJobSearch(device.DESRegistration)
 
 	pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
-	// fmt.Printf("\n(device *Device) StartJob( ): COMPLETE: %s\n", device.JobDBC.GetDBName())
 }
 
 /* CALLED WHEN DES RECEIVES SAMPLES WITH AN UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST ) */
@@ -1110,8 +886,23 @@ func (device *Device) EndJobX(sta State) {
 	/* UPDATE THE DEVICE EVENT CODE, DISABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB	*/
 	device.STA = sta 
 
+	/* GET THE FINAL JOB RECORDS BEFORE CLEARING THE ACTIVE JOB DATABASE CONNECTION */
+	d := device
+	device.JobDBC.Last(&d.ADM)
+	device.JobDBC.Last(&d.STA)
+	device.JobDBC.Last(&d.HDR)
+	device.JobDBC.Last(&d.CFG)
+	device.JobDBC.Last(&d.EVT)
+	d.SMP = Sample{SmpTime: d.STA.StaTime, SmpJobName: d.STA.StaJobName }
+	
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
+
+	/* UPDATE DESJobSearch RECORD USING RETRIEVED RECORDS 
+		THESE VALUES ARE USED FOR SEARCH AND DISPLAY OF THE JOB DATA FOR REPORTING
+	*/
+	d.Update_DESJobSearch(d.DESRegistration)
+	// pkg.Json("(device *Device) EndJobX( ) ->  d.Update_DESJobSearch(d.DESRegistration): ", d)
 
 	jobName := device.DESJobName
 	/* CLOSE DES JOB */
@@ -1124,7 +915,6 @@ func (device *Device) EndJobX(sta State) {
 	pkg.DES.DB.Save(device.DESJob)
 	fmt.Printf("\n(device *Device) EndJob( ) %s ENDED\n", jobName)
 
-	device.Update_DESJobSearch(device.DESRegistration)
 
 	/* UPDATE DES CMDARCHIVE */
 	cmd := device.GetCmdArchiveDESRegistration()
@@ -1141,8 +931,19 @@ func (device *Device) EndJobX(sta State) {
 	device.DESJob = cmd.DESJob
 	device.ConnectJobDBC()
 
+	/* GET THE LAST JOB RECORDS FROM THE CMD ARCHIVE 
+		THESE VALUES WILL APPEAR IN DEVICE SEARCH WHILE THE DEVICE IS WAITING TO START A NEW JOB
+	*/
+	device.CmdDBC.Last(&device.ADM)
+	device.CmdDBC.Last(&device.STA)
+	device.CmdDBC.Last(&device.HDR)
+	device.CmdDBC.Last(&device.CFG)
+	device.CmdDBC.Last(&device.EVT)
 	device.SMP = Sample{SmpTime: cmd.DESJobRegTime, SmpJobName: cmd.DESJobName}
-	// pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", device)
+
+	/* UPDATE DESJobSearch RECORD USING RETRIEVED CMD ARCHIVE RECORDS */
+	device.Update_DESJobSearch(device.DESRegistration)
+	pkg.Json("(device *Device) EndJobX( ) ->  device.Update_DESJobSearch(device.DESRegistration): ", device)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
@@ -1151,139 +952,36 @@ func (device *Device) EndJobX(sta State) {
 }
 
 
-/* PREPARE, LOG, AND SEND AN END JOB REQUEST */
-func (device *Device) EndJobRequest(src string) (err error) {
-
-	endTime := time.Now().UTC().UnixMilli()
-
-	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedADM()
-	device.STA.StaTime = endTime
-	device.STA.StaAddr = src
-	device.STA.StaUserID = device.DESJobRegUserID
-	device.STA.StaApp = device.DESJobRegApp
-	device.STA.StaSerial = device.DESDevSerial
-	device.STA.StaVersion = DEVICE_VERSION
-	device.STA.StaClass = DEVICE_CLASS
-	device.STA.StaLogging = OP_CODE_JOB_END_REQ // This means there is a pending request for the device to start a new job
-	device.STA.StaJobName = device.CmdArchiveName()
-	device.STA.Validate()
-	// pkg.Json("HandleStartJob(): -> device.STA", device.STA)
-	device.GetMappedHDR()
-	device.GetMappedCFG()
-	device.GetMappedSMP()
-	device.GetMappedClients()
-
-	device.EVT = Event{
-		EvtTime:   endTime,
-		EvtAddr:   src,
-		EvtUserID: device.DESJobRegUserID,
-		EvtApp:    device.DESJobRegApp,
-		EvtCode:   OP_CODE_JOB_END_REQ,
-		EvtTitle:  "END JOB REQUEST",
-		EvtMsg:    "",
+/* DEVICE - UPDATE DESJobSearch 
+	JSON MARSHALS DEVICE OBJECT AND WRITES TO DES MAIN DB 'des_job_searches.des_job_json'
+*/
+func (device *Device) Create_DESJobSearch(reg pkg.DESRegistration) {
+	
+	s := pkg.DESJobSearch{
+		DESJobToken: device.HDR.SearchToken(),
+		DESJobJson:  pkg.ModelToJSONString(device),
+		DESJobKey:   reg.DESJobID,
 	}
 
-	/* LOG END JOB REQUEST TO CMDARCHIVE */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.CmdArchiveName())
-	device.CmdDBC.Create(&device.EVT)
-
-	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
-	device.EVT.EvtID = 0
-	device.JobDBC.Create(&device.EVT)
-
-	/* MQTT PUB CMD: EVT */
-	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
-
-	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, *device)
-	return err
+	if res := pkg.DES.DB.Create(&s); res.Error != nil {
+		pkg.LogErr(res.Error)
+	}
 }
 
-/* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
-func (device *Device) EndJob(sta State) {
-
-	// /* WAIT FOR PENDING MQTT MESSAGE TO COMPLETE */
-	// device.DESMQTTClient.WG.Wait()
-
-	// /* WAIT FOR FINAL HEADER TO BE RECEIVED */
-	// fmt.Printf("\n(device *Device) EndJob( ) -> Waiting for final Header... H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
-	// for device.HDR.HdrTime < evt.EvtTime {
-	// 	/* THIS IS A SHITE SOLUTION AND LIKELY UNNECESSARY...
-
-	// 		MQTT MESSAGES COMING FROM THE SIMULATION ARRIVE MUCH QUICKER THAN THEY WILL IN REALITY.
-	// 		THESE MESSAGES ARE PROCESSED IN GO ROUTINES SO A SHORT MESSAGE (JOB ENDED EVENT) CAN END UP
-	// 		BEING PROCESSED BEFORE A LARGER MESSAGE (HEADER), EVEN IF THE SHORT MESSAGE ARRIVED LAST.
-
-	// 		WE'LL DO SOME TESTING ONCE THE REAL DEVICES ARE UP AND RUNNING
-	// 	*/
-	// }
-	// fmt.Printf("\n(device *Device) EndJob( ) -> Final Header received. H: %d : E: %d", device.HDR.HdrTime, evt.EvtTime)
-
-	/* WRITE END JOB STATE AS RECEIVED TO JOB */
-	WriteSTA(sta, &device.JobDBC)
-
-	/* UPDATE THE DEVICE EVENT CODE, DISABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB	*/
-	device.STA = sta
-
-	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
-	device.JobDBC.Disconnect()
-
-	jobName := device.DESJobName
-	/* CLOSE DES JOB */
-	device.DESJobRegTime = sta.StaTime
-	device.DESJobRegAddr = sta.StaAddr
-	device.DESJobRegUserID = sta.StaUserID
-	device.DESJobRegApp = sta.StaApp
-	device.DESJobEnd = sta.StaTime
-	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\nDESJobID: %d\n", jobName, device.DESJobID)
-	pkg.DES.DB.Save(device.DESJob)
-	fmt.Printf("\n(device *Device) EndJob( ) %s ENDED\n", jobName)
-
-	device.Update_DESJobSearch(device.DESRegistration)
-
-	/* UPDATE DES CMDARCHIVE */
-	cmd := device.GetCmdArchiveDESRegistration()
-	cmd.DESJobRegTime = time.Now().UTC().UnixMilli() // WE WANT THIS TO BE THE LATEST
-	cmd.DESJobRegAddr = sta.StaAddr
-	cmd.DESJobRegUserID = sta.StaUserID
-	cmd.DESJobRegApp = sta.StaApp
-	cmd.DESJob.DESJobEnd = 0 // ENSURE THE DEVICE IS DISCOVERABLE
-	fmt.Printf("\n(device *Device) EndJob( ) UPDATING CMDARCHIVE\ncmd.DESJobID: %d\v", cmd.DESJobID)
-	pkg.DES.DB.Save(cmd.DESJob)
-	fmt.Printf("\n(device *Device) EndJob( ) CMDARCHIVE UPDATED\n")
-
-	/* ENSURE WE CATCH STRAY SAMPLES IN THE CMDARCHIVE */
-	device.DESJob = cmd.DESJob
-	device.ConnectJobDBC()
-
-	// /* RETURN DEVICE CLIENT DATA TO DEFAULT STATE */
-	// device.ADM.DefaultSettings_Admin(cmd.DESRegistration)
-	// device.HDR.DefaultSettings_Header(cmd.DESRegistration)
-	// device.CFG.DefaultSettings_Config(cmd.DESRegistration)
-
-	// /* RETURN DEVICE (PHYSICAL) DATA TO DEFAULT STATE */
-	// device.MQTTPublication_DeviceClient_CMDAdmin(device.ADM)
-	// device.MQTTPublication_DeviceClient_CMDHeader(device.HDR)
-	// device.MQTTPublication_DeviceClient_CMDConfig(device.CFG)
-	device.SMP = Sample{SmpTime: cmd.DESJobRegTime, SmpJobName: cmd.DESJobName}
-	// pkg.Json("(device *Device) EndJob(): -> Devices[device.DESDevSerial] AFTER UPDATE", device)
-
-	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, *device)
-
-	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", jobName)
-}
-
-/* HEADER - UPDATE DESJobSearch */
+/* DEVICE - UPDATE DESJobSearch 
+	JSON MARSHALS DEVICE OBJECT AND WRITES TO DES MAIN DB 'des_job_searches.des_job_json'
+*/
 func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
+	fmt.Printf("\n Update_DESJobSearch( ): -> %s: reg.DESJobID: %d\n", reg.DESDevSerial, reg.DESJobID)
 	s := pkg.DESJobSearch{}
 
 	res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s)
 	if res.Error != nil {
 		pkg.LogErr(res.Error)
-	}
+		return
+	} // pkg.Json("Update_DESJobSearch( ): -> s", s)
 
+	s.DESJobToken = device.HDR.SearchToken()
 	s.DESJobJson = pkg.ModelToJSONString(device)
 	if res := pkg.DES.DB.Save(&s); res.Error != nil {
 		pkg.LogErr(res.Error)

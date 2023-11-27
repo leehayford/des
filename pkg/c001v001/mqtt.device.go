@@ -43,8 +43,7 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 	device.MQTTSubscription_DeviceClient_SIGEndJob().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGDevicePing().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGAdmin().Sub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGStateX().Sub(device.DESMQTTClient)
-	// device.MQTTSubscription_DeviceClient_SIGState().Sub(device.DESMQTTClient)
+	device.MQTTSubscription_DeviceClient_SIGState().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGHeader().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGConfig().Sub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGEvent().Sub(device.DESMQTTClient)
@@ -60,8 +59,7 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 	device.MQTTSubscription_DeviceClient_SIGEndJob().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGDevicePing().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGAdmin().UnSub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGStateX().UnSub(device.DESMQTTClient)
-	// device.MQTTSubscription_DeviceClient_SIGState().UnSub(device.DESMQTTClient)
+	device.MQTTSubscription_DeviceClient_SIGState().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGHeader().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGConfig().UnSub(device.DESMQTTClient)
 	device.MQTTSubscription_DeviceClient_SIGEvent().UnSub(device.DESMQTTClient)
@@ -192,40 +190,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 }
 
 /* SUBSCRIPTION -> STATE  -> UPON RECEIPT, WRITE TO JOB DATABASE */
-func (device *Device) MQTTSubscription_DeviceClient_SIGStateX() pkg.MQTTSubscription {
-	return pkg.MQTTSubscription{
-
-		Qos:   0,
-		Topic: device.MQTTTopic_SIGState(),
-		Handler: func(c phao.Client, msg phao.Message) {
-
-			device.DESMQTTClient.WG.Add(1)
-
-			/* PARSE / STORE THE STATE IN CMDARCHIVE */
-			sta := State{}
-			if err := json.Unmarshal(msg.Payload(), &sta); err != nil {
-				pkg.LogErr(err)
-			}
-
-			/* CALL DB WRITE IN GOROUTINE */
-			go WriteSTA(sta, &device.CmdDBC)
-
-			if sta.StaLogging > OP_CODE_JOB_START_REQ {
-
-				/* STORE THE STATE IN THE ACTIVE JOB;  CALL DB WRITE IN GOROUTINE */
-				go WriteSTA(sta, &device.JobDBC)
-			}
-
-			device.STA = sta
-
-			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-			device.UpdateMappedSTA()
-			device.DESMQTTClient.WG.Done()
-		},
-	}
-}
-
-/* SUBSCRIPTION -> STATE  -> UPON RECEIPT, WRITE TO JOB DATABASE */
 func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
@@ -244,38 +208,16 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscript
 			/* CALL DB WRITE IN GOROUTINE */
 			go WriteSTA(sta, &device.CmdDBC)
 
-			/* DECIDE IF WE ARE CHANGING STATE */
-			if sta.StaLogging != device.STA.StaLogging {
+			if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
 
-				switch sta.StaLogging {
-
-				// case OP_CODE_DES_REGISTERED:
-				// 	go device.Register(sta)
-
-				case OP_CODE_JOB_ENDED:
-					go device.EndJob(sta)
-
-				case OP_CODE_JOB_STARTED:
-					go device.StartJob(sta)
-
-				}
-				/* device.STA AND MappedSTA WILL BE UPDATED IN ONE OF THE CASES ABOVE */
-
-			} else {
-
-				if sta.StaLogging > OP_CODE_JOB_START_REQ {
-
-					/* STORE THE STATE IN THE ACTIVE JOB;  CALL DB WRITE IN GOROUTINE */
-					go WriteSTA(sta, &device.JobDBC)
-
-					device.STA = sta
-
-					/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-					device.UpdateMappedSTA()
-				}
-
+				/* STORE THE STATE IN THE ACTIVE JOB;  CALL DB WRITE IN GOROUTINE */
+				go WriteSTA(sta, &device.JobDBC)
 			}
 
+			device.STA = sta
+
+			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+			device.UpdateMappedSTA()
 			device.DESMQTTClient.WG.Done()
 		},
 	}
@@ -307,7 +249,9 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 				go WriteHDR(hdr, &device.JobDBC)
 
 				/* UPDATE THE JOB SEARCH TEXT */
-				go hdr.Update_DESJobSearch(device.DESRegistration)
+				d := device
+				d.HDR = hdr
+				go d.Update_DESJobSearch(d.DESRegistration)
 			}
 
 			device.HDR = hdr

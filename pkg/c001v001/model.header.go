@@ -150,38 +150,38 @@ func (hdr *Header) SearchToken() (token string) {
 	)
 }
 
-/*
-HEADER - CREATE DESJobSearch
-*/
-func (hdr *Header) Create_DESJobSearch(reg pkg.DESRegistration) {
+// /*
+// HEADER - CREATE DESJobSearch
+// */
+// func (hdr *Header) Create_DESJobSearch(reg pkg.DESRegistration) {
 
-	s := pkg.DESJobSearch{
-		DESJobToken: hdr.SearchToken(),
-		DESJobJson:  pkg.ModelToJSONString(hdr),
-		DESJobKey:   reg.DESJobID,
-	}
+// 	s := pkg.DESJobSearch{
+// 		DESJobToken: hdr.SearchToken(),
+// 		DESJobJson:  pkg.ModelToJSONString(hdr),
+// 		DESJobKey:   reg.DESJobID,
+// 	}
 
-	if res := pkg.DES.DB.Create(&s); res.Error != nil {
-		pkg.LogErr(res.Error)
-	}
-}
+// 	if res := pkg.DES.DB.Create(&s); res.Error != nil {
+// 		pkg.LogErr(res.Error)
+// 	}
+// }
 
-/*
-HEADER - UPDATE DESJobSearch
-*/
-func (hdr *Header) Update_DESJobSearch(reg pkg.DESRegistration) {
+// /*
+// HEADER - UPDATE DESJobSearch
+// */
+// func (hdr *Header) Update_DESJobSearch(reg pkg.DESRegistration) {
 
-	s := pkg.DESJobSearch{}
-	if res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s); res.Error != nil {
-		pkg.LogErr(res.Error)
-	}
-	s.DESJobToken = hdr.SearchToken()
-	s.DESJobJson = pkg.ModelToJSONString(hdr)
+// 	s := pkg.DESJobSearch{}
+// 	if res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s); res.Error != nil {
+// 		pkg.LogErr(res.Error)
+// 	}
+// 	s.DESJobToken = hdr.SearchToken()
+// 	s.DESJobJson = pkg.ModelToJSONString(hdr)
 
-	if res := pkg.DES.DB.Save(&s); res.Error != nil {
-		pkg.LogErr(res.Error)
-	}
-}
+// 	if res := pkg.DES.DB.Save(&s); res.Error != nil {
+// 		pkg.LogErr(res.Error)
+// 	}
+// }
 
 // /*
 

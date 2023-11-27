@@ -19,10 +19,7 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 
 		/* DEVICE-OPERATOR-LEVEL OPERATIONS */
 		router.Post("/start", pkg.DesAuth, HandleStartJobX)
-		// router.Post("/start", pkg.DesAuth, HandleStartJob)
-		router.Post("/cancel_start", pkg.DesAuth, HandleCancelStartJob)
 		router.Post("/end", pkg.DesAuth, HandleEndJobX)
-		// router.Post("/end", pkg.DesAuth, HandleEndJob)
 		router.Post("/admin", pkg.DesAuth, HandleSetAdmin)
 		router.Post("/state", pkg.DesAuth, HandleSetState)
 		router.Post("/header", pkg.DesAuth, HandleSetHeader)
@@ -148,50 +145,16 @@ type StartJob struct {
 	EVT Event `json:"evt"`
 }
 
-func HandleStartJob(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleStartJob( )\n")
 
-	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to start a job",
-		})
-	}
+/*
+	USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO START A NEW JOB ON THIS DEVICE
 
-	/* PARSE AND VALIDATE REQUEST DATA */
-	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleStartJob(): -> c.BodyParser(&device) -> device", device)
+SEND AN MQTT JOB ADMIN, HEADER, CONFIG, & EVENT TO THE DEVICE
+UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 
-	/* TODO : MOVE TO DES, CREATE CUSTOM Status ?
-	CHECK DEVICE AVAILABILITY */
-	if ok := DevicePings[device.DESDevSerial].OK; !ok {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "Device not connected to broker",
-		})
-	} // pkg.Json("HandleStartJob(): -> device.CheckPing( ) -> device", device)
-
-	/* SEND START JOB REQUEST */
-	if err = device.StartJobRequest(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleStartJob(): -> device.StartJobRequest(...) -> device", device)
-
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 Job Start Reqest sent to device.",
-	})
-}
-
+	DES JOB REGISTRATION
+	CLASS/VERSION SPECIFIC JOB START ACTIONS
+*/
 func HandleStartJobX(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleStartJobX( )\n")
 
@@ -237,44 +200,6 @@ func HandleStartJobX(c *fiber.Ctx) (err error) {
 }
 
 /*
-NOT IMPLEMENTED ON FRONT END
-THIS MAY BE UNNECESSARY DUE TO THE ADDITION OF PING (KEEP-ALIVE)
-*/
-func HandleCancelStartJob(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleCancelStartJob( )\n")
-
-	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to cancel start a job",
-		})
-	}
-
-	/* PARSE AND VALIDATE REQUEST DATA */
-	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleCancelStartJob(): -> c.BodyParser(&device) -> device", device)
-
-	/* SEND CANCEL START JOB REQUEST */
-	if err = device.CancelStartJobRequest(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleCancelStartJob(): -> device.StartJobRequest(...) -> device", device)
-
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 Job Start Cancel Reqest sent to device.",
-	})
-}
-/*
 	USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO END A JOB ON THIS DEVICE
 
 SEND AN MQTT END JOB EVENT TO THE DEVICE
@@ -305,51 +230,6 @@ func HandleEndJobX(c *fiber.Ctx) (err error) {
 
 	/* SEND END JOB REQUEST */
 	if err = device.EndJobRequestX(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleStartJob(): -> device.EndJobRequest(...) -> device", device)
-
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 Job End Reqest sent to device.",
-	})
-}
-
-
-/*
-	USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO END A JOB ON THIS DEVICE
-
-SEND AN MQTT END JOB EVENT TO THE DEVICE
-UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
-
-	DES JOB REGISTRATION ( UPDATE CMDARCHIVE START DATE )
-	CLASS/VERSION SPECIFIC JOB END ACTIONS
-*/
-func HandleEndJob(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleEndtJob( )\n")
-
-	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to end a job",
-		})
-	}
-
-	/* PARSE AND VALIDATE REQUEST DATA */
-	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("(dev *Device) HandleEndJob(): -> c.BodyParser(&device) -> dev", device)
-
-	/* SEND END JOB REQUEST */
-	if err = device.EndJobRequest(c.IP()); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
@@ -781,7 +661,8 @@ func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
 	}
 	pkg.Json("HandleDisconnectDevice(): -> c.BodyParser(&device) -> device", device)
 
-	d := Devices[device.DESDevSerial]
+	d := ReadDevicesMap(device.DESDevSerial)
+
 	/* CLOSE DEVICE CLIENT CONNECTIONS */
 	if err = d.DeviceClient_Disconnect(); err != nil {
 		msg := fmt.Sprintf(
@@ -831,7 +712,8 @@ func HandleConnectDevice(c *fiber.Ctx) (err error) {
 		})
 	} // pkg.Json("HandleConnectDevice(): -> device.GetDeviceDESRegistration -> device", device)
 
-	d := Devices[device.DESDevSerial]
+	d := ReadDevicesMap(device.DESDevSerial)
+	
 	/* CLOSE ANY EXISTING CONNECTIONS */
 	if err = d.DeviceClient_Disconnect(); err != nil {
 		msg := fmt.Sprintf(

@@ -1186,6 +1186,7 @@ func (demo *DemoDeviceClient) EndDemoJobX(evt Event) {
 	cfg.CfgTime = time.Now().UTC().UnixMilli()
 
 	/* TRANSMIT DEFAULT MODELS */
+	// time.Sleep(time.Second * 1)
 	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
 	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
 	demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
