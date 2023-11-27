@@ -1385,7 +1385,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	/* SEND CONFIRMATION */
 	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
 	demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
-	time.Sleep(time.Second * 2) // ENSURE PREVIOUS MESSAGES HAVE BEEN PROCESSED
+	// time.Sleep(time.Second * 2) // ENSURE PREVIOUS MESSAGES HAVE BEEN PROCESSED
 	demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
 
 	/* GET DEFAULT MODELS AND UPDATE TIMES */

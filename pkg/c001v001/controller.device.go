@@ -934,12 +934,19 @@ func (device *Device) EndJobX(sta State) {
 	/* GET THE LAST JOB RECORDS FROM THE CMD ARCHIVE 
 		THESE VALUES WILL APPEAR IN DEVICE SEARCH WHILE THE DEVICE IS WAITING TO START A NEW JOB
 	*/
+	pkg.Json("(device *Device) EndJobX( ) ->  BEFORE GET LAST CMD RECS: ", device)
 	device.CmdDBC.Last(&device.ADM)
-	device.CmdDBC.Last(&device.STA)
-	device.CmdDBC.Last(&device.HDR)
-	device.CmdDBC.Last(&device.CFG)
-	device.CmdDBC.Last(&device.EVT)
+	device.ADM.DefaultSettings_Admin(cmd.DESRegistration)
+	// device.CmdDBC.Last(&device.STA)
+	device.STA.DefaultSettings_State(cmd.DESRegistration)
+	// device.CmdDBC.Last(&device.HDR)
+	device.HDR.DefaultSettings_Header(cmd.DESRegistration)
+	// device.CmdDBC.Last(&device.CFG)
+	device.CFG.DefaultSettings_Config(cmd.DESRegistration)
+	// device.CmdDBC.Last(&device.EVT)
+	device.EVT.DefaultSettings_Event(cmd.DESRegistration)
 	device.SMP = Sample{SmpTime: cmd.DESJobRegTime, SmpJobName: cmd.DESJobName}
+	pkg.Json("(device *Device) EndJobX( ) ->  BEFORE Update_DESJobSearch(): ", device)
 
 	/* UPDATE DESJobSearch RECORD USING RETRIEVED CMD ARCHIVE RECORDS */
 	device.Update_DESJobSearch(device.DESRegistration)
