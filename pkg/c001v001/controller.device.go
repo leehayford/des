@@ -1361,6 +1361,9 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	/* CLOSE TEMPORARY CONNECTION TO  CMDARCHIVE DB */
 	device.JobDBC.Disconnect()
 
+	/* CREATE DESJobSearch RECORD FOR CMDARCHIVE */
+	device.Create_DESJobSearch(device.DESRegistration)
+
 	/* CREATE PERMANENT DES DEVICE CLIENT CONNECTIONS */
 	device.DESMQTTClient = pkg.DESMQTTClient{}
 	device.DeviceClient_Connect()

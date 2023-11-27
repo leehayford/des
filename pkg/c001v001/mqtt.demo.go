@@ -189,6 +189,9 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 
 	demo.JobDBC.Disconnect()
 
+	/* CREATE DESJobSearch RECORD FOR CMDARCHIVE */
+	demo.Create_DESJobSearch(demo.DESRegistration)
+
 	/* WRITE TO FLASH - CMDARCHIVE */
 	fmt.Printf("\nMakeDemoC001V001(): WRITE TO FLASH: %s/\n", demo.DESJobName)
 	demo.WriteAdmToFlash(demo.DESJobName, demo.ADM)
