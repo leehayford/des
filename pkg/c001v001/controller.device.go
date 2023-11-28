@@ -931,20 +931,16 @@ func (device *Device) EndJobX(sta State) {
 	device.DESJob = cmd.DESJob
 	device.ConnectJobDBC()
 
-	/* GET THE LAST JOB RECORDS FROM THE CMD ARCHIVE 
-		THESE VALUES WILL APPEAR IN DEVICE SEARCH WHILE THE DEVICE IS WAITING TO START A NEW JOB
+	/* GET THE LAST JOB RECORDS RECEIVED FROM THE DEVICE
+		THESE VALUES SHOULD BE THE DEFAULTS WHICH THE DEVICE HAS LOADED INTO RAM 
+		THEY WILL APPEAR IN DEVICE SEARCH WHILE THE DEVICE IS WAITING TO START A NEW JOB
 	*/
-	pkg.Json("(device *Device) EndJobX( ) ->  BEFORE GET LAST CMD RECS: ", device)
-	device.CmdDBC.Last(&device.ADM)
-	device.ADM.DefaultSettings_Admin(cmd.DESRegistration)
-	// device.CmdDBC.Last(&device.STA)
-	device.STA.DefaultSettings_State(cmd.DESRegistration)
-	// device.CmdDBC.Last(&device.HDR)
-	device.HDR.DefaultSettings_Header(cmd.DESRegistration)
-	// device.CmdDBC.Last(&device.CFG)
-	device.CFG.DefaultSettings_Config(cmd.DESRegistration)
-	// device.CmdDBC.Last(&device.EVT)
-	device.EVT.DefaultSettings_Event(cmd.DESRegistration)
+	device.GetMappedADM()
+	device.GetMappedSTA()
+	device.GetMappedHDR()
+	device.GetMappedCFG()
+	device.GetMappedEVT()
+
 	device.SMP = Sample{SmpTime: cmd.DESJobRegTime, SmpJobName: cmd.DESJobName}
 	pkg.Json("(device *Device) EndJobX( ) ->  BEFORE Update_DESJobSearch(): ", device)
 
@@ -997,6 +993,16 @@ func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
 
 /* SET / GET JOB PARAMS *********************************************************************************/
 
+
+/*
+	USED WHEN THE DES NEEDS TO AQUIRE THE LATES MODELS
+	- EX: WHERE A DEVICE HAS STARTED A JOB AND THERE IS NO DATABASE REGISTERED 
+*/
+func (device *Device) GetReport(reg pkg.DESRegistration) {
+	
+
+}
+
 /* PREPARE, LOG, AND SEND A SET ADMIN REQUEST TO THE DEVICE */
 func (device *Device) SetAdminRequest(src string) (err error) {
 
@@ -1026,53 +1032,6 @@ func (device *Device) SetAdminRequest(src string) (err error) {
 
 	/* UPDATE DevicesMap */
 	UpdateDevicesMap(device.DESDevSerial, *device)
-
-	return
-}
-
-/*
-	TODO: DO NOT USE
-
-TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS
-REQUEST THE CURRENT ADMIN FROM THE DEVICE
-*/
-func (device *Device) GetAdminRequest(src string) (err error) {
-
-	/* SYNC DEVICE WITH DevicesMap */
-	device.ADM.AdmTime = time.Now().UTC().UnixMilli()
-	device.ADM.AdmAddr = src
-	device.ADM.Validate()
-	device.GetMappedSTA()
-	device.GetMappedHDR()
-	device.GetMappedCFG()
-	device.GetMappedEVT()
-	device.GetMappedSMP()
-	device.GetMappedClients()
-
-	/* MQTT PUB CMD: ADM */
-	fmt.Printf("\nGetAdminRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	device.MQTTPublication_DeviceClient_CMDAdminReport(device.ADM)
-
-	/* TODO: DO NOT USE
-	TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS
-	*/
-	// device.EVT = Event{
-	// 	EvtTime:   time.Now().UTC().UnixMilli(),
-	// 	EvtAddr:   src,
-	// 	EvtUserID: device.DESJobRegUserID,
-	// 	EvtApp:    device.DESJobRegApp,
-	// 	// EvtCode:   STATUS_ADM_REQ,
-	// 	EvtTitle:  "GET ADM REQUEST",
-	// 	EvtMsg:    "",
-	// }
-
-	// device.DESMQTTClient = pkg.DESMQTTClient{}
-	// device.DESMQTTClient.WG = &sync.WaitGroup{}
-	// device.GetMappedClients()
-
-	// /* MQTT PUB CMD: ADM */
-	// fmt.Printf("\nGetAdminRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
-	// device.MQTTPublication_DeviceClient_CMDEvent(device.EVT)
 
 	return
 }

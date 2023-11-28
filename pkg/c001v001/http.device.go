@@ -244,6 +244,15 @@ func HandleEndJobX(c *fiber.Ctx) (err error) {
 }
 
 /*
+	USED WHEN THE DES NEEDS TO AQUIRE THE LATES MODELS
+	- EX: WHERE A DEVICE HAS STARTED A JOB AND THERE IS NO DATABASE REGISTERED 
+*/
+func HandleReportRequest(c *fiber.Ctx) (err error) {
+
+	return
+}
+
+/*
 	USED TO ALTER THE ADMIN SETTINGS FOR A GIVEN DEVICE
 
 BOTH DURING A JOB OR WHEN SENT TO CMDARCHIVE, TO ALTER THE DEVICE DEFAULTS
@@ -280,47 +289,6 @@ func HandleSetAdmin(c *fiber.Ctx) (err error) {
 		"status":  "success",
 		"data":    fiber.Map{"device": &device},
 		"message": "C001V001 SET ADMIN Reqest sent to device.",
-	})
-}
-
-/*
-	TODO: DO NOT USE
-
-TEST EVENT DRIVEN STATUS VS .../cmd/topic/report DRIVEN STATUS
-*/
-func HandleGetAdmin(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleGetAdmin( )\n")
-
-	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to see device administration data.",
-		})
-	}
-
-	/* PARSE AND VALIDATE REQUEST DATA */
-	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	}
-	pkg.Json("HandleGetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
-
-	/* SEND GET ADMIN REQUEST */
-	if err = device.GetAdminRequest(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleGetAdmin(): -> device.GetAdminRequest(...) -> device", device)
-
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 GET ADMIN Reqest sent to device.",
 	})
 }
 
@@ -713,7 +681,7 @@ func HandleConnectDevice(c *fiber.Ctx) (err error) {
 	} // pkg.Json("HandleConnectDevice(): -> device.GetDeviceDESRegistration -> device", device)
 
 	d := ReadDevicesMap(device.DESDevSerial)
-	
+
 	/* CLOSE ANY EXISTING CONNECTIONS */
 	if err = d.DeviceClient_Disconnect(); err != nil {
 		msg := fmt.Sprintf(

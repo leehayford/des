@@ -77,8 +77,8 @@ func (evt *Event) DefaultSettings_Event(job pkg.DESRegistration) {
 	evt.EvtUserID = job.DESJobRegUserID
 	evt.EvtApp = job.DESJobRegApp
 	evt.EvtCode = OP_CODE_DES_REG_REQ
-	evt.EvtTitle = "A Device is Born"
-	evt.EvtMsg = `Congratulations, it's a class 001, version 001 device! This text is here to take up space. Normal people would use the function that shits out latin but I don't; partly because I don't remember what it is and partly because I don't feel like looking it up.`
+	evt.EvtTitle = "DEVICE REGISTRATION REQUESTED"
+	evt.EvtMsg = ""
 }
 
 /*

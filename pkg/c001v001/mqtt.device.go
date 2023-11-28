@@ -153,7 +153,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDevicePing() pkg.MQTTSubs
 	}
 }
 
-/* SUBSCRIPTION -> ADMINISTRATION  -> UPON RECEIPT, WRITE TO JOB DATABASE */
+/* SUBSCRIPTION -> ADMIN  -> UPON RECEIPT, WRITE TO JOB DATABASE */
 func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
@@ -264,7 +264,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 	}
 }
 
-/* SUBSCRIPTION -> CONFIGURATION -> UPON RECEIPT, WRITE TO JOB DATABASE */
+/* SUBSCRIPTION -> CONFIG -> UPON RECEIPT, WRITE TO JOB DATABASE */
 func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
@@ -481,6 +481,20 @@ func (device *Device) MQTTPublication_DeviceClient_CMDEndJob(evt Event) {
 	cmd.Pub(device.DESMQTTClient)
 }
 
+/* PUBLICATION -> REPORT */
+func (device *Device) MQTTPublication_DeviceClient_CMDReport() {
+
+	cmd := pkg.MQTTPublication{
+		Topic:    device.MQTTTopic_CMDReport(),
+		Message:  "eeeyaaaah...",
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDReport(): -> cmd", cmd)
+
+	cmd.Pub(device.DESMQTTClient)
+}
+
 /* PUBLICATION -> ADMINISTRATION */
 func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 
@@ -494,21 +508,6 @@ func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 
 	cmd.Pub(device.DESMQTTClient)
 }
-
-/* PUBLICATION -> ADMINISTRATION REPORT */
-func (device *Device) MQTTPublication_DeviceClient_CMDAdminReport(adm Admin) {
-
-	cmd := pkg.MQTTPublication{
-		Topic:    device.MQTTTopic_CMDReport(device.MQTTTopic_CMDAdmin()),
-		Message:  pkg.ModelToJSONString(adm),
-		Retained: false,
-		WaitMS:   0,
-		Qos:      0,
-	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDAdminReport(): -> cmd", cmd)
-
-	cmd.Pub(device.DESMQTTClient)
-}
-
 /* PUBLICATION -> STATE */
 func (device *Device) MQTTPublication_DeviceClient_CMDState(sta State) {
 
@@ -598,10 +597,6 @@ func (device *Device) MQTTTopic_DESRoot() (root string) {
 	return fmt.Sprintf("%s/des", device.MQTTTopic_DeviceRoot())
 }
 
-func (device *Device) MQTTTopic_CMDReport(baseTopic string) (topic string) {
-	return fmt.Sprintf("%s/report", baseTopic)
-}
-
 /* MQTT TOPICS - SIGNAL */
 func (device *Device) MQTTTopic_SIGStartJob() (topic string) {
 	return fmt.Sprintf("%s/start", device.MQTTTopic_SIGRoot())
@@ -644,6 +639,9 @@ func (device *Device) MQTTTopic_CMDStartJob() (topic string) {
 }
 func (device *Device) MQTTTopic_CMDEndJob() (topic string) {
 	return fmt.Sprintf("%s/end", device.MQTTTopic_CMDRoot())
+}
+func (device *Device) MQTTTopic_CMDReport() (topic string) {
+	return fmt.Sprintf("%s/report", device.MQTTTopic_CMDRoot())
 }
 func (device *Device) MQTTTopic_CMDAdmin() (topic string) {
 	return fmt.Sprintf("%s/admin", device.MQTTTopic_CMDRoot())

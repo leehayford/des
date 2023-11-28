@@ -347,12 +347,12 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	/* SUBSCRIBE TO ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDStartJob().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEndJob().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDReport().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDState().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEventX().Sub(demo.DESMQTTClient)
-	// demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
 
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().Sub(demo.DESMQTTClient)
@@ -363,13 +363,13 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	demo.MQTTSubscription_DemoDeviceClient_CMDStartJob().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDEndJob().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDEndJob().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDReport().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDState().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEventX().UnSub(demo.DESMQTTClient)
-	// demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
 	
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().UnSub(demo.DESMQTTClient)
@@ -431,7 +431,42 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEndJob() pkg.
 	}
 }
 
-/* SUBSCRIPTION -> ADMINISTRATION -> UPON RECEIPT, LOG & REPLY TO .../sig/admin */
+/* SUBSCRIPTION -> REPORT ALL MODELS -> UPON RECEIPT REPLY TO EACH SIG TOPIC WITH THE CORRESPONDING MODEL
+	- Admin .../sig/admin 
+	- State .../sig/State
+	- Header .../sig/header
+	- Config .../sig/config
+	- Event .../sig/event
+*/
+func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDReport() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: demo.MQTTTopic_CMDReport(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			demo.DESMQTTClient.WG.Add(1)
+
+			/* MAKE A COPY OF EACH MODEL - AS IS, NO MODIFICATION */
+			adm := demo.ADM
+			sta := demo.STA
+			hdr := demo.HDR
+			cfg := demo.CFG
+			evt := demo.EVT
+
+			/* PUBLISH EACH LOCAL MODEL IN A GO ROUTINE  */
+			go demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
+			go demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
+			go demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
+			go demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
+			go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
+
+			demo.DESMQTTClient.WG.Done()
+		},
+	}
+}
+
+/* SUBSCRIPTION -> ADMIN -> UPON RECEIPT, LOG & REPLY TO .../sig/admin */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
@@ -477,28 +512,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 		},
 	}
 }
-
-/* NOT IN USE: SUBSCRIPTION -> ADMINISTRATION -> UPON RECEIPT REPLY TO .../sig/admin */
-func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdminReport() pkg.MQTTSubscription {
-	return pkg.MQTTSubscription{
-
-		Qos:   0,
-		Topic: demo.MQTTTopic_CMDReport(demo.MQTTTopic_CMDAdmin()),
-		Handler: func(c phao.Client, msg phao.Message) {
-
-			demo.DESMQTTClient.WG.Add(1)
-
-			/* MAKE A COPY OF THE ADM TO PUBLISH IN A GO ROUTINE */
-			adm := demo.ADM
-
-			/* SEND CONFIRMATION */
-			go demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
-
-			demo.DESMQTTClient.WG.Done()
-		},
-	}
-}
-
 /* SUBSCRIPTION -> STATE -> UPON RECEIPT, LOG & REPLY TO .../sig/state */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
@@ -547,28 +560,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 			// LOAD VALUE INTO SIM 'RAM'
 			demo.STA = sta
 			**********************************************************************************/
-
-			/* SEND CONFIRMATION */
-			go demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
-
-			demo.DESMQTTClient.WG.Done()
-		},
-	}
-}
-
-/* NOT IN USE: SUBSCRIPTION -> STATE -> UPON RECEIPT REPLY TO .../sig/state */
-func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStateReport() pkg.MQTTSubscription {
-	return pkg.MQTTSubscription{
-
-		Qos: 0,
-		// Topic: demo.MQTTTopic_CMDReport(demo.MQTTTopic_CMDState()),
-		Topic: demo.MQTTTopic_CMDState(),
-		Handler: func(c phao.Client, msg phao.Message) {
-
-			demo.DESMQTTClient.WG.Add(1)
-
-			/* MAKE A COPY OF THE ADM TO PUBLISH IN A GO ROUTINE */
-			sta := demo.STA
 
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
