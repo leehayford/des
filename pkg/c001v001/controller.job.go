@@ -83,7 +83,7 @@ func (job *Job) GetJobData() (err error) {
 	x := db.Preload("RepSecs.SecDats").Preload("RepSecs.SecAnns.AnnEvt").Preload(clause.Associations).Find(&job.Reports)
 	if x.Error != nil {
 		err = x.Error
-		return 
+		return
 	} // pkg.Json("GetJobData() -> Reports ", x.Error)
 
 	db.Disconnect()
@@ -97,14 +97,29 @@ func (job *Job) GetJobEvents() (err error) {
 		return
 	}
 	defer db.Disconnect()
-	
+
 	res := db.Select("*").Table("events").Order("evt_time ASC").Scan(&job.Events)
 	err = res.Error
 
 	db.Disconnect()
 	return
 }
- 
+
+func (job *Job) NewReportEvent(src string, evt *Event) (err error) {
+
+	evt.EvtAddr = src
+	evt.Validate()
+	
+	/* WRITE TO JOB DB */
+	db := job.JDB()
+	db.Connect()
+	defer db.Disconnect()
+	db.Create(&evt)
+	db.Disconnect()
+
+	return
+}
+
 /* RUNS AUTOMATICALLY WHEN A JOB HAS ENDED */
 func (job *Job) CreateDefaultReport(rep *Report) {
 

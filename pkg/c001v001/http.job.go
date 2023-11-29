@@ -7,7 +7,6 @@ import (
 	"github.com/leehayford/des/pkg"
 )
 
-
 func InitializeJobRoutes(app, api *fiber.App) (err error) {
 
 	api.Route("/001/001/job", func(router fiber.Router) {
@@ -17,7 +16,7 @@ func InitializeJobRoutes(app, api *fiber.App) (err error) {
 		router.Post("/data", pkg.DesAuth, HandleGetJobData)
 		router.Post("/new_report", pkg.DesAuth, HandleNewReport)
 		router.Post("/new_header", pkg.DesAuth, HandleJobNewHeader)
-		router.Post("/new_event", pkg.DesAuth, HandleJobNewEvent)
+		router.Post("/new_event", pkg.DesAuth, HandleNewReportEvent)
 		router.Post("/event_list", pkg.DesAuth, HandleGetJobEvents)
 	})
 	return
@@ -86,7 +85,7 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}  // pkg.Json("HandleGetJobData(): -> c.BodyParser(&reg) -> reg", reg)
+	} // pkg.Json("HandleGetJobData(): -> c.BodyParser(&reg) -> reg", reg)
 
 	job := Job{DESRegistration: reg}
 	if err = job.GetJobData(); err != nil {
@@ -158,8 +157,7 @@ func HandleNewReport(c *fiber.Ctx) (err error) {
 }
 
 /*
-
-*/
+ */
 func HandleJobNewHeader(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleJobNewHeader( )\n")
 
@@ -172,17 +170,16 @@ func HandleJobNewHeader(c *fiber.Ctx) (err error) {
 	}
 
 	/*
-	ADD TO JOB DB
-	UPDATE REG JSON / TOKEN
-	RETURN HDR & REG
+		ADD TO JOB DB
+		UPDATE REG JSON / TOKEN
+		RETURN HDR & REG
 	*/
 
 	return
 }
 
 /*
-
-*/
+ */
 func HandleGetJobEvents(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleGetJobEvents( )\n")
 
@@ -200,7 +197,7 @@ func HandleGetJobEvents(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}  
+	}
 	pkg.Json("HandleGetJobEvents(): -> c.BodyParser(&job) -> job.DESRegistration", job.DESRegistration)
 
 	if err = job.GetJobEvents(); err != nil {
@@ -220,10 +217,9 @@ func HandleGetJobEvents(c *fiber.Ctx) (err error) {
 }
 
 /*
-
-*/
-func HandleJobNewEvent(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleJobNewEvent( )\n")
+ */
+func HandleNewReportEvent(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleNewReportEvent( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
@@ -233,10 +229,26 @@ func HandleJobNewEvent(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	/*
-	ADD TO JOB DB
-	RETURN EVT
-	*/
+	job := Job{}
+	if err = c.BodyParser(&job); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	pkg.Json("HandleNewReportEvent(): -> c.BodyParser(&job) -> job", job)
 
-	return
+	if err = job.NewReportEvent(c.IP(), &job.Events[0]); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	pkg.Json("HandleNewReportEvent(): -> job.CreateReportEvent -> job.Events[0]", job.Events[0])
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "You are a tolerable person!",
+		"data":    fiber.Map{"evt": job.Events[0]},
+	})
 }

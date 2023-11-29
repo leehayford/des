@@ -192,7 +192,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 /* SUBSCRIPTION -> STATE  -> UPON RECEIPT, WRITE TO JOB DATABASE */
 func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
-
+		
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGState(),
 		Handler: func(c phao.Client, msg phao.Message) {

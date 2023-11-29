@@ -118,7 +118,7 @@ func (sta *State) DefaultSettings_State(reg pkg.DESRegistration) {
 	sta.StaLogFw = "00.000.000"
 	sta.StaModFw = "00.000.000"
 
-	sta.StaLogging = 0
+	sta.StaLogging = OP_CODE_DES_REGISTERED
 	sta.StaJobName = fmt.Sprintf("%s_CMDARCHIVE", sta.StaSerial)
 
 	sta.StaStmUID1 = 0

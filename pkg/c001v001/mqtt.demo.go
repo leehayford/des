@@ -76,7 +76,6 @@ func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 
 /* REGISTER A DEMO DEVICE ON THIS DES */
 func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
-
 	fmt.Printf("\n\nMakeDemoC001V001() -> %s... \n", serial)
 
 	t := time.Now().UTC().UnixMilli()

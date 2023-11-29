@@ -1076,14 +1076,6 @@ func (device *Device) SetStateRequest(src string) (err error) {
 /* PREPARE, LOG, AND SEND A SET HEADER REQUEST TO THE DEVICE */
 func (device *Device) SetHeaderRequest(src string) (err error) {
 
-	// hdr := device.HDR
-	// hdr.HdrTime = time.Now().UTC().UnixMilli()
-	// hdr.HdrAddr = src
-	// hdr.Validate()
-	// d := ReadDevicesMap(device.DESDevSerial)
-	// d.HDR = hdr
-	// device = &d
-
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedADM()
 	device.HDR.HdrTime = time.Now().UTC().UnixMilli()
@@ -1113,8 +1105,6 @@ func (device *Device) SetHeaderRequest(src string) (err error) {
 
 	return
 }
-
-/* REQUEST THE CURRENT HEADER FROM THE DEVICE */
 
 /* PREPARE, LOG, AND SEND A SET CONFIG REQUEST TO THE DEVICE */
 func (device *Device) SetConfigRequest(src string) (err error) {
@@ -1148,8 +1138,6 @@ func (device *Device) SetConfigRequest(src string) (err error) {
 
 	return
 }
-
-/* REQUEST THE CURRENT CONFIG FROM THE DEVICE */
 
 /* PREPARE, LOG, AND SEND A SET EVENT REQUEST TO THE DEVICE */
 func (device *Device) CreateEventRequest(src string) (err error) {
@@ -1288,7 +1276,7 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	/* WRITE DEFAULT ADM, STA, HDR, CFG, EVT TO CMDARCHIVE */
 	device.ADM.DefaultSettings_Admin(device.DESRegistration)
 	device.STA.DefaultSettings_State(device.DESRegistration)
-	device.STA.StaLogging = OP_CODE_DES_REGISTERED
+	// device.STA.StaLogging = OP_CODE_DES_REGISTERED
 	device.HDR.DefaultSettings_Header(device.DESRegistration)
 	device.CFG.DefaultSettings_Config(device.DESRegistration)
 	device.SMP = Sample{SmpTime: t, SmpJobName: device.DESJobName}

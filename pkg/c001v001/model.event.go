@@ -82,7 +82,8 @@ func (evt *Event) DefaultSettings_Event(job pkg.DESRegistration) {
 }
 
 /*
-HARDWARE IDs - VALIDATE FIELDS
+EVENT - VALIDATE FIELDS
+ 	- INVALID FIELDS ARE MADE VALID 
 */
 func (evt *Event) Validate() {
 	/* TODO: SET ACCEPTABLE LIMITS FOR THE REST OF THE CONFIG SETTINGS */
