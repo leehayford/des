@@ -127,23 +127,19 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDevicePing() pkg.MQTTSubs
 
 			device.DESMQTTClient.WG.Add(1)
 
-			// /* TODO : PARSE THE PING MESSAGE */
-			// if err := json.Unmarshal(msg.Payload(), &ping); err != nil {
-			// 	pkg.LogErr(err)
-			// }
-
+			/* TODO : PARSE THE PING MESSAGE 
+				TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME
+				- IGNORE THE RECEIVED DEVICE TIME FOR NOW,
+				- WE DON'T REALLY CARE FOR KEEP-ALIVE PURPOSES
+				
+				// if err := json.Unmarshal(msg.Payload(), &ping); err != nil {
+				// 	pkg.LogErr(err)
+				// }
+			*/
 			ping := pkg.Ping{
 				Time: time.Now().UTC().UnixMilli(),
 				OK:   true,
 			}
-
-			/* TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME
-			- IGNORE THE RECEIVED DEVICE TIME FOR NOW,
-			- WE DON'T REALLY CARE FOR KEEP-ALIVE PURPOSES
-			*/
-
-			/* CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
-			go device.MQTTPublication_DeviceClient_DESDevicePing(ping)
 
 			/* UPDATE THE DevicesPingMap - DO NOT CALL IN GOROUTINE */
 			device.UpdateDevicePing(ping)
@@ -192,7 +188,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 /* SUBSCRIPTION -> STATE  -> UPON RECEIPT, WRITE TO JOB DATABASE */
 func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
-		
+
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGState(),
 		Handler: func(c phao.Client, msg phao.Message) {
@@ -356,16 +352,16 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 			/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
 			smp := &Sample{SmpJobName: mqtts.DesJobName}
 
+			/* DECODE BASE64URL STRING ( DATA ) */
+			if err := smp.DecodeMQTTSample(mqtts.Data); err != nil {
+				pkg.LogErr(err)
+			}
+
 			/* TODO: CHECK SAMPLE JOB NAME & MAKE DATABASE IF IT DOES NOT EXIST
 			DEVICE HAS STARTED A JOB WITHOUT THE DES KNOWING ABOUT IT:
 			- CALL START JOB
 			- REQUEST LAST: ADM, STA, HDR, CFG, EVT
 			*/
-
-			/* DECODE BASE64URL STRING ( DATA ) */
-			if err := smp.DecodeMQTTSample(mqtts.Data); err != nil {
-				pkg.LogErr(err)
-			}
 
 			/* DECIDE WHAT TO DO BASED ON LAST STATE */
 			if device.STA.StaLogging > OP_CODE_JOB_START_REQ {

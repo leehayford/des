@@ -46,6 +46,7 @@ type DemoDeviceClient struct {
 	Mode  chan int32
 	TZero chan time.Time
 	Live  bool
+	PING pkg.Ping `json:"ping"`     // Last Ping sent by THID DemoDeviceClient
 }
 
 type DemoDeviceClientsMap map[string]DemoDeviceClient

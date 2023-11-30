@@ -22,6 +22,8 @@ const OP_CODE_JOB_ENDED int32 = 2      // DEVICE RESPONSE -> JOB ENDED
 const OP_CODE_JOB_START_REQ int32 = 3  // USER REQUEST -> START JOB
 const OP_CODE_JOB_STARTED int32 = 4    // DEVICE RESPONSE -> JOB STARTED
 const OP_CODE_JOB_END_REQ int32 = 5    // USER REQUEST -> END JOB
+const OP_CODE_JOB_OFFLINE_START int32 = 6 // JOB WAS STARTED OFFLINE BY OPERATOR ON SITE
+const OP_CODE_JOB_OFFLINE_END int32 = 7 // JOB WAS ENDED OFFLINE BY OPERATOR ON SITE 
 /* END OPERATION CODES  ( Event.EvtCode ) *********************************************************/
 
 /* STATUS CODES ( Event.EvtCode 1000 : 1999 ) *******************************************************/
@@ -70,8 +72,8 @@ type Device struct {
 	EVT                 Event         `json:"evt"`      // Last known Event value
 	SMP                 Sample        `json:"smp"`      // Last known Sample value
 	DBG                 Debug         `json:"dbg"`      // Settings used while debugging
-	PING                pkg.Ping      `json:"ping"`     // Last Ping received from device
-	DESPING             pkg.Ping      `json:"des_ping"` // Last Ping sent from this DES device client
+	// PING                pkg.Ping      `json:"ping"`     // Last Ping received from device
+	// DESPING             pkg.Ping      `json:"des_ping"` // Last Ping sent from this DES device client
 	DESPingStop         chan struct{} `json:"-"`        // Send DESPingStop when DeviceClients are disconnected
 	CmdDBC              pkg.DBClient  `json:"-"`        // Database Client for the CMDARCHIVE
 	JobDBC              pkg.DBClient  `json:"-"`        // Database Client for the active job
@@ -88,47 +90,101 @@ type DevicesMap map[string]Device
 var Devices = make(DevicesMap)
 var DevicesRWMutex = sync.RWMutex{}
 
-const DEVICE_PING_TIMEOUT = 30000
-const DEVICE_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
 
+/* DES DEVICE CLIENT KEEP ALIVE ********************************************************/
 const DES_PING_TIMEOUT = 10000
 const DES_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
+var DESDeviceClientPings = make(pkg.PingsMap)
+var DESDeviceClientPingsRWMutex = sync.RWMutex{}
 
-type DevicePingsMap map[string]pkg.Ping
+/* WRITE TO THE DESDeviceClientPingsMap
+	WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
+		- WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
+		- ONCE THIS WRITE OPERATION ESTABLISHES A LOCK, ALL READ & WRITE  OPERATIONS ARE BLOCKED UNTIL THIS WRITE IS COMPLETE
+*/
+func DESDeviceClientPingsMapWrite(serial string, ping pkg.Ping) {
+	DESDeviceClientPingsRWMutex.Lock()
+	DESDeviceClientPings[serial] = ping
+	DESDeviceClientPingsRWMutex.Unlock()
+}
 
-var DeviceClientPings = make(DevicePingsMap)
+/* READ FROM THE DESDeviceClientPingsMap; RETURS pkg.Ping
+	WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
+		- WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
+		- ONCE THIS READ OPERATION ESTABLISHES A LOCK, ALL READ & WRITE OPERATIONS ARE BLOCKED UNTIL THIS READ IS COMPLETE
+*/
+func DESDeviceClientPingsMapRead(serial string) (ping pkg.Ping) {
+	DESDeviceClientPingsRWMutex.Lock()
+	ping = DESDeviceClientPings[serial]
+	DESDeviceClientPingsRWMutex.Unlock()
+	return
+}
 
-func (device *Device) UpdateDeviceClientPing(ping pkg.Ping) {
+/* UPDATE device.DESPING, DESDeviceClientPingsMap, AND Publish DESPING */
+func (device *Device) UpdateDESDeviceClientPing(ping pkg.Ping) {
 
-	/* UPDATE device.PING AND DevicePings MAP */
-	DeviceClientPings[device.DESDevSerial] = ping
-	device.DESPING = ping
+	// device.DESPING = ping
+
+	/* UPDATE device.PING AND DESDeviceClientPings MAP */
+	DESDeviceClientPingsMapWrite(device.DESDevSerial, ping)
 
 	/* CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
 	go device.MQTTPublication_DeviceClient_DESDeviceClientPing(ping)
 }
 
-var DevicePings = make(DevicePingsMap)
 
+/* PHYSICAL DEVICE KEEP ALIVE ********************************************************/
+const DEVICE_PING_TIMEOUT = 30000
+const DEVICE_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
+var DevicePings = make(pkg.PingsMap)
+var DevicePingsRWMutex = sync.RWMutex{}
+
+/* WRITE TO THE DevicePingsMap
+	WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
+		- WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
+		- ONCE THIS WRITE OPERATION ESTABLISHES A LOCK, ALL READ & WRITE  OPERATIONS ARE BLOCKED UNTIL THIS WRITE IS COMPLETE
+*/
+func DevicePingsMapWrite(serial string, ping pkg.Ping) {
+	DevicePingsRWMutex.Lock()
+	DevicePings[serial] = ping
+	DevicePingsRWMutex.Unlock()
+}
+/* READ FROM THE DevicePingsMap; RETURS pkg.Ping
+	WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
+		- WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
+		- ONCE THIS READ OPERATION ESTABLISHES A LOCK, ALL READ & WRITE OPERATIONS ARE BLOCKED UNTIL THIS READ IS COMPLETE
+*/
+func DevicePingsMapRead(serial string) (ping pkg.Ping) {
+	DevicesRWMutex.Lock()
+	ping = DevicePings[serial]
+	DevicesRWMutex.Unlock()
+	return
+}
+
+/* QUALIFY RECEIVED PING THEN UPDATE DevicePingsMap, device.PING, AND Publish PING */
 func (device *Device) UpdateDevicePing(ping pkg.Ping) {
 
+	/* TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME
+	- IGNORE THE RECEIVED DEVICE TIME FOR NOW,
+	- WE DON'T REALLY CARE FOR KEEP-ALIVE PURPOSES
+	*/
+
 	if !ping.OK || ping.Time == 0 {
-		ping.Time = DevicePings[device.DESDevSerial].Time
+		ping = DevicePingsMapRead(device.DESDevSerial)
 		ping.OK = false
 		// fmt.Printf("\n%s -> UpdateDevicePing( ) -> Timeout.", device.DESDevSerial )
 	}
 
+	// device.PING = ping
+
 	/* UPDATE device.PING AND DevicePings MAP */
-	DevicePings[device.DESDevSerial] = ping
-	device.PING = ping
+	DevicePingsMapWrite(device.DESDevSerial, ping)
+	
+	/* CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
+	go device.MQTTPublication_DeviceClient_DESDevicePing(ping)
+
 }
 
-/* TODO: TEST WaitGroup vs. RWMutex ON SERVER TO PREVENT CONCURRENT MAP WRITES
---> var DevicesMapWG = sync.WaitGroup{}
-FAILING THAT, LOOK INTO:
-	1. Channel-based updates
-	2. Log-based, Change Data Capture ( CDC ) updates
-*/
 
 /* GET THE CURRENT DESRegistration FOR ALL DEVICES ON THIS DES */
 func GetDeviceList() (devices []pkg.DESRegistration, err error) {
@@ -208,8 +264,8 @@ func GetDevices(regs []pkg.DESRegistration) (devices []Device) {
 		// pkg.Json("GetDevices( ) -> reg", reg)
 		device := ReadDevicesMap(reg.DESDevSerial)
 		device.DESRegistration = reg
-		device.PING = DevicePings[device.DESDevSerial]
-		device.DESPING = DeviceClientPings[device.DESDevSerial]
+		// device.PING = DevicePingsMapRead(device.DESDevSerial)
+		// device.DESPING = DESDeviceClientPingsMapRead(device.DESDevSerial)
 		devices = append(devices, device)
 	}
 	// pkg.Json("GetDevices(): Devices", devices)
@@ -302,14 +358,13 @@ func (device *Device) DeviceClient_Connect() (err error) {
 		return pkg.LogErr(err)
 	}
 
-	/* UPDATE DevicePings MAP. START THE KEEP-ALIVE */
-	device.UpdateDevicePing(device.PING)
+	// /* UPDATE DevicePings MAP. START THE KEEP-ALIVE */
+	// device.UpdateDevicePing(device.PING)
 
-	/* UPDATE DeviceClientPings MAP. START THE KEEP-ALIVE */
-	device.UpdateDeviceClientPing(device.DESPING)
+	// /* UPDATE DeviceClientPings MAP. START THE KEEP-ALIVE */
+	// device.UpdateDESDeviceClientPing(device.DESPING)
 
 	/* START DES DEVICE CLIENT PING */
-
 	device.DESPingStop = make(chan struct{})
 	live := true
 	go func() {
@@ -321,15 +376,15 @@ func (device *Device) DeviceClient_Connect() (err error) {
 
 			default:
 				time.Sleep(time.Millisecond * DES_PING_TIMEOUT)
-				device.UpdateDeviceClientPing(pkg.Ping{
+				device.UpdateDESDeviceClientPing(pkg.Ping{
 					Time: time.Now().UTC().UnixMilli(),
 					OK:   true,
 				})
 				// fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING... \n\n", device.DESDevSerial)
 			}
 		}
-		device.DESPING = pkg.Ping{}
-		delete(DeviceClientPings, device.DESDevSerial)
+		// device.DESPING = pkg.Ping{}
+		delete(DESDeviceClientPings, device.DESDevSerial)
 		fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING STOPPED. \n\n", device.DESDevSerial)
 	}()
 
@@ -367,19 +422,15 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 	return
 }
 
-/*
-	READ THE DevicesMap
-
-WRITE LOCK IS USED TO PREVENT DEVICE MAP READS DURING WRITE OPERATIONS
-	- WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
-	- ONCE THIS READ OPERATION ESTABLISHES A LOCK, ALL READ & WRITE OPERATIONS ARE BLOCKED UNTIL THIS READ IS COMPLETE
+/* READ THE DevicesMap
+	WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
+		- WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
+		- ONCE THIS READ OPERATION ESTABLISHES A LOCK, ALL READ & WRITE OPERATIONS ARE BLOCKED UNTIL THIS READ IS COMPLETE
 */
 func ReadDevicesMap(serial string) (device Device) {
-
 	DevicesRWMutex.Lock()
 	device = Devices[serial]
 	DevicesRWMutex.Unlock()
-
 	return
 }
 
@@ -411,12 +462,6 @@ func (device *Device) GetMappedClients() {
 	device.DESMQTTClient.WG.Wait()
 	device.DESMQTTClient = d.DESMQTTClient
 }
-
-// /* HYDRATES THE DEVICE'S Ping STRUCT FROM THE DevicesMap */
-// func (device *Device) GetMappedPING() {
-// 	d := device.ReadDevicesMap(device.DESDevSerial)
-// 	device.PING = d.PING
-// }
 
 /* HYDRATES THE DEVICE'S Admin STRUCT FROM THE DevicesMap */
 func (device *Device) GetMappedADM() {
@@ -460,26 +505,16 @@ func (device *Device) GetMappedDBG() {
 	device.DBG = d.DBG
 }
 
-/*
-	UPDATE THE DevicesMap
-
-WRITE LOCK IS USED TO PREVENT DEVICE MAP READS DURING WRITE OPERATIONS
-	- WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
-	- ONCE THIS WRITE OPERATION ESTABLISHES A LOCK, ALL READ & WRITE  OPERATIONS ARE BLOCKED UNTIL THIS WRITE IS COMPLETE
+/* WRITE TO THE DevicesMap
+	WRITE LOCK IS USED TO PREVENT DEVICE MAP READS DURING WRITE OPERATIONS
+		- WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
+		- ONCE THIS WRITE OPERATION ESTABLISHES A LOCK, ALL READ & WRITE  OPERATIONS ARE BLOCKED UNTIL THIS WRITE IS COMPLETE
 */
 func UpdateDevicesMap(serial string, d Device) {
-
 	DevicesRWMutex.Lock()
 	Devices[serial] = d
 	DevicesRWMutex.Unlock()
 }
-
-// /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Ping */
-// func (device *Device) UpdateMappedPING() {
-// 	d := device.ReadDevicesMap(device.DESDevSerial)
-// 	d.PING = device.PING
-// 	UpdateDevicesMap(device.DESDevSerial, d)
-// }
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Admin */
 func (device *Device) UpdateMappedADM() {
@@ -808,8 +843,37 @@ func (device *Device) StartJobX(start StartJob) {
 	pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
 }
 
-/* CALLED WHEN DES RECEIVES SAMPLES WITH AN UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST ) */
-func (device *Device) RegisterJob() {
+/* CALLED WHEN DES RECEIVES SAMPLES 
+	- HANDLES UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST ) 
+	- HANDLES OPERATIONAL NOTIFICATIONS ( SSP / SCVF )
+*/
+func (device *Device) CheckSample(smp Sample) {
+
+	/* TODO: CHECK SAMPLE JOB NAME */ 
+	
+	/* CASE: JOB NAME == CMDARCHIVE 
+			- LOG TO CMD ARCHIVE 
+	*/
+
+	/* CASE: JOB DB DOES NOT EXIST
+		- DEVICE HAS STARTED A JOB OFFLINE ( WITHOUT THE DES KNOWING ABOUT IT ):
+			- MAKE DATABASE ( EMPTY ) USING JOB NAME  
+			- MAKE EVENT (  )
+			- CALL START JOB
+		- REQUEST LAST: ADM, STA, HDR, CFG, EVT
+	*/
+
+	/* DECIDE WHAT TO DO BASED ON LAST STATE */
+	// if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+
+	// 	/* WRITE TO JOB DATABASE  */
+	// 	go WriteSMP(*smp, &device.JobDBC)
+
+	// } else {
+
+	// 	/* WRITE TO JOB CMDARCHIVE */
+	// 	go WriteSMP(*smp, &device.CmdDBC)
+	// }
 
 	/* ENSURE PREVIOUS JOB HAS ENDED
 	MAKE EVT -> JOB ENDED

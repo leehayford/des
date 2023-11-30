@@ -78,27 +78,27 @@ func SignInUser(c *fiber.Ctx) error {
 		fmt.Println("SignInUser(c *fiber.Ctx) -> c.BodyParser")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
-			"message": err.Error(),
+			"message":  fmt.Sprintf("Malformed request body: %v", err.Error()),
 		})
 	}
 	if errors := ValidateStruct(payload); errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
-			"message": errors,
+			"message": fmt.Sprintf("Malformed request body: %v", errors),
 		})
 	}
 
 	user := User{}
 	if result := DES.DB.First(&user, "email = ?", strings.ToLower(payload.Email)); result.Error != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "Invalid email or Password",
+			"message": "Invalid email or password",
 		})
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(payload.Password)); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "Invalid email or Password",
+			"message": "Invalid email or password",
 		})
 	}
 
@@ -116,7 +116,7 @@ func SignInUser(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
-			"message": fmt.Sprintf("failed to generate access token: %v", err),
+			"message": fmt.Sprintf("Failed to generate access token: %v", err),
 		})
 	}
 
@@ -181,7 +181,7 @@ func GetMe(c *fiber.Ctx) error {
 	if user.ID.String() != id {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "the user belonging to this token no logger exists",
+			"message": "The user belonging to this token no logger exists.",
 		})
 	}
 

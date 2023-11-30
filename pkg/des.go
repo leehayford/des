@@ -55,7 +55,7 @@ func (p *Ping) LatencyCheck() (ms int64, err error) {
 	/* TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME */
 	return
 }
-
+type PingsMap map[string]Ping
 
 type DESRegistration struct {
 	DESDev //`json:"des_dev"`
