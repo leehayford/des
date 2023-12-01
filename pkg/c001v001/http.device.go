@@ -588,7 +588,8 @@ func HandleSimOfflineStart(c *fiber.Ctx) (err error) {
 	} // pkg.Json("HandleTestMessageLimit(): -> c.BodyParser(&device) -> device", device)
 
 	device.GetMappedClients()
-	device.GetDeviceDESU()
+	device.MQTTPublication_DeviceClient_CMDTestOLS()
+	// device.GetDeviceDESU()
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",

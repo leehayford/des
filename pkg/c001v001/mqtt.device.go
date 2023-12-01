@@ -577,6 +577,21 @@ func (device *Device) MQTTPublication_DeviceClient_CMDMsgLimit(msg MsgLimit) {
 	cmd.Pub(device.DESMQTTClient)
 }
 
+/* PUBLICATION -> MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+func (device *Device) MQTTPublication_DeviceClient_CMDTestOLS() {
+
+	cmd := pkg.MQTTPublication{
+		Topic:    device.MQTTTopic_CMDTestOLS(),
+		Message:  "eeeyaaaah...",
+		Retained: false,
+		WaitMS:   0,
+		Qos:      0,
+	}
+
+	cmd.Pub(device.DESMQTTClient)
+}
+
+
 /* MQTT TOPICS ************************************************************************
 THESE ARE USED BY ALL TYPES OF CLIENTS: Device, User, Demo */
 

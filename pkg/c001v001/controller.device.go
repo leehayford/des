@@ -606,8 +606,7 @@ func (device Device) GetCmdArchiveDESRegistration() (cmd Job) {
 	res := qry.Scan(&cmd.DESRegistration)
 	if res.Error != nil {
 		pkg.LogErr(res.Error)
-	}
-	pkg.Json("(device *Device) GetCmdArchiveDESRegistration( )", cmd)
+	} // pkg.Json("(device *Device) GetCmdArchiveDESRegistration( )", cmd)
 	return
 }
 
@@ -984,11 +983,11 @@ func (device *Device) EndJobX(sta State) {
 	device.GetMappedDBG()
 
 	device.SMP = Sample{SmpTime: cmd.DESJobRegTime, SmpJobName: cmd.DESJobName}
-	pkg.Json("(device *Device) EndJobX( ) ->  BEFORE Update_DESJobSearch(): ", device)
+	// pkg.Json("(device *Device) EndJobX( ) ->  BEFORE Update_DESJobSearch(): ", device)
 
 	/* UPDATE DESJobSearch RECORD USING RETRIEVED CMD ARCHIVE RECORDS */
 	device.Update_DESJobSearch(device.DESRegistration)
-	pkg.Json("(device *Device) EndJobX( ) ->  device.Update_DESJobSearch(device.DESRegistration): ", device)
+	// pkg.Json("(device *Device) EndJobX( ) ->  device.Update_DESJobSearch(device.DESRegistration): ", device)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
@@ -1040,7 +1039,9 @@ func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
 	- HANDLES OPERATIONAL NOTIFICATIONS ( SSP / SCVF )
 */
 func (device *Device) HandleMQTTSample(sta State, mqtts MQTT_Sample) (err error, smp Sample) {
-	fmt.Printf("\n(*Device) HandleMQTTSample( ): -> RegJob: %s, SMPJob: %s \n", device.DESJobName, mqtts.DesJobName)
+	fmt.Printf("\n(*Device) HandleMQTTSample( ): -> RegJob: %s, SMPJob: %s \n, OpCode: %d", 
+		device.DESJobName, mqtts.DesJobName, sta.StaLogging,
+	)
 
 	/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
 	smp = Sample{SmpJobName: mqtts.DesJobName}
@@ -1061,7 +1062,7 @@ func (device *Device) HandleMQTTSample(sta State, mqtts MQTT_Sample) (err error,
 
 		device.CheckSCVFCondition(smp)
 	
-	} else if smp.SmpJobName != device.CmdArchiveName() && sta.StaLogging > OP_CODE_JOB_ENDED {
+	} else if smp.SmpJobName != device.CmdArchiveName() && sta.StaLogging <= OP_CODE_JOB_ENDED {
 		
 		/* DEVICE STARTED A JOB WITHOUT OUR KNOWLEDGE - WE'RE NOT CURRENTLY LOGGING */
 		device.OfflineJobStart(smp)
@@ -1105,6 +1106,7 @@ func (device *Device) OfflineJobStart(smp Sample) {
 		sta.StaAddr = device.DESDevSerial
 		sta.StaUserID = device.DESU.GetUUIDString()
 		sta.StaApp = pkg.DES_APP
+		sta.StaJobName = smp.SmpJobName
 		sta.StaLogging = OP_CODE_JOB_OFFLINE_START
 		device.STA = sta
 		device.UpdateMappedSTA()
