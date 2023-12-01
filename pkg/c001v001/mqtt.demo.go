@@ -1473,7 +1473,6 @@ func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error
 	}
 	defer f.Close()
 
-	str, err := os.ReadFile(fmt.Sprintf("%s/%s.json", dir, fileName))
 	fi, _ := f.Stat()
 
 	if fi.Size() == 0 {
@@ -1481,7 +1480,9 @@ func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error
 		js = fmt.Sprintf("[%s]", js)
 	} else {
 		/* REMOVE '] AND PREPEND A COMMA IF THIS IS NOT THE FIRST RECORD */
-		js = fmt.Sprintf("%s,%s]", str[:len(str)-2], js)
+		str, _ := ioutil.ReadFile(fmt.Sprintf("%s/%s.json", dir, fileName))
+		trunc := strings.Split(string(str), "]")[0]
+		js = fmt.Sprintf("%s,%s]", trunc, js)
 	}
 
 	_, err = f.WriteString(js)
