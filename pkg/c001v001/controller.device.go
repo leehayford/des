@@ -846,7 +846,7 @@ func (device *Device) HandleMQTTSample(sta State, mqtts MQTT_Sample) (err error,
 
 		device.CheckSCVFCondition(smp)
 
-	} else if smp.SmpJobName != device.CmdArchiveName() && sta.StaLogging <= OP_CODE_JOB_ENDED {
+	} else if smp.SmpJobName != device.CmdArchiveName() && sta.StaLogging != OP_CODE_JOB_START_REQ {
 
 		/* DEVICE STARTED A JOB WITHOUT OUR KNOWLEDGE - WE'RE NOT CURRENTLY LOGGING */
 		device.OfflineJobStart(smp)

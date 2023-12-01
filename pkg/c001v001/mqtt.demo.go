@@ -463,6 +463,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDReport() pkg.
 			cfg := demo.CFG
 			evt := demo.EVT
 
+			fmt.Printf("\n%s Publishing Report.\n", demo.DESDevSerial)
 			/* PUBLISH EACH LOCAL MODEL IN A GO ROUTINE  */
 			go demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
 			go demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
@@ -1059,7 +1060,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 }
 
 func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
-	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( X )...\n")
+	// fmt.Printf("\n%s (demo) EndDemoJob( )...\n", demo.DESDevSerial)
 
 	demo.DESMQTTClient.WG.Wait()
 	demo.DESMQTTClient.WG.Add(1)
@@ -1070,7 +1071,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	/* CAPTURE TIME VALUE FOR JOB TERMINATION: HDR, EVT */
 	endTime := time.Now().UTC().UnixMilli()
 
-	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) at:\t%d\n", endTime)
+	fmt.Printf("\n%s (demo) EndDemoJob( ) at:\t%d\n", demo.DESDevSerial, endTime)
 	// demo.GetHdrFromFlash(demo.CmdArchiveName(), &demo.HDR)
 	hdr := demo.HDR
 	hdr.HdrTime = endTime
@@ -1146,7 +1147,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 
 	demo.DESMQTTClient.WG.Done()
 
-	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) -> ENDED: %s\n", demo.STA.StaJobName)
+	fmt.Printf("\n(demo) EndDemoJob( ) -> ENDED: %s\n", demo.STA.StaJobName)
 }
 
 func (demo *DemoDeviceClient) SimOfflineStart() {
