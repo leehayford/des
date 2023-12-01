@@ -133,6 +133,8 @@ var EVENT_TYPES = []EventTyp{
 	{EvtTypCode: OP_CODE_JOB_START_REQ, EvtTypName: "START JOB REQUESTED"},
 	{EvtTypCode: OP_CODE_JOB_STARTED, EvtTypName: "JOB STARTED"},
 	{EvtTypCode: OP_CODE_JOB_END_REQ, EvtTypName: "END JOB REQUESTED"},
+	{EvtTypCode: OP_CODE_JOB_OFFLINE_START, EvtTypName: "JOB STARTED OFFLINE"},
+	{EvtTypCode: OP_CODE_JOB_OFFLINE_END, EvtTypName: "JOB ENDED OFFLINE"},
 
 	/* ALARM EVENT TYPES 1000 -1999 */
 	{EvtTypCode: STATUS_BAT_HIGH_AMP, EvtTypName: "ALARM HIGH BATTERY CURRENT"},
@@ -149,4 +151,13 @@ var EVENT_TYPES = []EventTyp{
 	// 	/* ANNOTATION EVENT TYPES 2000 - 65535 */
 	{EvtTypCode: 2000, EvtTypName: "OPERATOR COMMENT"},
 	{EvtTypCode: 2001, EvtTypName: "REPORT COMMENT"},
+}
+func GetEventTypeByCode( code int32 ) (name string) {
+	for i := range EVENT_TYPES {
+		if EVENT_TYPES[i].EvtTypCode == code {
+			name = EVENT_TYPES[i].EvtTypName
+			break
+		} 
+	}
+	return
 }

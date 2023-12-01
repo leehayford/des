@@ -16,6 +16,7 @@ License:
 package pkg
 
 import (
+	"fmt"
 	// "time"
 
 	"github.com/google/uuid" // go get github.com/google/uuid
@@ -57,6 +58,9 @@ type UserResponse struct {
 	// Photo     string    `json:"photo,omitempty"`
 	CreatedAt int64 `json:"created_at"`
 	UpdatedAt int64 `json:"updated_at"`
+}
+func (ur UserResponse) GetUUIDString() (id string) {
+	return fmt.Sprintf("%s", ur.ID)
 }
 
 func (user *User) FilterUserRecord() UserResponse {

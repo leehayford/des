@@ -54,6 +54,7 @@ func SignUpUser(c *fiber.Ctx) error {
 		Name:     payload.Name,
 		Email:    strings.ToLower(payload.Email),
 		Password: string(hashedPassword),
+		Role: "user",
 		Photo:    payload.Photo,
 	}
 
@@ -209,4 +210,21 @@ func GetUserList(c *fiber.Ctx) error {
 		"message": "These are all tolerable people!",
 		"data":    fiber.Map{"users": userList},
 	})
+}
+
+
+func CreateDESUserForDevice(serial, pw string ) (user UserResponse, err error) {
+	
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	u := User{
+		Name: serial,
+		Email: fmt.Sprintf("%s@datacan.ca", strings.ToLower(serial)),
+		Password: string(hashedPassword),
+		Role: "device",
+	}
+	result := DES.DB.Create(&u)
+	err = result.Error
+	user = u.FilterUserRecord()
+
+	return
 }

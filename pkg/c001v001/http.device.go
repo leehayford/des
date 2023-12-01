@@ -25,8 +25,10 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 		router.Post("/header", pkg.DesAuth, HandleSetHeader)
 		router.Post("/config", pkg.DesAuth, HandleSetConfig)
 		router.Post("/event", pkg.DesAuth, HandleCreateDeviceEvent)
+
 		router.Post("/debug", pkg.DesAuth, HandleSetDebug)
 		router.Post("/msg_limit", pkg.DesAuth, HandleTestMessageLimit)
+		router.Post("/sim_offline_start", pkg.DesAuth, HandleSimOfflineStart)
 
 		/* DEVICE-VIEWER-LEVEL OPERATIONS */
 		router.Post("/job_events", pkg.DesAuth, HandleGetActiveJobEvents)
@@ -562,6 +564,36 @@ func HandleTestMessageLimit(c *fiber.Ctx) (err error) {
 		"status":  "success",
 		"message": fmt.Sprintf("%d byte message sent.", length),
 		"data":    fiber.Map{"device": &device},
+	})
+}
+
+func HandleSimOfflineStart(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleSimOfflineStart( )\n")
+
+	/* CHECK USER PERMISSION */
+	if !pkg.UserRole_Admin(c.Locals("role")) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to change debug settings.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := &Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleTestMessageLimit(): -> c.BodyParser(&device) -> device", device)
+
+	device.GetMappedClients()
+	device.GetDeviceDESU()
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Offline job start simmulation running.",
+		"data": fiber.Map{"device.DESU": &device.DESU},
 	})
 }
 

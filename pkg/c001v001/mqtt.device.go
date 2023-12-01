@@ -341,7 +341,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Topic: device.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			device.DESMQTTClient.WG.Add(1)
+			// device.DESMQTTClient.WG.Add(1)
 
 			/* DECODE THE PAYLOAD INTO AN MQTT_Sample */
 			mqtts := MQTT_Sample{}
@@ -349,13 +349,13 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceClient_SIGSample(...) ->  mqtts :", mqtts)
 
-			/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
-			smp := &Sample{SmpJobName: mqtts.DesJobName}
+			// /* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
+			// smp := &Sample{SmpJobName: mqtts.DesJobName}
 
-			/* DECODE BASE64URL STRING ( DATA ) */
-			if err := smp.DecodeMQTTSample(mqtts.Data); err != nil {
-				pkg.LogErr(err)
-			}
+			// /* DECODE BASE64URL STRING ( DATA ) */
+			// if err := smp.DecodeMQTTSample(mqtts.Data); err != nil {
+			// 	pkg.LogErr(err)
+			// }
 
 			/* TODO: CHECK SAMPLE JOB NAME & MAKE DATABASE IF IT DOES NOT EXIST
 			DEVICE HAS STARTED A JOB WITHOUT THE DES KNOWING ABOUT IT:
@@ -363,24 +363,27 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 			- REQUEST LAST: ADM, STA, HDR, CFG, EVT
 			*/
 
-			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+			// /* DECIDE WHAT TO DO BASED ON LAST STATE */
+			// if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
 
-				/* WRITE TO JOB DATABASE  */
-				go WriteSMP(*smp, &device.JobDBC)
+			// 	/* WRITE TO JOB DATABASE  */
+			// 	go WriteSMP(*smp, &device.JobDBC)
 
-			} else {
+			// } else {
 
-				/* WRITE TO JOB CMDARCHIVE */
-				go WriteSMP(*smp, &device.CmdDBC)
-			}
+			// 	/* WRITE TO JOB CMDARCHIVE */
+			// 	go WriteSMP(*smp, &device.CmdDBC)
+			// }
+			
+			device.HandleMQTTSample(device.STA, mqtts)
 
-			device.SMP = *smp
+			// if err, smp := device.HandleMQTTSample(device.STA, mqtts); err == nil {
+			// 	device.SMP = smp
+			// 	/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+			// 	device.UpdateMappedSMP()
+			// }
 
-			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-			device.UpdateMappedSMP()
-
-			device.DESMQTTClient.WG.Done()
+			// device.DESMQTTClient.WG.Done()
 
 		},
 	}
@@ -624,9 +627,16 @@ func (device *Device) MQTTTopic_SIGSample() (topic string) {
 func (device *Device) MQTTTopic_SIGDiagSample() (topic string) {
 	return fmt.Sprintf("%s/diag_sample", device.MQTTTopic_SIGRoot())
 }
+
+/* DEVELOPMENT TOPIC ***TODO: REMOVE AFTER DEVELOPMENT*** */
 func (device *Device) MQTTTopic_SIGMsgLimit() (topc string) {
 	/*** TODO: REMOVE AFTER DEVELOPMENT ***/
 	return fmt.Sprintf("%s/msg_limit", device.MQTTTopic_SIGRoot())
+}
+/* DEVELOPMENT TOPIC ***TODO: REMOVE AFTER DEVELOPMENT*** */
+func (device *Device) MQTTTopic_SIGTestOLS() (topc string) {
+	/*** TODO: REMOVE AFTER DEVELOPMENT ***/
+	return fmt.Sprintf("%s/test_ols", device.MQTTTopic_SIGRoot())
 }
 
 /* MQTT TOPICS - COMMAND */
@@ -660,9 +670,16 @@ func (device *Device) MQTTTopic_CMDSample() (topic string) {
 func (device *Device) MQTTTopic_CMDDiagSample() (topic string) {
 	return fmt.Sprintf("%s/diag_sample", device.MQTTTopic_CMDRoot())
 }
+
+/* DEVELOPMENT TOPIC ***TODO: REMOVE AFTER DEVELOPMENT*** */
 func (device *Device) MQTTTopic_CMDMsgLimit() (topc string) {
 	/*** TODO: REMOVE AFTER DEVELOPMENT ***/
 	return fmt.Sprintf("%s/msg_limit", device.MQTTTopic_CMDRoot())
+}
+/* DEVELOPMENT TOPIC ***TODO: REMOVE AFTER DEVELOPMENT*** */
+func (device *Device) MQTTTopic_CMDTestOLS() (topc string) {
+	/*** TODO: REMOVE AFTER DEVELOPMENT ***/
+	return fmt.Sprintf("%s/test_ols", device.MQTTTopic_CMDRoot())
 }
 
 /* MQTT TOPICS - DES MESSAGE */

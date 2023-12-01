@@ -76,17 +76,21 @@ func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 }
 
 /* REGISTER A DEMO DEVICE ON THIS DES */
-func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
+func MakeDemoC001V001(serial string) pkg.DESRegistration {
 	fmt.Printf("\n\nMakeDemoC001V001() -> %s... \n", serial)
 
 	t := time.Now().UTC().UnixMilli()
 
+	/* CREATE A DES USER ACCOUNT FOR THIS DEVICE */
+	user, _ := pkg.CreateDESUserForDevice(serial, fmt.Sprintf("%s_CMDARCHIVE", serial) )
+	userID := fmt.Sprintf("%s", user.ID)
+
 	/* CREATE DEMO DEVICE */
 	des_dev := pkg.DESDev{
 		DESDevRegTime:   t,
-		DESDevRegAddr:   "DEMO",
+		DESDevRegAddr:   serial,
 		DESDevRegUserID: userID,
-		DESDevRegApp:    "DEMO",
+		DESDevRegApp:    pkg.DES_APP,
 		DESDevSerial:    serial,
 		DESDevVersion:   "001",
 		DESDevClass:     "001",
@@ -145,8 +149,9 @@ func MakeDemoC001V001(serial, userID string) pkg.DESRegistration {
 			SMP: Sample{SmpTime: t, SmpJobName: des_job.DESJobName},
 		},
 	}
+	
 	/* CREATE CMDARCHIVE DATABASE */
-	pkg.ADB.CreateDatabase(strings.ToLower(demo.DESJobName))
+	pkg.ADB.CreateDatabase(strings.ToLower(demo.CmdArchiveName()))
 
 	demo.ConnectJobDBC()
 	// fmt.Printf("\nMakeDemoC001V001(): CONNECTED TO DATABASE: %s\n", demo.JobDBC.ConnStr)
@@ -223,14 +228,12 @@ func DemoDeviceClient_ConnectAll(qty int) {
 
 	/* WHERE THERE ARE NO DEMO DEVICES, MAKE qty OF THEM */
 	if len(regs) == 0 {
-		user := pkg.User{}
-		pkg.DES.DB.Last(&user)
 
 		for i := 0; i < qty; i++ {
-			regs = append(regs, MakeDemoC001V001(DemoSNMaker(i), user.ID.String()))
+			regs = append(regs, MakeDemoC001V001(DemoSNMaker(i)))
 		}
-		MakeDemoC001V001("RENE123456", user.ID.String())
-		MakeDemoC001V001("RUS9999999", user.ID.String())
+		MakeDemoC001V001("RENE123456")
+		MakeDemoC001V001("RUS9999999")
 	}
 
 	for _, reg := range regs {
@@ -273,6 +276,8 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	demo.Mode = make(chan int32)
 	demo.TZero = make(chan time.Time)
 	demo.Live = true
+
+	demo.GetDeviceDESU()
 
 	if err := demo.MQTTDemoDeviceClient_Connect(); err != nil {
 		pkg.LogErr(err)
@@ -356,6 +361,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDTestOLS().Sub(demo.DESMQTTClient)
 
 	return err
 }
@@ -373,6 +379,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 	
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDTestOLS().UnSub(demo.DESMQTTClient)
 
 	/* DISCONNECT THE DESMQTTCLient */
 	if err = demo.DESMQTTClient_Disconnect(); err != nil {
@@ -401,7 +408,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStartJob() pk
 				pkg.LogErr(err)
 			}
 
-			go demo.StartDemoJobX(start)
+			go demo.StartDemoJobX(start, false)
 
 			demo.DESMQTTClient.WG.Done()
 		},
@@ -725,79 +732,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEventX() pkg.
 	}
 }
 
-/* SUBSCRIPTIONS -> EVENT -> UPON RECEIPT, LOG, HANDLE, & REPLY TO .../sig/event */
-func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.MQTTSubscription {
-	return pkg.MQTTSubscription{
-
-		Qos:   0,
-		Topic: demo.MQTTTopic_CMDEvent(),
-		Handler: func(c phao.Client, msg phao.Message) {
-
-			demo.DESMQTTClient.WG.Add(1)
-
-			/* CAPTURE THE ORIGINAL DEVICE STATE EVENT CODE */
-			state := demo.EVT.EvtCode
-
-			/* CAPTURE INCOMING EVENT IN A NEW Event STRUCT TO
-			PREVENT PREMATURE CHANGE IN DEVICE STATE */
-			evt := Event{}
-
-			/* PARSE / STORE THE EVENT IN CMDARCHIVE */
-			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
-				pkg.LogErr(err)
-			}
-
-			/* WRITE (AS REVEICED) TO SIM 'FLASH' -> CMDARCHIVE */
-			demo.WriteEvtToFlash(demo.CmdArchiveName(), evt)
-			evt_rec := evt
-
-			/* UPDATE SOURCE ADDRESS ONLY */
-			evt.EvtAddr = demo.DESDevSerial
-
-			/* CHECK THE RECEIVED EVENT CODE */
-			switch evt.EvtCode {
-
-			// case 0:
-			/* REGISTRATION EVENT: USED TO ASSIGN THIS DEVICE TO
-			A DIFFERENT DATA EXCHANGE SERVER */
-
-			case OP_CODE_JOB_END_REQ:
-				go demo.EndDemoJob(evt)
-
-			case OP_CODE_JOB_START_REQ:
-				go demo.StartDemoJob(evt)
-
-			default:
-
-				/* CHECK THE ORIGINAL DEVICE STATE EVENT CODE
-				TO SEE IF WE SHOULD WRITE TO THE ACTIVE JOB */
-				if state > OP_CODE_JOB_START_REQ {
-
-					/* WRITE (AS REVEICED) TO SIM 'FLASH' -> JOB */
-					demo.WriteEvtToFlash(demo.DESJobName, evt_rec)
-
-					/* UPDATE TIME( ONLY WHEN LOGGING) */
-					evt.EvtTime = time.Now().UTC().UnixMilli()
-
-					/* WRITE (AS LOADED) TO SIM 'FLASH' -> JOB */
-					demo.WriteEvtToFlash(demo.DESJobName, evt)
-				}
-
-				/* WRITE (AS LOADED) TO SIM 'FLASH' -> CMDARCHIVE */
-				demo.WriteEvtToFlash(demo.CmdArchiveName(), evt)
-
-				/* LOAD VALUE INTO SIM 'RAM' */
-				demo.EVT = evt
-
-				/* SEND CONFIRMATION */
-				go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
-			}
-
-			demo.DESMQTTClient.WG.Done()
-		},
-	}
-}
-
 /* SUBSCRIPTIONS -> MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDMsgLimit() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
@@ -818,6 +752,22 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDMsgLimit() pk
 		},
 	}
 }
+
+/* SUBSCRIPTIONS -> OFFLINE JOB START TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDTestOLS() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: demo.MQTTTopic_CMDTestOLS(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* OFFLINE JOB START */
+			go demo.SimOfflineStart()
+
+		},
+	}
+}
+
 
 /* PUBLICATIONS ******************************************************************************************/
 
@@ -1002,7 +952,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGMsgLimit(msg M
 
 /* SIMULATIONS *******************************************************************************************/
 
-func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
+func (demo *DemoDeviceClient) StartDemoJobX(start StartJob, offline bool) {
 	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( X )...\n")
 
 	/* TODO: MAKE SURE THE PREVIOUS JOB IS ENDED */
@@ -1086,15 +1036,17 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob) {
 	*/
 	demo.STA = sta
 
-	/* SEND CONFIRMATION */
-	response := StartJob{
-		ADM: demo.ADM,
-		STA: demo.STA,
-		HDR: demo.HDR,
-		CFG: demo.CFG,
-		EVT: demo.EVT,
+	if !offline {
+		/* SEND CONFIRMATION */
+		demo.MQTTPublication_DemoDeviceClient_SIGStartJob(
+			StartJob{
+				ADM: demo.ADM,
+				STA: demo.STA,
+				HDR: demo.HDR,
+				CFG: demo.CFG,
+				EVT: demo.EVT,
+		})
 	}
-	demo.MQTTPublication_DemoDeviceClient_SIGStartJob(response)
 
 	/* RUN JOB... */
 	go demo.Demo_Simulation(demo.STA.StaJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
@@ -1195,215 +1147,37 @@ func (demo *DemoDeviceClient) EndDemoJobX(evt Event) {
 	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) -> ENDED: %s\n", demo.STA.StaJobName)
 }
 
-func (demo *DemoDeviceClient) StartDemoJob(evt Event) {
-	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( )...\n")
+func (demo *DemoDeviceClient) SimOfflineStart() {
+	
+	demo.DESJobRegAddr = demo.DESDevSerial
+	demo.DESJobRegUserID = demo.DESU.GetUUIDString()
+	demo.DESJobRegApp = demo.DESDevSerial
 
-	/* TODO: MAKE SURE THE PREVIOUS JOB IS ENDED */
-	// if state > STATUS_JOB_START_REQ {
-	// 	demo.EndDemoJob()
-	// }
-
-	demo.DESMQTTClient.WG.Wait()
-	demo.DESMQTTClient.WG.Add(1)
-
-	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
-	startTime := time.Now().UTC().UnixMilli()
-
-	/* USED INCASE WE NEED TO CREATE DEFAULT SETTINGS */
-	demo.DESJob = pkg.DESJob{
-		DESJobRegTime:   startTime,
-		DESJobRegAddr:   demo.DESDevSerial,
-		DESJobRegUserID: evt.EvtUserID,
-		DESJobRegApp:    evt.EvtApp,
-
-		DESJobName:  fmt.Sprintf("%s_%d", demo.DESDevSerial, startTime),
-		DESJobStart: startTime,
-		DESJobEnd:   0,
-		DESJobLng:  -114.75 + rand.Float64()*(-110.15+114.75),
-		DESJobLat:   51.85 + rand.Float64()*(54.35-51.85),
-		DESJobDevID: demo.DESDevID,
-	}
-
-	/* WHERE JOB START ADMIN WAS NOT RECEIVED, USE DEFAULT VALUES */
-	if demo.ADM.AdmTime != evt.EvtTime {
-		pkg.LogChk("USING DEFAULT ADMIN")
-		demo.ADM.DefaultSettings_Admin(demo.DESRegistration)
-	}
-	demo.ADM.AdmTime = startTime
-	demo.ADM.AdmAddr = demo.DESDevSerial
-	demo.ADM.AdmUserID = evt.EvtUserID
-	demo.ADM.AdmApp = evt.EvtApp
-
-	/* CREATE A LOCAL STATE VARIABLE TO AVOID ALTERING LOGGING MODE PREMATURELY */
-	sta := demo.STA
-	sta.StaTime = startTime
-	sta.StaAddr = demo.DESDevSerial
-	sta.StaUserID = evt.EvtUserID
-	sta.StaApp = evt.EvtApp
-	sta.StaLogFw = "0.0.009"
-	sta.StaModFw = "0.0.007"
-	sta.StaLogging = OP_CODE_JOB_STARTED
-	sta.StaJobName = demo.DESJobName
-
-	/* WHERE JOB START HEADER WAS NOT RECEIVED, USE DEFAULT VALUES */
-	if demo.HDR.HdrTime != evt.EvtTime {
-		pkg.LogChk("USING DEFAULT HEADER")
-		demo.HDR.DefaultSettings_Header(demo.DESRegistration)
-	}
-	demo.HDR.HdrTime = startTime
-	demo.HDR.HdrAddr = demo.DESDevSerial
-	demo.HDR.HdrUserID = evt.EvtUserID
-	demo.HDR.HdrApp = evt.EvtApp
-	demo.HDR.HdrJobStart = startTime
-	demo.HDR.HdrJobEnd = 0
-	demo.HDR.HdrGeoLng = demo.DESJobLng
-	demo.HDR.HdrGeoLat = demo.DESJobLat
-	fmt.Printf("(demo *DemoDeviceClient) Check Well Name -> %s\n", demo.HDR.HdrWellName)
-	if demo.HDR.HdrWellName == "" || demo.HDR.HdrWellName == demo.CmdArchiveName() {
-		demo.HDR.HdrWellName = sta.StaJobName
-	}
-
-	/* WHERE JOB START CONFIG WAS NOT RECEIVED, USE DEFAULT VALUES */
-	if demo.CFG.CfgTime != evt.EvtTime {
-		pkg.LogChk("USING DEFAULT CONFIG")
-		demo.CFG.DefaultSettings_Config(demo.DESRegistration)
-	}
-	demo.CFG.CfgTime = startTime
-	demo.CFG.CfgAddr = demo.DESDevSerial
-	demo.CFG.CfgUserID = evt.EvtUserID
-	demo.CFG.CfgApp = evt.EvtApp
-	demo.CFG.CfgVlvTgt = MODE_VENT
-	demo.CFG.Validate()
-
-	evt.EvtTime = startTime
-	evt.EvtAddr = demo.DESDevSerial
-	evt.EvtCode = OP_CODE_JOB_STARTED
-	evt.EvtTitle = "JOB STARTED"
-	evt.EvtMsg = sta.StaJobName
-
-	/* WRITE TO FLASH - CMDARCHIVE */
-	demo.WriteAdmToFlash(demo.CmdArchiveName(), demo.ADM)
-	demo.WriteStateToFlash(demo.CmdArchiveName(), sta)
-	demo.WriteHdrToFlash(demo.CmdArchiveName(), demo.HDR)
-	demo.WriteCfgToFlash(demo.CmdArchiveName(), demo.CFG)
-	demo.WriteEvtToFlash(demo.CmdArchiveName(), evt)
-
-	/* WRITE TO FLASH - JOB */
-	demo.WriteAdmToFlash(demo.DESJobName, demo.ADM)
-	demo.WriteStateToFlash(demo.DESJobName, sta)
-	demo.WriteHdrToFlash(demo.DESJobName, demo.HDR)
-	demo.WriteCfgToFlash(demo.DESJobName, demo.CFG)
-	demo.WriteEvtToFlash(demo.DESJobName, evt)
-
-	/* LOAD VALUE INTO SIM 'RAM'
-	UPDATE THE DEVICE EVENT CODE, AND STATE ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB
-	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
-	*/
-	demo.EVT = evt
-	demo.STA = sta
-
-	/* SEND CONFIRMATION */
-	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(demo.ADM)
-	demo.MQTTPublication_DemoDeviceClient_SIGHeader(demo.HDR)
-	demo.MQTTPublication_DemoDeviceClient_SIGConfig(demo.CFG)
-	demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
-	time.Sleep(time.Second * 2) // ENSURE PREVIOUS MESSAGES HAVE BEEN PROCESSED
-	demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
-
-	/* RUN JOB... */
-	go demo.Demo_Simulation(demo.STA.StaJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
-
-	demo.DESMQTTClient.WG.Done()
-
-	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( ) -> RUNNING %s...\n", demo.STA.StaJobName)
-}
-
-func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
-	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( )...\n")
-
-	demo.DESMQTTClient.WG.Wait()
-	demo.DESMQTTClient.WG.Add(1)
-	if demo.Stop != nil {
-		demo.Stop <- struct{}{}
-	}
-
-	/* CAPTURE TIME VALUE FOR JOB TERMINATION: HDR, EVT */
-	endTime := time.Now().UTC().UnixMilli()
-
-	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) at:\t%d\n", endTime)
-	// demo.GetHdrFromFlash(demo.CmdArchiveName(), &demo.HDR)
-	hdr := demo.HDR
-	hdr.HdrTime = endTime
-	hdr.HdrAddr = demo.DESDevSerial
-	hdr.HdrUserID = evt.EvtUserID
-	hdr.HdrApp = evt.EvtApp
-	hdr.HdrJobEnd = endTime
-
-	evt.EvtTime = endTime
-	evt.EvtAddr = demo.DESDevSerial
-	evt.EvtCode = OP_CODE_JOB_ENDED
-	evt.EvtTitle = "JOB ENDED"
-	evt.EvtMsg = demo.STA.StaJobName // BEFORE WE CHANGE IT
-
-	sta := demo.STA
-	sta.StaTime = endTime
-	sta.StaAddr = demo.DESDevSerial
-	sta.StaUserID = evt.EvtUserID
-	sta.StaApp = evt.EvtApp
-	sta.StaLogFw = "0.0.009"
-	sta.StaModFw = "0.0.007"
-	sta.StaLogging = OP_CODE_JOB_ENDED
-	sta.StaJobName = demo.CmdArchiveName()
-
-	/* LOAD VALUE INTO SIM 'RAM'
-	UPDATE THE DEVICE EVENT CODE, AND STATE DISABLING MQTT MESSAGE WRITES TO ACTIVE JOB
-	BEFORE WE HAVE WRITTEN THE FINAL JOB RECORDS
-	*/
-	demo.HDR = hdr
-	demo.EVT = evt
-	demo.STA = sta
-
-	/* WRITE TO FLASH - CMDARCHIVE */
-	demo.WriteHdrToFlash(demo.CmdArchiveName(), hdr)
-	demo.WriteEvtToFlash(demo.CmdArchiveName(), evt)
-	demo.WriteStateToFlash(demo.CmdArchiveName(), sta)
-
-	/* WRITE TO FLASH - JOB */
-	demo.WriteHdrToFlash(demo.DESJobName, hdr)
-	demo.WriteEvtToFlash(demo.DESJobName, evt)
-	demo.WriteStateToFlash(demo.DESJobName, sta)
-
-	/* SEND CONFIRMATION */
-	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
-	demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
-	// time.Sleep(time.Second * 2) // ENSURE PREVIOUS MESSAGES HAVE BEEN PROCESSED
-	demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
-
-	/* GET DEFAULT MODELS AND UPDATE TIMES */
-	adm := demo.ADM
+	adm := Admin{}
 	adm.DefaultSettings_Admin(demo.DESRegistration)
-	adm.AdmTime = time.Now().UTC().UnixMilli()
 
+	sta := demo.STA
+	sta.DefaultSettings_State(demo.DESRegistration)
+
+	hdr := Header{}
 	hdr.DefaultSettings_Header(demo.DESRegistration)
-	hdr.HdrTime = time.Now().UTC().UnixMilli()
 
-	cfg := demo.CFG
+	cfg := Config{}
 	cfg.DefaultSettings_Config(demo.DESRegistration)
-	cfg.CfgTime = time.Now().UTC().UnixMilli()
 
-	/* TRANSMIT DEFAULT MODELS */
-	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
-	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
-	demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
+	evt := Event{}
+	evt.DefaultSettings_Event(demo.DESRegistration)
 
-	/* LOAD DEFAULT MODELS INTO RAM */
-	demo.ADM = adm
-	demo.HDR = hdr
-	demo.CFG = cfg
+	demo.StartDemoJobX(
+		StartJob{
+			ADM: adm,
+			STA: sta,
+			HDR: hdr,
+			CFG: cfg,
+			EVT: evt,
+		},true,
+	)
 
-	demo.DESMQTTClient.WG.Done()
-
-	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( ) -> ENDED: %s\n", demo.STA.StaJobName)
 }
 
 /*DEMO SIM -> PUBLISH TO MQTT */
