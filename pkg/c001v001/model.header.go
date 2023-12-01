@@ -27,9 +27,13 @@ type Header struct {
 	HdrWellBHLoc string `gorm:"varchar(32)" json:"hdr_well_bh_loc"`
 	HdrWellLic   string `gorm:"varchar(32)" json:"hdr_well_lic"`
 
+	
+	/* TODO: CHANGE HDR LNG / LAT TO FLOAT32*/
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
 	HdrGeoLng float64 `json:"hdr_geo_lng"`
 	HdrGeoLat float64 `json:"hdr_geo_lat"`
+	// HdrGeoLng float32 `json:"hdr_geo_lng"`
+	// HdrGeoLat float32 `json:"hdr_geo_lat"`
 }
 
 func WriteHDR(hdr Header, dbc *pkg.DBClient) (err error) {
@@ -44,56 +48,6 @@ func WriteHDR(hdr Header, dbc *pkg.DBClient) (err error) {
 
 	return res.Error
 }
-
-/*
-HEADER - AS STORED IN DEVICE FLASH
-*/
-func (hdr Header) HeaderToBytes() (out []byte) {
-
-	out = append(out, pkg.Int64ToBytes(hdr.HdrTime)...)
-	out = append(out, pkg.StringToNBytes(hdr.HdrAddr, 36)...)
-	out = append(out, pkg.StringToNBytes(hdr.HdrUserID, 36)...)
-	out = append(out, pkg.StringToNBytes(hdr.HdrApp, 36)...)
-
-	out = append(out, pkg.Int64ToBytes(hdr.HdrJobStart)...)
-	out = append(out, pkg.Int64ToBytes(hdr.HdrJobEnd)...)
-
-	out = append(out, pkg.StringToNBytes(hdr.HdrWellCo, 32)...)
-	out = append(out, pkg.StringToNBytes(hdr.HdrWellName, 32)...)
-	out = append(out, pkg.StringToNBytes(hdr.HdrWellSFLoc, 32)...)
-	out = append(out, pkg.StringToNBytes(hdr.HdrWellBHLoc, 32)...)
-	out = append(out, pkg.StringToNBytes(hdr.HdrWellLic, 32)...)
-
-	out = append(out, pkg.Float64ToBytes(hdr.HdrGeoLng)...)
-	out = append(out, pkg.Float64ToBytes(hdr.HdrGeoLat)...)
-
-	return
-}
-func (hdr *Header) HeaderFromBytes(b []byte) {
-
-	hdr = &Header{
-
-		HdrTime:   pkg.BytesToInt64_L(b[0:8]),
-		HdrAddr:   pkg.StrBytesToString(b[8:44]),
-		HdrUserID: pkg.StrBytesToString(b[44:80]),
-		HdrApp:    pkg.StrBytesToString(b[80:116]),
-
-		HdrJobStart: pkg.BytesToInt64_L(b[116:124]),
-		HdrJobEnd:   pkg.BytesToInt64_L(b[124:132]),
-
-		HdrWellCo:    pkg.StrBytesToString(b[132:164]),
-		HdrWellName:  pkg.StrBytesToString(b[164:196]),
-		HdrWellSFLoc: pkg.StrBytesToString(b[196:228]),
-		HdrWellBHLoc: pkg.StrBytesToString(b[228:260]),
-		HdrWellLic:   pkg.StrBytesToString(b[260:292]),
-
-		HdrGeoLng: pkg.BytesToFloat64_L(b[292:300]),
-		HdrGeoLat: pkg.BytesToFloat64_L(b[300:308]),
-	}
-	//  pkg.Json("(demo *DemoDeviceClient)HeaderFromBytes() -> hdr", hdr)
-	return
-}
-
 /*
 HEADER - DEFAULT VALUES
 */
@@ -150,60 +104,59 @@ func (hdr *Header) SearchToken() (token string) {
 	)
 }
 
-// /*
-// HEADER - CREATE DESJobSearch
-// */
-// func (hdr *Header) Create_DESJobSearch(reg pkg.DESRegistration) {
 
-// 	s := pkg.DESJobSearch{
-// 		DESJobToken: hdr.SearchToken(),
-// 		DESJobJson:  pkg.ModelToJSONString(hdr),
-// 		DESJobKey:   reg.DESJobID,
-// 	}
 
-// 	if res := pkg.DES.DB.Create(&s); res.Error != nil {
-// 		pkg.LogErr(res.Error)
-// 	}
-// }
+/*
+HEADER - AS STORED IN DEVICE FLASH
+*/
+func (hdr Header) HeaderToBytes() (out []byte) {
 
-// /*
-// HEADER - UPDATE DESJobSearch
-// */
-// func (hdr *Header) Update_DESJobSearch(reg pkg.DESRegistration) {
+	out = append(out, pkg.Int64ToBytes(hdr.HdrTime)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrAddr, 36)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrUserID, 36)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrApp, 36)...)
 
-// 	s := pkg.DESJobSearch{}
-// 	if res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s); res.Error != nil {
-// 		pkg.LogErr(res.Error)
-// 	}
-// 	s.DESJobToken = hdr.SearchToken()
-// 	s.DESJobJson = pkg.ModelToJSONString(hdr)
+	out = append(out, pkg.Int64ToBytes(hdr.HdrJobStart)...)
+	out = append(out, pkg.Int64ToBytes(hdr.HdrJobEnd)...)
 
-// 	if res := pkg.DES.DB.Save(&s); res.Error != nil {
-// 		pkg.LogErr(res.Error)
-// 	}
-// }
+	out = append(out, pkg.StringToNBytes(hdr.HdrWellCo, 32)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrWellName, 32)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrWellSFLoc, 32)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrWellBHLoc, 32)...)
+	out = append(out, pkg.StringToNBytes(hdr.HdrWellLic, 32)...)
 
-// /*
+	/* TODO: CHANGE HDR LNG / LAT TO FLOAT32*/
+	out = append(out, pkg.Float64ToBytes(hdr.HdrGeoLng)...)
+	out = append(out, pkg.Float64ToBytes(hdr.HdrGeoLat)...)
+	// out = append(out, pkg.Float32ToBytes(hdr.HdrGeoLng)...)
+	// out = append(out, pkg.Float32ToBytes(hdr.HdrGeoLat)...)
 
-// Longitude: -115.000000
-// Latitude: 55.000000
-// -114.75 > LNG < -110.15
-// 51.85 > LAT < 54.35
+	return
+}
+func (hdr *Header) HeaderFromBytes(b []byte) {
 
-// */
-// /* GeoJSON OBJECTS */
-// type GeoJSONFeatureCollection struct {
-// 	GeoFtColType     string           `json:"type"`
-// 	GeoFtColFeatures []GeoJSONFeature `json:"features"`
-// }
+	hdr = &Header{
 
-// type GeoJSONFeature struct {
-// 	GeoFtType       string          `json:"type"`
-// 	GeoFtGeometry   GeoJSONGeometry `json:"geometry"`
-// 	GeoFtProperties []interface{}   `json:"properties"`
-// }
+		HdrTime:   pkg.BytesToInt64_L(b[0:8]),
+		HdrAddr:   pkg.StrBytesToString(b[8:44]),
+		HdrUserID: pkg.StrBytesToString(b[44:80]),
+		HdrApp:    pkg.StrBytesToString(b[80:116]),
 
-// type GeoJSONGeometry struct {
-// 	GeomType   string    `json:"type"`
-// 	GeomCoords []float64 `json:"coordinates"`
-// }
+		HdrJobStart: pkg.BytesToInt64_L(b[116:124]),
+		HdrJobEnd:   pkg.BytesToInt64_L(b[124:132]),
+
+		HdrWellCo:    pkg.StrBytesToString(b[132:164]),
+		HdrWellName:  pkg.StrBytesToString(b[164:196]),
+		HdrWellSFLoc: pkg.StrBytesToString(b[196:228]),
+		HdrWellBHLoc: pkg.StrBytesToString(b[228:260]),
+		HdrWellLic:   pkg.StrBytesToString(b[260:292]),
+
+		/* TODO: CHANGE HDR LNG / LAT TO FLOAT32*/
+		HdrGeoLng: pkg.BytesToFloat64_L(b[292:300]),
+		HdrGeoLat: pkg.BytesToFloat64_L(b[300:308]),
+		// HdrGeoLng: pkg.BytesToFloat64_L(b[292:296]),
+		// HdrGeoLat: pkg.BytesToFloat64_L(b[296:300]),
+	}
+	//  pkg.Json("(demo *DemoDeviceClient)HeaderFromBytes() -> hdr", hdr)
+	return
+}

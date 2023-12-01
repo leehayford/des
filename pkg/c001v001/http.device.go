@@ -18,8 +18,8 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 		router.Post("/disconnect", pkg.DesAuth, HandleDisconnectDevice)
 
 		/* DEVICE-OPERATOR-LEVEL OPERATIONS */
-		router.Post("/start", pkg.DesAuth, HandleStartJobX)
-		router.Post("/end", pkg.DesAuth, HandleEndJobX)
+		router.Post("/start", pkg.DesAuth, HandleStartJob)
+		router.Post("/end", pkg.DesAuth, HandleEndJob)
 		router.Post("/admin", pkg.DesAuth, HandleSetAdmin)
 		router.Post("/state", pkg.DesAuth, HandleSetState)
 		router.Post("/header", pkg.DesAuth, HandleSetHeader)
@@ -144,9 +144,8 @@ type StartJob struct {
 	STA State  `json:"sta"`
 	HDR Header `json:"hdr"`
 	CFG Config `json:"cfg"`
-	EVT Event `json:"evt"`
+	EVT Event  `json:"evt"`
 }
-
 
 /*
 	USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO START A NEW JOB ON THIS DEVICE
@@ -157,7 +156,7 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	DES JOB REGISTRATION
 	CLASS/VERSION SPECIFIC JOB START ACTIONS
 */
-func HandleStartJobX(c *fiber.Ctx) (err error) {
+func HandleStartJob(c *fiber.Ctx) (err error) {
 	fmt.Printf("\nHandleStartJobX( )\n")
 
 	/* CHECK USER PERMISSION */
@@ -187,7 +186,7 @@ func HandleStartJobX(c *fiber.Ctx) (err error) {
 	} // pkg.Json("HandleStartJob(): -> device.CheckPing( ) -> device", device)
 
 	/* SEND START JOB REQUEST */
-	if err = device.StartJobRequestX(c.IP()); err != nil {
+	if err = device.StartJobRequest(c.IP()); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
@@ -210,7 +209,7 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	DES JOB REGISTRATION ( UPDATE CMDARCHIVE START DATE )
 	CLASS/VERSION SPECIFIC JOB END ACTIONS
 */
-func HandleEndJobX(c *fiber.Ctx) (err error) {
+func HandleEndJob(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleEndtJob( )\n")
 
 	/* CHECK USER PERMISSION */
@@ -231,7 +230,7 @@ func HandleEndJobX(c *fiber.Ctx) (err error) {
 	} // pkg.Json("(dev *Device) HandleEndJob(): -> c.BodyParser(&device) -> dev", device)
 
 	/* SEND END JOB REQUEST */
-	if err = device.EndJobRequestX(c.IP()); err != nil {
+	if err = device.EndJobRequest(c.IP()); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
@@ -246,8 +245,8 @@ func HandleEndJobX(c *fiber.Ctx) (err error) {
 }
 
 /*
-	USED WHEN THE DES NEEDS TO AQUIRE THE LATES MODELS
-	- EX: WHERE A DEVICE HAS STARTED A JOB AND THERE IS NO DATABASE REGISTERED 
+USED WHEN THE DES NEEDS TO AQUIRE THE LATES MODELS
+- EX: WHERE A DEVICE HAS STARTED A JOB AND THERE IS NO DATABASE REGISTERED
 */
 func HandleReportRequest(c *fiber.Ctx) (err error) {
 
@@ -594,7 +593,7 @@ func HandleSimOfflineStart(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "Offline job start simmulation running.",
-		"data": fiber.Map{"device.DESU": &device.DESU},
+		"data":    fiber.Map{"device.DESU": &device.DESU},
 	})
 }
 

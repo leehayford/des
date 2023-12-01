@@ -203,7 +203,7 @@ func MakeDemoC001V001(serial string) pkg.DESRegistration {
 	demo.WriteStateToFlash(demo.DESJobName, demo.STA)
 	demo.WriteHdrToFlash(demo.DESJobName, demo.HDR)
 	demo.WriteCfgToFlash(demo.DESJobName, demo.CFG)
-	demo.WriteSmpToFlashHEX(demo.DESJobName, demo.SMP)
+	demo.WriteSMPToFlashHEX(demo.DESJobName, demo.SMP)
 	demo.WriteEvtToFlash(demo.DESJobName, demo.EVT)
 
 	return reg
@@ -277,6 +277,8 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	demo.TZero = make(chan time.Time)
 	demo.Live = true
 
+	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS 
+		- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
 	demo.GetDeviceDESU()
 
 	if err := demo.MQTTDemoDeviceClient_Connect(); err != nil {
@@ -357,7 +359,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 	demo.MQTTSubscription_DemoDeviceClient_CMDState().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().Sub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().Sub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDEventX().Sub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().Sub(demo.DESMQTTClient)
 
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().Sub(demo.DESMQTTClient)
@@ -375,7 +377,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 	demo.MQTTSubscription_DemoDeviceClient_CMDState().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDEventX().UnSub(demo.DESMQTTClient)
+	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
 	
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().UnSub(demo.DESMQTTClient)
@@ -408,7 +410,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStartJob() pk
 				pkg.LogErr(err)
 			}
 
-			go demo.StartDemoJobX(start, false)
+			go demo.StartDemoJob(start, false)
 
 			demo.DESMQTTClient.WG.Done()
 		},
@@ -431,7 +433,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEndJob() pkg.
 				pkg.LogErr(err)
 			}
 
-			go demo.EndDemoJobX(evt)
+			go demo.EndDemoJob(evt)
 
 			demo.DESMQTTClient.WG.Done()
 		},
@@ -685,7 +687,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 }
 
 /* SUBSCRIPTIONS -> EVENT -> UPON RECEIPT, LOG, HANDLE, & REPLY TO .../sig/event */
-func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEventX() pkg.MQTTSubscription {
+func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
@@ -952,7 +954,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGMsgLimit(msg M
 
 /* SIMULATIONS *******************************************************************************************/
 
-func (demo *DemoDeviceClient) StartDemoJobX(start StartJob, offline bool) {
+func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( X )...\n")
 
 	/* TODO: MAKE SURE THE PREVIOUS JOB IS ENDED */
@@ -1056,7 +1058,7 @@ func (demo *DemoDeviceClient) StartDemoJobX(start StartJob, offline bool) {
 	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( ) -> RUNNING %s...\n", demo.STA.StaJobName)
 }
 
-func (demo *DemoDeviceClient) EndDemoJobX(evt Event) {
+func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	fmt.Printf("\n(demo *DemoDeviceClient) EndDemoJob( X )...\n")
 
 	demo.DESMQTTClient.WG.Wait()
@@ -1168,7 +1170,7 @@ func (demo *DemoDeviceClient) SimOfflineStart() {
 	evt := Event{}
 	evt.DefaultSettings_Event(demo.DESRegistration)
 
-	demo.StartDemoJobX(
+	demo.StartDemoJob(
 		StartJob{
 			ADM: adm,
 			STA: sta,
@@ -1232,7 +1234,7 @@ func (demo *DemoDeviceClient) Demo_Simulation(job string, mode, rate int32) {
 		case <-TakeSmp:
 			t := time.Now().UTC()
 			demo.Demo_Simulation_Take_Sample(tZero, t, mode, job, &smp)
-			demo.WriteSmpToFlashHEX(job, smp)
+			demo.WriteSMPToFlashHEX(job, smp)
 			smpMQTT := Demo_EncodeMQTTSampleMessage(job, 0, smp)
 			demo.MQTTPublication_DemoDeviceClient_SIGSample(smpMQTT)
 		}
@@ -1464,16 +1466,21 @@ func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error
 		pkg.LogErr(err)
 	}
 
-	f, err := os.OpenFile(fmt.Sprintf("%s/%s.json", dir, fileName), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s.json", dir, fileName), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return pkg.LogErr(err)
 	}
 	defer f.Close()
 
-	/* PREPEND A COMMA IF THIS IS NOT THE FIRST OBJECT IN THE FILE */
+	str, err := os.ReadFile(fmt.Sprintf("%s/%s.json", dir, fileName))
 	fi, _ := f.Stat()
-	if fi.Size() > 0 {
-		js = fmt.Sprintf(",%s", js)
+
+	if fi.Size() == 0 {
+		/* PREPEND A '[' IF THIS IS THE FIRST RECORD */
+		js = fmt.Sprintf("[%s]", js)
+	} else {
+		/* REMOVE '] AND PREPEND A COMMA IF THIS IS NOT THE FIRST RECORD */
+		js = fmt.Sprintf("%s,%s]", str[:len(str)-2], js)
 	}
 
 	_, err = f.WriteString(js)
@@ -1550,18 +1557,18 @@ func ReadModelBytesFromFlashHEX(jobName, fileName string) (buf []byte, arr error
 }
 
 /* SMP DEMO MEMORY -> 40 BYTES -> HxD 40 x 1 */
-func (demo *DemoDeviceClient) WriteSmpToFlashHEX(jobName string, smp Sample) (err error) {
+func (demo *DemoDeviceClient) WriteSMPToFlashHEX(jobName string, smp Sample) (err error) {
 
 	buf := smp.SampleToBytes() // fmt.Printf("\nsmpBytes ( %d ) : %x\n", len(buf), buf)
 	return WriteModelBytesToFlashHEX(jobName, "smp", buf)
 }
 
 /* ADM DEMO MEMORY -> 272 BYTES -> HxD 34 x 8 */
-func (demo DemoDeviceClient) WriteAdmToFlashHex(jobName string, adm Admin) (err error) {
+func (demo DemoDeviceClient) WriteADMToFlashHex(jobName string, adm Admin) (err error) {
 	buf := adm.AdminToBytes() // fmt.Printf("\nadmBytes ( %d ) : %x\n", len(buf), buf)
 	return WriteModelBytesToFlashHEX(jobName, "adm", buf)
 }
-func (demo *DemoDeviceClient) ReadLastAdmFromFlashHex(jobName string, adm *Admin) (err error) {
+func (demo *DemoDeviceClient) ReadLastADMFromFlashHex(jobName string, adm *Admin) (err error) {
 
 	buf, err := ReadModelBytesFromFlashHEX(jobName, "adm")
 	if err != nil {
@@ -1574,11 +1581,11 @@ func (demo *DemoDeviceClient) ReadLastAdmFromFlashHex(jobName string, adm *Admin
 }
 
 /* STA DEMO MEMORY -> 180 BYTES -> HxD 45 x 4 */
-func (demo DemoDeviceClient) WriteStateToFlashHex(jobName string, sta State) (err error) {
+func (demo DemoDeviceClient) WriteSTAToFlashHex(jobName string, sta State) (err error) {
 	buf := sta.StateToBytes() // fmt.Printf("\nstaBytes ( %d ) : %x\n", len(buf), buf)
-	return WriteModelBytesToFlashHEX(jobName, "adm", buf)
+	return WriteModelBytesToFlashHEX(jobName, "sta", buf)
 }
-func (demo *DemoDeviceClient) ReadLastStateFromFlashHex(jobName string, sta *State) (err error) {
+func (demo *DemoDeviceClient) ReadLastSTAFromFlashHex(jobName string, sta *State) (err error) {
 
 	buf, err := ReadModelBytesFromFlashHEX(jobName, "sta")
 	if err != nil {
@@ -1591,11 +1598,12 @@ func (demo *DemoDeviceClient) ReadLastStateFromFlashHex(jobName string, sta *Sta
 }
 
 /* HDR DEMO MEMORY -> 308 BYTES -> HxD 44 x 7 */
-func (demo *DemoDeviceClient) WriteHdrToFlashHex(jobName string, hdr Header) (err error) {
+/* HDR DEMO MEMORY -> 300 BYTES -> HxD 50 x 6 */
+func (demo *DemoDeviceClient) WriteHDRToFlashHex(jobName string, hdr Header) (err error) {
 	buf := hdr.HeaderToBytes() // fmt.Printf("\nhdrBytes ( %d ) : %x\n", len(buf), buf)
-	return WriteModelBytesToFlashHEX(jobName, "adm", buf)
+	return WriteModelBytesToFlashHEX(jobName, "hdr", buf)
 }
-func (demo *DemoDeviceClient) ReadLastHdrFromFlashHex(jobName string, hdr *Header) (err error) {
+func (demo *DemoDeviceClient) ReadLastHDRFromFlashHex(jobName string, hdr *Header) (err error) {
 
 	buf, err := ReadModelBytesFromFlashHEX(jobName, "hdr")
 	if err != nil {
@@ -1608,11 +1616,11 @@ func (demo *DemoDeviceClient) ReadLastHdrFromFlashHex(jobName string, hdr *Heade
 }
 
 /* CFG DEMO MEMORY -> 172 BYTES -> HxD 43 x 4 */
-func (demo *DemoDeviceClient) WriteCfgToFlashHex(jobName string, cfg Config) (err error) {
+func (demo *DemoDeviceClient) WriteCFGToFlashHex(jobName string, cfg Config) (err error) {
 	buf := cfg.ConfigToBytes() // fmt.Printf("\ncfgBytes ( %d ) : %x\n", len(buf), buf)
-	return WriteModelBytesToFlashHEX(jobName, "adm", buf)
+	return WriteModelBytesToFlashHEX(jobName, "cfg", buf)
 }
-func (demo *DemoDeviceClient) ReadLastCfgFromFlashHex(jobName string, cfg *Config) (err error) {
+func (demo *DemoDeviceClient) ReadLastCFGFromFlashHex(jobName string, cfg *Config) (err error) {
 
 	buf, err := ReadModelBytesFromFlashHEX(jobName, "cfg")
 	if err != nil {
@@ -1625,11 +1633,11 @@ func (demo *DemoDeviceClient) ReadLastCfgFromFlashHex(jobName string, cfg *Confi
 }
 
 /* EVT DEMO MEMORY -> 668 BYTES -> HxD 167 x 4  */
-func (demo *DemoDeviceClient) WriteEvtToFlashHex(jobName string, evt Event) (err error) {
+func (demo *DemoDeviceClient) WriteEVTToFlashHex(jobName string, evt Event) (err error) {
 	buf := evt.EventToBytes() // fmt.Printf("\nevtBytes ( %d ) : %x\n", len(buf), buf)
-	return WriteModelBytesToFlashHEX(jobName, "adm", buf)
+	return WriteModelBytesToFlashHEX(jobName, "evt", buf)
 }
-func (demo *DemoDeviceClient) ReadLastEvtFromFlashHex(jobName string, evt *Event) (err error) {
+func (demo *DemoDeviceClient) ReadLastEVTFromFlashHex(jobName string, evt *Event) (err error) {
 
 	buf, err := ReadModelBytesFromFlashHEX(jobName, "evt")
 	if err != nil {

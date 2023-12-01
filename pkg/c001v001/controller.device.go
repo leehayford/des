@@ -3,52 +3,11 @@ package c001v001
 import (
 	"fmt"
 	"strings"
-	"sync"
+
 	"time"
 
 	"github.com/leehayford/des/pkg"
 )
-
-const DEVICE_CLASS = "001"
-const DEVICE_VERSION = "001"
-
-const DEFAULT_GEO_LNG = -180 // TODO: TEST -999.25
-const DEFAULT_GEO_LAT = 90   // TODO: TEST -999.25
-
-/* OPERATION CODES ( Event.EvtCode 0 : 999 ) *******************************************************/
-const OP_CODE_DES_REG_REQ int32 = 0    // USER REQUEST -> CHANGE DEVICE'S OPERATIONAL DATA EXCHANGE SERVER
-const OP_CODE_DES_REGISTERED int32 = 1 // DEVICE RESPONSE -> SENT TO NEW DATA EXCHANGE SERVER
-const OP_CODE_JOB_ENDED int32 = 2      // DEVICE RESPONSE -> JOB ENDED
-const OP_CODE_JOB_START_REQ int32 = 3  // USER REQUEST -> START JOB
-const OP_CODE_JOB_STARTED int32 = 4    // DEVICE RESPONSE -> JOB STARTED
-const OP_CODE_JOB_END_REQ int32 = 5    // USER REQUEST -> END JOB
-const OP_CODE_JOB_OFFLINE_START int32 = 6 // JOB WAS STARTED OFFLINE BY OPERATOR ON SITE
-const OP_CODE_JOB_OFFLINE_END int32 = 7 // JOB WAS ENDED OFFLINE BY OPERATOR ON SITE 
-/* END OPERATION CODES  ( Event.EvtCode ) *********************************************************/
-
-/* STATUS CODES ( Event.EvtCode 1000 : 1999 ) *******************************************************/
-const STATUS_BAT_HIGH_AMP int32 = 1000
-const STATUS_BAT_LOW_VOLT int32 = 1001
-const STATUS_MOT_HIGH_AMP int32 = 1002
-const STATUS_MAX_PRESSURE int32 = 1003
-const STATUS_HFS_MAX_FLOW int32 = 1004
-const STATUS_HFS_MAX_PRESS int32 = 1005
-const STATUS_HFS_MAX_DIFF int32 = 1006
-const STATUS_LFS_MAX_FLOW int32 = 1007
-const STATUS_LFS_MAX_PRESS int32 = 1008
-const STATUS_LFS_MAX_DIFF int32 = 1009
-
-/* END STATUS CODES ( Event.EvtCode ) **************************************************************/
-
-/* MODE ( VALVE POSITIONS ) *************************************************************************/
-const MODE_BUILD int32 = 0
-const MODE_VENT int32 = 2
-const MODE_HI_FLOW int32 = 4
-const MODE_LO_FLOW int32 = 6
-
-/* END VALVE POSITIONS ******************************************************************************/
-
-const MIN_SAMPLE_PERIOD int32 = 1000
 
 /*
 FOR EACH REGISTERED DEVICE, THE DES MAINTAINS:
@@ -64,202 +23,149 @@ SEVERAL DEDICATED CONNECTIONS:
 	DEVICE-SPECIFIC MQTT CLIENT ( FOR LIFE )
 */
 type Device struct {
-	pkg.DESRegistration `json:"reg"`  // Contains registration data for both the device and active job
-	ADM                 Admin         `json:"adm"`      // Last known Admin value
-	STA                 State         `json:"sta"`      // Last known State value
-	HDR                 Header        `json:"hdr"`      // Last known Header value
-	CFG                 Config        `json:"cfg"`      // Last known Config value
-	EVT                 Event         `json:"evt"`      // Last known Event value
-	SMP                 Sample        `json:"smp"`      // Last known Sample value
-	DBG                 Debug         `json:"dbg"`      // Settings used while debugging
-	DESPingStop         chan struct{} `json:"-"`        // Send DESPingStop when DeviceClients are disconnected
-	CmdDBC              pkg.DBClient  `json:"-"`        // Database Client for the CMDARCHIVE
-	JobDBC              pkg.DBClient  `json:"-"`        // Database Client for the active job
-	pkg.DESMQTTClient   `json:"-"`    // MQTT client handling all subscriptions and publications for this device
-	DESU 				pkg.UserResponse `json:"-"`  // User Account of this Device. Appears in Device / DES generated records / messages 
+	pkg.DESRegistration `json:"reg"`     // Contains registration data for both the device and active job
+	ADM                 Admin            `json:"adm"` // Last known Admin value
+	STA                 State            `json:"sta"` // Last known State value
+	HDR                 Header           `json:"hdr"` // Last known Header value
+	CFG                 Config           `json:"cfg"` // Last known Config value
+	EVT                 Event            `json:"evt"` // Last known Event value
+	SMP                 Sample           `json:"smp"` // Last known Sample value
+	DBG                 Debug            `json:"dbg"` // Settings used while debugging
+	DESPingStop         chan struct{}    `json:"-"`   // Send DESPingStop when DeviceClients are disconnected
+	CmdDBC              pkg.DBClient     `json:"-"`   // Database Client for the CMDARCHIVE
+	JobDBC              pkg.DBClient     `json:"-"`   // Database Client for the active job
+	pkg.DESMQTTClient   `json:"-"`       // MQTT client handling all subscriptions and publications for this device
+	DESU                pkg.UserResponse `json:"-"` // User Account of this Device. Appears in Device / DES generated records / messages
 }
 
-type Debug struct {
-	MQTTDelay int32 `json:"mqtt_delay"`
-}
+/* REGISTER A C001V001 DEVICE ON THIS DES
 
-type DevicesMap map[string]Device
+- CREATE DES DB RECORDS
+  - A DEVICE RECORD FOR THIS DEVICE IN des_devs
+  - A JOB RECORD FOR THIS DEVICE'S CMDARCHIVE IN des_jobs
+  - A JOB SEARCH RECORDS FOR THIS DEVICE'S CMDARCHIVE IN des_job_searches
 
-var Devices = make(DevicesMap)
-var DevicesRWMutex = sync.RWMutex{}
+- CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE
+  - POPULATE DEFAULT ADM, STA, HDR, CFG, EVT
 
-
-/* DES DEVICE CLIENT KEEP ALIVE ********************************************************/
-const DES_PING_TIMEOUT = 10000
-const DES_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
-var DESDeviceClientPings = make(pkg.PingsMap)
-var DESDeviceClientPingsRWMutex = sync.RWMutex{}
-
-/* WRITE TO THE DESDeviceClientPingsMap
-	WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
-		- WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
-		- ONCE THIS WRITE OPERATION ESTABLISHES A LOCK, ALL READ & WRITE  OPERATIONS ARE BLOCKED UNTIL THIS WRITE IS COMPLETE
+-  CONNECT DEVICE ( DeviceClient_Connect() )
 */
-func DESDeviceClientPingsMapWrite(serial string, ping pkg.Ping) {
-	DESDeviceClientPingsRWMutex.Lock()
-	DESDeviceClientPings[serial] = ping
-	DESDeviceClientPingsRWMutex.Unlock()
-}
-/* READ FROM THE DESDeviceClientPingsMap; RETURS pkg.Ping
-	WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
-		- WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
-		- ONCE THIS READ OPERATION ESTABLISHES A LOCK, ALL READ & WRITE OPERATIONS ARE BLOCKED UNTIL THIS READ IS COMPLETE
-*/
-func DESDeviceClientPingsMapRead(serial string) (ping pkg.Ping) {
-	DESDeviceClientPingsRWMutex.Lock()
-	ping = DESDeviceClientPings[serial]
-	DESDeviceClientPingsRWMutex.Unlock()
-	return
-}
-/* UPDATE DESDeviceClientPingsMap, AND Publish DESPING */
-func (device *Device) UpdateDESDeviceClientPing(ping pkg.Ping) {
+func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err error) {
+	fmt.Printf("\n(device *Device)RegisterDevice( )...\n")
 
-	/* UPDATE DESDeviceClientPings MAP */
-	DESDeviceClientPingsMapWrite(device.DESDevSerial, ping)
+	t := time.Now().UTC().UnixMilli()
 
-	/* CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
-	go device.MQTTPublication_DeviceClient_DESDeviceClientPing(ping)
-}
-
-
-/* PHYSICAL DEVICE KEEP ALIVE ********************************************************/
-const DEVICE_PING_TIMEOUT = 30000
-const DEVICE_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
-var DevicePings = make(pkg.PingsMap)
-var DevicePingsRWMutex = sync.RWMutex{}
-
-/* WRITE TO THE DevicePingsMap
-	WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
-		- WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
-		- ONCE THIS WRITE OPERATION ESTABLISHES A LOCK, ALL READ & WRITE  OPERATIONS ARE BLOCKED UNTIL THIS WRITE IS COMPLETE
-*/
-func DevicePingsMapWrite(serial string, ping pkg.Ping) {
-	DevicePingsRWMutex.Lock()
-	DevicePings[serial] = ping
-	DevicePingsRWMutex.Unlock()
-}
-/* READ FROM THE DevicePingsMap; RETURS pkg.Ping
-	WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
-		- WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
-		- ONCE THIS READ OPERATION ESTABLISHES A LOCK, ALL READ & WRITE OPERATIONS ARE BLOCKED UNTIL THIS READ IS COMPLETE
-*/
-func DevicePingsMapRead(serial string) (ping pkg.Ping) {
-	DevicesRWMutex.Lock()
-	ping = DevicePings[serial]
-	DevicesRWMutex.Unlock()
-	return
-}
-/* QUALIFY RECEIVED PING THEN UPDATE DevicePingsMap, AND Publish PING */
-func (device *Device) UpdateDevicePing(ping pkg.Ping) {
-
-	/* TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME
-	- IGNORE THE RECEIVED DEVICE TIME FOR NOW,
-	- WE DON'T REALLY CARE FOR KEEP-ALIVE PURPOSES
-	*/
-
-	if !ping.OK || ping.Time == 0 {
-		ping = DevicePingsMapRead(device.DESDevSerial)
-		ping.OK = false
-		// fmt.Printf("\n%s -> UpdateDevicePing( ) -> Timeout.", device.DESDevSerial )
+	/* CREATE A DES DEVICE RECORD */
+	device.DESDev = reg.DESDev
+	device.DESDevRegTime = t
+	device.DESDevRegAddr = src
+	/* TODO: VALIDATE SERIAL # */
+	device.DESDevVersion = "001"
+	device.DESDevClass = "001"
+	if res := pkg.DES.DB.Create(&device.DESDev); res.Error != nil {
+		return res.Error
 	}
 
-	/* UPDATE device.PING AND DevicePings MAP */
-	DevicePingsMapWrite(device.DESDevSerial, ping)
-	
-	/* CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
-	go device.MQTTPublication_DeviceClient_DESDevicePing(ping)
-}
+	/* CREATE A DES JOB RECORD ( CMDARCHIVE )*/
+	device.DESJobRegTime = t
+	device.DESJobRegAddr = src
+	device.DESJobRegUserID = device.DESDevRegUserID
+	device.DESJobRegApp = device.DESDevRegApp
+	device.DESJobName = device.CmdArchiveName()
+	device.DESJobStart = 0
+	device.DESJobEnd = 0
+	device.DESJobLng = DEFAULT_GEO_LNG
+	device.DESJobLat = DEFAULT_GEO_LAT
+	device.DESJobDevID = device.DESDevID
 
-
-/* GET THE CURRENT DESRegistration FOR ALL DEVICES ON THIS DES */
-func GetDeviceList() (devices []pkg.DESRegistration, err error) {
-
-	/* OLD...
-	SELECT des_devs.*, des_jobs.*, j.max_time
-	FROM des_jobs
-
-	JOIN (
-		SELECT des_job_dev_id, MAX( des_job_reg_time ) AS max_time 
-		FROM des_jobs
-		WHERE des_job_end = 0
-		GROUP BY des_job_dev_id
-	) AS j 
-		ON des_jobs.des_job_dev_id = j.des_job_dev_id
-		AND des_jobs.des_job_reg_time = j.max_time
-
-	JOIN des_devs ON des_devs.des_dev_id = des_jobs.des_job_dev_id
-
-	ORDER BY des_job_id ASC 
-
-		// WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 ) WE WANT THE LATEST
-		subQryLatestJob := pkg.DES.DB.
-		Table("des_jobs").
-		Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
-		Where("des_job_end = 0").
-		Group("des_job_dev_id")
-
-	qry := pkg.DES.DB.
-		Table("des_jobs").
-		Select("des_devs.*, des_jobs.*").
-		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
-		Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
-		Order("des_devs.des_dev_serial DESC")
-	*/
-
-	/* NEW 20231127 *********************************************************** */
-	/*
-		SELECT des_devs.*, des_jobs.*
-		FROM des_devs
-
-		JOIN des_jobs ON des_jobs.des_job_dev_id = des_devs.des_dev_id
-
-		JOIN (
-			SELECT des_job_dev_id, MAX( des_job_reg_time ) AS max_time 
-			FROM des_jobs
-			WHERE des_job_end = 0
-			GROUP BY des_job_dev_id
-		) AS j 
-			ON des_jobs.des_job_dev_id = j.des_job_dev_id
-			AND des_jobs.des_job_reg_time = j.max_time
-			
-		ORDER BY j.max_time DESC
-	*/
-
-	/* WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 ) WE WANT THE LATEST */
-	subQryLatestJob := pkg.DES.DB.
-		Table("des_jobs").Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
-		Where("des_job_end = 0").
-		Group("des_job_dev_id")
-
-	qry := pkg.DES.DB.
-		Table("des_devs").Select("des_devs.*, des_jobs.*").
-		Joins("JOIN des_jobs ON des_jobs.des_job_dev_id = des_devs.des_dev_id").
-		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_jobs.des_job_reg_time = j.max_time`, subQryLatestJob).
-		Order("j.max_time DESC")
-
-	res := qry.Scan(&devices)
-	// pkg.Json("GetDeviceList(): DESRegistrations", res)
-	err = res.Error
-	return
-}
-
-/* GET THE MAPPED DATA FOR ALL DEVICES IN THE LIST OF DESRegistrations */
-func GetDevices(regs []pkg.DESRegistration) (devices []Device) {
-	for _, reg := range regs {
-		// pkg.Json("GetDevices( ) -> reg", reg)
-		device := ReadDevicesMap(reg.DESDevSerial)
-		device.DESRegistration = reg
-		devices = append(devices, device)
+	pkg.Json("RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
+	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
+		return res.Error
 	}
-	// pkg.Json("GetDevices(): Devices", devices)
+
+	/* CREATE A DES USER ACCOUNT FOR THIS DEVICE */
+	_, err = pkg.CreateDESUserForDevice(device.DESDevSerial, device.CmdArchiveName())
+	if err != nil {
+		return err
+	}
+
+	/*  CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE */
+	pkg.ADB.CreateDatabase(strings.ToLower(device.CmdArchiveName()))
+
+	/*  TEMPORARILY CONNECT TO CMDARCHIVE DATABASE FOR THIS DEVICE */
+	if err = device.ConnectJobDBC(); err != nil {
+		return err
+	}
+
+	/* CREATE JOB DB TABLES */
+	if err := device.JobDBC.Migrator().CreateTable(
+		&Admin{},
+		&State{},
+		&Header{},
+		&Config{},
+		&EventTyp{},
+		&Event{},
+		&Sample{},
+	); err != nil {
+		pkg.LogErr(err)
+	}
+
+	/* WRITE DEFAULT ADM, STA, HDR, CFG, EVT TO CMDARCHIVE */
+	device.ADM.DefaultSettings_Admin(device.DESRegistration)
+	device.STA.DefaultSettings_State(device.DESRegistration)
+	// device.STA.StaLogging = OP_CODE_DES_REGISTERED
+	device.HDR.DefaultSettings_Header(device.DESRegistration)
+	device.CFG.DefaultSettings_Config(device.DESRegistration)
+	device.SMP = Sample{SmpTime: t, SmpJobName: device.DESJobName}
+	device.EVT = Event{
+		EvtTime:   t,
+		EvtAddr:   src,
+		EvtUserID: device.DESDevRegUserID,
+		EvtApp:    device.DESDevRegApp,
+		EvtCode:   OP_CODE_DES_REGISTERED,
+		EvtTitle:  "DEVICE REGISTRATION",
+		EvtMsg:    "DEVICE REGISTERED",
+	}
+
+	for _, typ := range EVENT_TYPES {
+		WriteETYP(typ, &device.JobDBC)
+	}
+	if err := WriteADM(device.ADM, &device.JobDBC); err != nil {
+		pkg.LogErr(err)
+	}
+	if err := WriteSTA(device.STA, &device.JobDBC); err != nil {
+		pkg.LogErr(err)
+	}
+	if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
+		pkg.LogErr(err)
+	}
+	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
+		pkg.LogErr(err)
+	}
+	if err := WriteEVT(device.EVT, &device.JobDBC); err != nil {
+		pkg.LogErr(err)
+	}
+	if err := WriteSMP(device.SMP, &device.JobDBC); err != nil {
+		pkg.LogErr(err)
+	}
+
+	/* CLOSE TEMPORARY CONNECTION TO  CMDARCHIVE DB */
+	device.JobDBC.Disconnect()
+
+	/* CREATE DESJobSearch RECORD FOR CMDARCHIVE */
+	device.Create_DESJobSearch(device.DESRegistration)
+
+	/* CREATE PERMANENT DES DEVICE CLIENT CONNECTIONS */
+	device.DESMQTTClient = pkg.DESMQTTClient{}
+	device.DeviceClient_Connect()
+
 	return
 }
 
+
+/*  DEVICE CLEINT CONNECTIONS ********************************************************************/
+
+/* GET THIS DEVICE'S REGISTRATION RECORD FROM DES DATABASE */
 func (device *Device) GetDeviceDESRegistration(serial string) (err error) {
 
 	res := pkg.DES.DB.
@@ -269,51 +175,14 @@ func (device *Device) GetDeviceDESRegistration(serial string) (err error) {
 	return
 }
 
-/* RETURNS ALL EVENTS ASSOCIATED WITH THE ACTIVE JOB */
-func (device *Device) GetActiveJobEvents() (evts *[]Event, err error) {
-
-	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedClients()
-
-	res := device.JobDBC.Select("*").Table("events").Where("evt_addr = ?", device.DESDevSerial).Order("evt_time DESC").Scan(&evts)
-	err = res.Error
-	return
-}
-
-/* CALLED ON SERVER STARTUP */
-func DeviceClient_ConnectAll() {
-
-	regs, err := GetDeviceList()
-	if err != nil {
-		pkg.LogErr(err)
-	}
-
-	for _, reg := range regs {
-		device := Device{}
-		device.DESRegistration = reg
-		device.DESMQTTClient = pkg.DESMQTTClient{}
-		device.DeviceClient_Connect()
-	}
-}
-
-/* CALLED ON SERVER SHUT DOWN */
-func DeviceClient_DisconnectAll() {
-	/* TODO: TEST WHEN IMPLEMENTING
-	- UNREGISTER DEVICE
-	- GRACEFUL SHUTDOWN
-	*/
-	fmt.Printf("\nDeviceClient_DisconnectAll()\n")
-	for _, d := range Devices {
-		d.DeviceClient_Disconnect()
-	}
-}
-
 /* CONNECT DEVICE DATABASE AND MQTT CLIENTS ADD CONNECTED DEVICE TO DevicesMap */
 func (device *Device) DeviceClient_Connect() (err error) {
 
 	fmt.Printf("\n\n(device *Device) DeviceClient_Connect() -> %s -> connecting... \n", device.DESDevSerial)
 
-	device.GetDeviceDESU() 
+	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS 
+		- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
+	device.GetDeviceDESU()
 
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting CMDARCHIVE... \n", device.DESDevSerial)
 	if err := device.ConnectCmdDBC(); err != nil {
@@ -406,191 +275,12 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 	return
 }
 
-/* READ THE DevicesMap
-	WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
-		- WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
-		- ONCE THIS READ OPERATION ESTABLISHES A LOCK, ALL READ & WRITE OPERATIONS ARE BLOCKED UNTIL THIS READ IS COMPLETE
-*/
-func ReadDevicesMap(serial string) (device Device) {
-	DevicesRWMutex.Lock()
-	device = Devices[serial]
-	DevicesRWMutex.Unlock()
-	return
-}
 
-/* HYDRATES THE DEVICE'S DB & MQTT CLIENT OBJECTS OF THE DEVICE FROM DevicesMap */
-func (device *Device) GetMappedClients() {
-
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
-
-	/* GET THE DEVICE CLIENT DATA FROM THE DEVICES CLIENT MAP */
-	d := ReadDevicesMap(device.DESDevSerial) // fmt.Printf("\n%v", d)
-
-	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
-	if d.CmdDBC.DB != nil {
-		d.CmdDBC.WG.Wait()
-	}
-	if device.CmdDBC.DB != nil {
-		device.CmdDBC.WG.Wait()
-	}
-	device.CmdDBC = d.CmdDBC
-
-	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
-	
-	if d.JobDBC.DB != nil {
-		d.JobDBC.WG.Wait()
-	}
-	if device.JobDBC.DB != nil {
-		device.JobDBC.WG.Wait()
-	}
-	device.JobDBC = d.JobDBC
-
-	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DESMQTTClient IS BUSY */
-	if d.DESMQTTClient.WG != nil {
-		d.DESMQTTClient.WG.Wait()
-	}
-	device.DESMQTTClient.WG.Wait()
-	device.DESMQTTClient = d.DESMQTTClient
-}
-
-/* HYDRATES THE DEVICE'S Admin STRUCT FROM THE DevicesMap */
-func (device *Device) GetMappedADM() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	device.ADM = d.ADM
-}
-
-/* HYDRATES THE DEVICE'S State STRUCT FROM THE DevicesMap */
-func (device *Device) GetMappedSTA() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	device.STA = d.STA
-}
-
-/* HYDRATES THE DEVICE'S Header STRUCT FROM THE DevicesMap */
-func (device *Device) GetMappedHDR() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	device.HDR = d.HDR
-}
-
-/* HYDRATES THE DEVICE'S Config STRUCT FROM THE DevicesMap */
-func (device *Device) GetMappedCFG() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	device.CFG = d.CFG
-}
-
-/* HYDRATES THE DEVICE'S Event STRUCT FROM THE DevicesMap */
-func (device *Device) GetMappedEVT() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	device.EVT = d.EVT
-}
-
-/* HYDRATES THE DEVICE'S Sample STRUCT FROM THE DevicesMap */
-func (device *Device) GetMappedSMP() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	device.SMP = d.SMP
-}
-
-/* HYDRATES THE DEVICE'S pkg.UserResponse STRUCT FROM THE DevicesMap */
-func (device *Device) GetMappedDESU() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	device.DESU = d.DESU
-}
-
-/* HYDRATES THE DEVICE'S Debug STRUCT FROM THE DevicesMap */
-func (device *Device) GetMappedDBG() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	device.DBG = d.DBG
-}
-
-/* WRITE TO THE DevicesMap
-	WRITE LOCK IS USED TO PREVENT DEVICE MAP READS DURING WRITE OPERATIONS
-		- WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
-		- ONCE THIS WRITE OPERATION ESTABLISHES A LOCK, ALL READ & WRITE  OPERATIONS ARE BLOCKED UNTIL THIS WRITE IS COMPLETE
-*/
-func UpdateDevicesMap(serial string, d Device) {
-	DevicesRWMutex.Lock()
-	Devices[serial] = d
-	DevicesRWMutex.Unlock()
-}
-
-/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Admin */
-func (device *Device) UpdateMappedADM() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	d.ADM = device.ADM
-	UpdateDevicesMap(device.DESDevSerial, d)
-}
-
-/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT State */
-func (device *Device) UpdateMappedSTA() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	d.STA = device.STA
-	UpdateDevicesMap(device.DESDevSerial, d)
-}
-
-/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Header */
-// func (device *Device) UpdateMappedHDR(hdr Header) {
-func (device *Device) UpdateMappedHDR() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	// d.HDR = hdr
-	d.HDR = device.HDR
-	UpdateDevicesMap(device.DESDevSerial, d)
-}
-
-/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Config */
-func (device *Device) UpdateMappedCFG() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	d.CFG = device.CFG
-	UpdateDevicesMap(device.DESDevSerial, d)
-}
-
-/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Event */
-func (device *Device) UpdateMappedEVT() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	d.EVT = device.EVT
-	UpdateDevicesMap(device.DESDevSerial, d)
-}
-
-/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Sample */
-func (device *Device) UpdateMappedSMP() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	d.SMP = device.SMP
-	UpdateDevicesMap(device.DESDevSerial, d)
-}
-
-/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT pkg.UserResponse */
-func (device *Device) UpdateMappedDESU() {
-	d := ReadDevicesMap(device.DESDevSerial)
-	d.DESU = device.DESU
-	UpdateDevicesMap(device.DESDevSerial, d)
-}
-
-/* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Debug */
-func (device *Device) UpdateMappedDBG(sync bool) {
-	d := ReadDevicesMap(device.DESDevSerial)
-	d.DBG = device.DBG
-	UpdateDevicesMap(device.DESDevSerial, d)
-	if sync {
-		device = &d
-	}
-}
+/* DEVICE CLIENT COMMAND ARCHIVE *************************************************************/
 
 /* RETURNS THE CMDARCHIVE NAME  */
 func (device Device) CmdArchiveName() string {
 	return fmt.Sprintf("%s_CMDARCHIVE", device.DESDevSerial)
-}
-
-/* HYDRATES THE Device.DESU User FROM DES.DB */
-func (device *Device) GetDeviceDESU() (err error) {
-	qry := pkg.DES.DB.Table("users").Select("*").Where("name = ?", device.DESDevSerial)
-
-	u := pkg.User{}
-	res :=qry.Scan(&u)
-	if res.Error != nil {
-		pkg.LogErr(res.Error)
-		err = res.Error
-	} // pkg.Json("GetDeviceDESU( ): ", u)
-	device.DESU = u.FilterUserRecord()
-	return
 }
 
 /* RETURNS THE CMDARCHIVE DESRegistration FROM THE DES DATABASE */
@@ -642,16 +332,47 @@ func (device *Device) GetCurrentJob() {
 	return
 }
 
+
+/* DEVICE CLIENT ACTIVE JOB ***********************************************************************/
+
 /* CONNECTS THE ACTIVE JOB DBClient TO THE ACTIVE JOB DATABASE */
 func (device *Device) ConnectJobDBC() (err error) {
 	device.JobDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.DESJobName))}
 	return device.JobDBC.Connect()
 }
 
+/* HYDRATE THE Device.DESU UserResponse FROM DES.DB */
+func (device *Device) GetDeviceDESU() (err error) {
+	qry := pkg.DES.DB.Table("users").Select("*").Where("name = ?", device.DESDevSerial)
+
+	u := pkg.User{}
+	res := qry.Scan(&u)
+	if res.Error != nil {
+		pkg.LogErr(res.Error)
+		err = res.Error
+	} // pkg.Json("GetDeviceDESU( ): ", u)
+	device.DESU = u.FilterUserRecord()
+	return
+}
+
+/* RETURNS ALL EVENTS ASSOCIATED WITH THE ACTIVE JOB */
+func (device *Device) GetActiveJobEvents() (evts *[]Event, err error) {
+
+	/* SYNC DEVICE WITH DevicesMap */
+	device.GetMappedClients()
+
+	res := device.JobDBC.Select("*").Table("events").Where("evt_addr = ?", device.DESDevSerial).Order("evt_time DESC").Scan(&evts)
+	err = res.Error
+	return
+}
+
+
 /* START JOB **********************************************************************************************/
 
-/* PREPARE, LOG, AND SEND A START JOB REQUEST */
-func (device *Device) StartJobRequestX(src string) (err error) {
+/* HTTP REQUEST LOGIC - START JOB REQUEST
+	- PREPARE, LOG, AND SEND: StartJob STRUCT to MQTT .../cmd/start 
+	*/
+func (device *Device) StartJobRequest(src string) (err error) {
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
@@ -735,8 +456,11 @@ func (device *Device) StartJobRequestX(src string) (err error) {
 
 	return
 }
-/* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB STARTED' EVENT FROM THE DEVICE */
-func (device *Device) StartJobX(start StartJob) {
+
+/* MQTT REPONSE LOGIC - EXPECTED JOB STARTED RESPONSE
+	- CALLED WHEN THE DEVICE CLIENT RECIEVES A 'JOB STARTED' EVENT FROM THE DEVICE 
+	*/
+func (device *Device) StartJob(start StartJob) {
 	// pkg.Json("(device *Device) StartJobX(start StartJob): ", start)
 
 	/* CALL DB WRITE IN GOROUTINE */
@@ -760,7 +484,7 @@ func (device *Device) StartJobX(start StartJob) {
 	device.DESJobDevID = device.DESDevID
 
 	/* GET LOCATION DATA */
-	if start.HDR.HdrGeoLng < DEFAULT_GEO_LNG  {
+	if start.HDR.HdrGeoLng < DEFAULT_GEO_LNG {
 		/* Header WAS NOT RECEIVED */
 		fmt.Printf("\n(device *Device) StartJob() -> INVALID VALID LOCATION\n")
 		device.DESJobLng = DEFAULT_GEO_LNG
@@ -863,10 +587,84 @@ func (device *Device) StartJobX(start StartJob) {
 	pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
 }
 
+/* MQTT RESPONSE LOGIC - UNEXPECTED JOB STARTED RESPONSE
+	- CALLED WHEN A DEVICE HAS STARTED A JOB AND NO REGISTRATION OR DATABASE EXISTS 
+	*/
+func (device *Device) OfflineJobStart(smp Sample) {
+	fmt.Printf("\n(*Device) OfflineJobStart( )... \n")
+
+	/* AVOID REPEAT CALLS WHILE WE START A JOB */
+	sta := device.STA
+	sta.StaTime = smp.SmpTime
+	sta.StaAddr = device.DESDevSerial
+	sta.StaUserID = device.DESU.GetUUIDString()
+	sta.StaApp = pkg.DES_APP
+	sta.StaJobName = smp.SmpJobName
+	sta.StaLogging = OP_CODE_JOB_OFFLINE_START
+	device.STA = sta
+	device.UpdateMappedSTA()
+
+	/* CREATE JOB START MODELS USING sta SOURCE VALUES */
+	adm := Admin{}
+	adm.DefaultSettings_Admin(device.DESRegistration)
+	adm.AdmAddr = sta.StaAddr
+	adm.AdmUserID = sta.StaUserID
+	adm.AdmApp = sta.StaApp
+
+	hdr := Header{}
+	hdr.DefaultSettings_Header(device.DESRegistration)
+	hdr.HdrAddr = sta.StaAddr
+	hdr.HdrUserID = sta.StaUserID
+	hdr.HdrApp = sta.StaApp
+	hdr.HdrJobStart = sta.StaTime
+
+	cfg := Config{}
+	cfg.DefaultSettings_Config(device.DESRegistration)
+	cfg.CfgAddr = sta.StaAddr
+	cfg.CfgUserID = sta.StaUserID
+	cfg.CfgApp = sta.StaApp
+
+	/* CREATE EVT.EvtCode = OP_CODE_JOB_OFFLINE_START  */
+	evt := Event{
+		EvtTime:   sta.StaTime,
+		EvtAddr:   sta.StaAddr,
+		EvtUserID: sta.StaUserID,
+		EvtApp:    sta.StaApp,
+
+		EvtCode:  sta.StaLogging,
+		EvtTitle: GetEventTypeByCode(sta.StaLogging),
+		EvtMsg:   sta.StaJobName,
+	}
+
+	/* ENSURE WE ARE CONNECTED TO THE DB AND MQTT CLIENTS */
+	device.GetMappedClients()
+
+	/* START A JOB */
+	device.StartJob(StartJob{
+			ADM: adm,
+			STA: sta,
+			HDR: hdr,
+			CFG: cfg,
+			EVT: evt,
+		},
+	)
+
+	/* LOG smp TO JOB DATABASE */
+	go WriteSMP(smp, &device.JobDBC)
+
+	/* AQUIRE THE LATES ADM, STA, HDR, CFG, EVT FROM THE DEVICE */
+	go device.MQTTPublication_DeviceClient_CMDReport()
+
+}
+
+
 /* END JOB ************************************************************************************************/
 
-/* PREPARE, LOG, AND SEND AN END JOB REQUEST */
-func (device *Device) EndJobRequestX(src string) (err error) {
+/* HTTP REQUEST LOGIC - END JOB REQUEST 
+	- PREPARE, LOG State AND Event STRUCTS 
+	- SEND Event STRUCT to MQTT .../cmd/end
+	*/
+func (device *Device) EndJobRequest(src string) (err error) {
 
 	endTime := time.Now().UTC().UnixMilli()
 
@@ -901,13 +699,13 @@ func (device *Device) EndJobRequestX(src string) (err error) {
 	}
 
 	/* LOG END JOB REQUEST TO CMDARCHIVE */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.CmdArchiveName())
-	device.CmdDBC.Create(&device.STA) /* TODO: USE WriteSTA(device.STA, &device.CmdDBC) ... */
-	device.CmdDBC.Create(&device.EVT) /* TODO: USE WriteEVT(device.EVT, &device.CmdDBC) ... */
+	device.CmdDBC.Create(&device.STA)       /* TODO: USE WriteSTA(device.STA, &device.CmdDBC) ... */
+	device.CmdDBC.Create(&device.EVT)       /* TODO: USE WriteEVT(device.EVT, &device.CmdDBC) ... */
 
 	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
 	device.STA.StaID = 0
 	device.JobDBC.Create(&device.STA) /* TODO: USE WriteSTA(device.STA, &device.JobDBC) ... */
-	
+
 	device.EVT.EvtID = 0
 	device.JobDBC.Create(&device.EVT) /* TODO: USE WriteEVT(device.EVT, &device.JobDBC) ... */
 
@@ -919,11 +717,13 @@ func (device *Device) EndJobRequestX(src string) (err error) {
 	UpdateDevicesMap(device.DESDevSerial, *device)
 	return err
 }
-/* CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
-func (device *Device) EndJobX(sta State) {
+
+/* MQTT REPONSE LOGIC - EXPECTED JOB ENDED RESPONSE
+	- CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
+func (device *Device) EndJob(sta State) {
 
 	/* UPDATE THE DEVICE EVENT CODE, DISABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB	*/
-	device.STA = sta 
+	device.STA = sta
 
 	/* GET THE FINAL JOB RECORDS BEFORE CLEARING THE ACTIVE JOB DATABASE CONNECTION */
 	d := device
@@ -932,16 +732,16 @@ func (device *Device) EndJobX(sta State) {
 	device.JobDBC.Last(&d.HDR)
 	device.JobDBC.Last(&d.CFG)
 	device.JobDBC.Last(&d.EVT)
-	d.SMP = Sample{SmpTime: d.STA.StaTime, SmpJobName: d.STA.StaJobName }
-	
+	d.SMP = Sample{SmpTime: d.STA.StaTime, SmpJobName: d.STA.StaJobName}
+
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 
-	/* UPDATE DESJobSearch RECORD USING RETRIEVED RECORDS 
-		THESE VALUES ARE USED FOR SEARCH AND DISPLAY OF THE JOB DATA FOR REPORTING
+	/* UPDATE DESJobSearch RECORD USING RETRIEVED RECORDS
+	THESE VALUES ARE USED FOR SEARCH AND DISPLAY OF THE JOB DATA FOR REPORTING
 	*/
 	d.Update_DESJobSearch(d.DESRegistration)
-	// pkg.Json("(device *Device) EndJobX( ) ->  d.Update_DESJobSearch(d.DESRegistration): ", d)
+	// pkg.Json("(device *Device) EndJob( ) ->  d.Update_DESJobSearch(d.DESRegistration): ", d)
 
 	jobName := device.DESJobName
 	/* CLOSE DES JOB */
@@ -953,7 +753,6 @@ func (device *Device) EndJobX(sta State) {
 	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\nDESJobID: %d\n", jobName, device.DESJobID)
 	pkg.DES.DB.Save(device.DESJob)
 	fmt.Printf("\n(device *Device) EndJob( ) %s ENDED\n", jobName)
-
 
 	/* UPDATE DES CMDARCHIVE */
 	cmd := device.GetCmdArchiveDESRegistration()
@@ -971,8 +770,8 @@ func (device *Device) EndJobX(sta State) {
 	device.ConnectJobDBC()
 
 	/* GET THE LAST JOB RECORDS RECEIVED FROM THE DEVICE
-		THESE VALUES SHOULD BE THE DEFAULTS WHICH THE DEVICE HAS LOADED INTO RAM 
-		THEY WILL APPEAR IN DEVICE SEARCH WHILE THE DEVICE IS WAITING TO START A NEW JOB
+	THESE VALUES SHOULD BE THE DEFAULTS WHICH THE DEVICE HAS LOADED INTO RAM
+	THEY WILL APPEAR IN DEVICE SEARCH WHILE THE DEVICE IS WAITING TO START A NEW JOB
 	*/
 	device.GetMappedADM()
 	device.GetMappedSTA()
@@ -987,7 +786,7 @@ func (device *Device) EndJobX(sta State) {
 
 	/* UPDATE DESJobSearch RECORD USING RETRIEVED CMD ARCHIVE RECORDS */
 	device.Update_DESJobSearch(device.DESRegistration)
-	// pkg.Json("(device *Device) EndJobX( ) ->  device.Update_DESJobSearch(device.DESRegistration): ", device)
+	// pkg.Json("(device *Device) EndJob( ) ->  device.Update_DESJobSearch(device.DESRegistration): ", device)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
 	UpdateDevicesMap(device.DESDevSerial, *device)
@@ -995,12 +794,109 @@ func (device *Device) EndJobX(sta State) {
 	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", jobName)
 }
 
+/*  MQTT REPONSE LOGIC - EXPECTED JOB ENDED RESPONSE
+	- USED WHEN A DEVICE HAS STARTED A JOB OFFLINE AND ANOTHER JOB IS ALREADY ACTIVE  */
+func (device *Device) OfflineJobEnd(smp Sample) {
+	fmt.Printf("\n(*Device) OfflineJobEnd( )... \n")
+	/* TODO:
 
-/* DEVICE - UPDATE DESJobSearch 
+	- SET device.STA.StaLogging = OFFLINE_JOB_END TO AVOID REPEAT CALLS WHILE WE END THE ACTIVE JOB
+
+	- CREATE EVT.EvtCode = OFFLINE_JOB_END
+		- Evt.MSg = smp.SmpJobName
+
+	- LOG EVT.OFFLINE_JOB_END TO CMDARCHIVE
+	- LOG EVT.OFFLINE_JOB_END TO ACTIVE JOB
+
+	- UPDATE ACTIVE DES JOB REGISTRATION
+		- DESJob.DESJobRegTime = smp.SmpTime
+		- DESJob.DESJobEnd = smp.SmpTime
+
+	- CALL  device.OfflineJobStart(smp)
+	*/
+}
+
+/* SAMPLE HANDLING ************************************************************************************/
+
+/* CALLED WHEN DES RECEIVES SAMPLES, HANDLES:
+	- UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST )
+	- OPERATIONAL ALARMS / NOTIFICATIONS ( SSP / SCVF )
+*/
+func (device *Device) HandleMQTTSample(sta State, mqtts MQTT_Sample) (err error, smp Sample) {
+	fmt.Printf("\n(*Device) HandleMQTTSample( ): -> RegJob: %s, SMPJob: %s \n, OpCode: %d",
+		device.DESJobName, mqtts.DesJobName, sta.StaLogging,
+	)
+
+	/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
+	smp = Sample{SmpJobName: mqtts.DesJobName}
+
+	/* DECODE BASE64URL STRING ( DATA ) */
+	if err = smp.DecodeMQTTSample(mqtts.Data); err != nil {
+		pkg.LogErr(err)
+		return
+	}
+
+	/* CHECK SAMPLE JOB NAME */
+	if smp.SmpJobName == device.DESJobName && sta.StaLogging > OP_CODE_JOB_START_REQ {
+
+		/* WE'RE LOGGING; WRITE TO JOB DATABASE */
+		go WriteSMP(smp, &device.JobDBC)
+
+		device.CheckSSPCondition(smp)
+
+		device.CheckSCVFCondition(smp)
+
+	} else if smp.SmpJobName != device.CmdArchiveName() && sta.StaLogging <= OP_CODE_JOB_ENDED {
+
+		/* DEVICE STARTED A JOB WITHOUT OUR KNOWLEDGE - WE'RE NOT CURRENTLY LOGGING */
+		device.OfflineJobStart(smp)
+
+	} else if smp.SmpJobName != device.CmdArchiveName() && sta.StaLogging == OP_CODE_JOB_STARTED {
+
+		/* DEVICE ENDED AND STARTED JOBS WITHOUT OUR KNOWLEDGE */
+		device.OfflineJobEnd(smp) // <- CALLS OfflinJobStart( )
+
+	} else {
+
+		/* WRITE TO JOB CMDARCHIVE */
+		go WriteSMP(smp, &device.CmdDBC)
+
+		/* TODO: TEST ?... DO NOTHING ...?
+		case OP_CODE_DES_REG_REQ:
+		case OP_CODE_DES_REGISTERED:
+		case OP_CODE_JOB_END_REQ:
+		case OP_CODE_JOB_OFFLINE_START:
+		case OP_CODE_JOB_OFFLINE_END:
+		*/
+	}
+
+	device.SMP = smp
+
+	/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+	device.UpdateMappedSMP()
+
+	// fmt.Printf("\n(*Device) HandleMQTTSample( ): COMPLETE.\n")
+	return
+}
+
+/* ??? JOB/REPORT ??? USED WHEN A SAMPLE IS RECEIVED, TO CHECK FOR STABILIZED SHUT-IN PRESSURE ( BUILD-MODE )*/
+func (device *Device) CheckSSPCondition(smp Sample) {
+	/* TODO */
+}
+
+/* ??? JOB/REPORT ??? USED WHEN A SAMPLE IS RECEIVED, TO CHECK FOR STABILIZED FLOW ( FLOW-MODE )*/
+func (device *Device) CheckSCVFCondition(smp Sample) {
+	/* TODO */
+}
+
+
+/* DEVICE SNAPSHOT *************************************************************************************/
+
+/* DEVICE - UPDATE DESJobSearch
 	JSON MARSHALS DEVICE OBJECT AND WRITES TO DES MAIN DB 'des_job_searches.des_job_json'
 */
 func (device *Device) Create_DESJobSearch(reg pkg.DESRegistration) {
-	
+
 	s := pkg.DESJobSearch{
 		DESJobToken: device.HDR.SearchToken(),
 		DESJobJson:  pkg.ModelToJSONString(device),
@@ -1012,7 +908,7 @@ func (device *Device) Create_DESJobSearch(reg pkg.DESRegistration) {
 	}
 }
 
-/* DEVICE - UPDATE DESJobSearch 
+/* DEVICE - UPDATE DESJobSearch
 	JSON MARSHALS DEVICE OBJECT AND WRITES TO DES MAIN DB 'des_job_searches.des_job_json'
 */
 func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
@@ -1032,171 +928,8 @@ func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
 	}
 }
 
+
 /* SET / GET JOB PARAMS *********************************************************************************/
-
-/* CALLED WHEN DES RECEIVES SAMPLES 
-	- HANDLES UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST ) 
-	- HANDLES OPERATIONAL NOTIFICATIONS ( SSP / SCVF )
-*/
-func (device *Device) HandleMQTTSample(sta State, mqtts MQTT_Sample) (err error, smp Sample) {
-	fmt.Printf("\n(*Device) HandleMQTTSample( ): -> RegJob: %s, SMPJob: %s \n, OpCode: %d", 
-		device.DESJobName, mqtts.DesJobName, sta.StaLogging,
-	)
-
-	/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
-	smp = Sample{SmpJobName: mqtts.DesJobName}
-
-	/* DECODE BASE64URL STRING ( DATA ) */
-	if err = smp.DecodeMQTTSample(mqtts.Data); err != nil {
-		pkg.LogErr(err)
-		return
-	}
-
-	/* CHECK SAMPLE JOB NAME */ 
-	if smp.SmpJobName == device.DESJobName &&  sta.StaLogging > OP_CODE_JOB_START_REQ {
-		
-		/* WE'RE LOGGING; WRITE TO JOB DATABASE */
-		go WriteSMP(smp, &device.JobDBC)
-
-		device.CheckSSPCondition(smp)
-
-		device.CheckSCVFCondition(smp)
-	
-	} else if smp.SmpJobName != device.CmdArchiveName() && sta.StaLogging <= OP_CODE_JOB_ENDED {
-		
-		/* DEVICE STARTED A JOB WITHOUT OUR KNOWLEDGE - WE'RE NOT CURRENTLY LOGGING */
-		device.OfflineJobStart(smp)
-
-	} else if smp.SmpJobName != device.CmdArchiveName() &&  sta.StaLogging == OP_CODE_JOB_STARTED {
-
-		/* DEVICE ENDED AND STARTED JOBS WITHOUT OUR KNOWLEDGE */
-		device.OfflineJobEnd(smp) // <- CALLS OfflinJobStart( )
-
-	} else {
-
-		/* WRITE TO JOB CMDARCHIVE */
-		go WriteSMP(smp, &device.CmdDBC)
-
-		/* TODO: TEST ?... DO NOTHING ...?  
-				case OP_CODE_DES_REG_REQ:
-				case OP_CODE_DES_REGISTERED:
-				case OP_CODE_JOB_END_REQ: 
-				case OP_CODE_JOB_OFFLINE_START: 
-				case OP_CODE_JOB_OFFLINE_END: 
-		*/
-	}
-
-	device.SMP = smp
-
-	/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-	device.UpdateMappedSMP()
-
-	// fmt.Printf("\n(*Device) HandleMQTTSample( ): COMPLETE.\n")
-	return
-}
-
-
-/* USED WHEN A DEVICE HAS STARTED A JOB AND THERE IS NO DATABASE REGISTERED */
-func (device *Device) OfflineJobStart(smp Sample) {
-		fmt.Printf("\n(*Device) OfflineJobStart( )... \n")
-	
-		/* AVOID REPEAT CALLS WHILE WE START A JOB */
-		sta := device.STA
-		sta.StaTime = smp.SmpTime
-		sta.StaAddr = device.DESDevSerial
-		sta.StaUserID = device.DESU.GetUUIDString()
-		sta.StaApp = pkg.DES_APP
-		sta.StaJobName = smp.SmpJobName
-		sta.StaLogging = OP_CODE_JOB_OFFLINE_START
-		device.STA = sta
-		device.UpdateMappedSTA()
-
-		/* CREATE JOB START MODELS USING sta SOURCE VALUES */
-		adm := Admin{}
-		adm.DefaultSettings_Admin(device.DESRegistration)
-		adm.AdmAddr = sta.StaAddr
-		adm.AdmUserID = sta.StaUserID
-		adm.AdmApp = sta.StaApp
-
-		hdr := Header{}
-		hdr.DefaultSettings_Header(device.DESRegistration)
-		hdr.HdrAddr = sta.StaAddr
-		hdr.HdrUserID = sta.StaUserID
-		hdr.HdrApp = sta.StaApp
-		hdr.HdrJobStart = sta.StaTime
-
-		cfg := Config{}
-		cfg.DefaultSettings_Config(device.DESRegistration)
-		cfg.CfgAddr = sta.StaAddr
-		cfg.CfgUserID = sta.StaUserID
-		cfg.CfgApp = sta.StaApp
-
-		/* CREATE EVT.EvtCode = OP_CODE_JOB_OFFLINE_START  */
-		evt := Event{
-			EvtTime: sta.StaTime,
-			EvtAddr: sta.StaAddr,
-			EvtUserID: sta.StaUserID,
-			EvtApp: sta.StaApp,
-
-			EvtCode: sta.StaLogging,
-			EvtTitle: GetEventTypeByCode(sta.StaLogging),
-			EvtMsg: sta.StaJobName,
-		}
-
-		/* ENSURE  */
-		device.GetMappedClients( )
-
-		start := StartJob{
-			ADM: adm,
-			STA: sta,
-			HDR: hdr,
-			CFG: cfg,
-			EVT: evt,
-		}
-
-		/* START A JOB */
-		device.StartJobX(start)
-
-		/* LOG smp TO JOB DATABASE */
-		go WriteSMP(smp, &device.JobDBC)
-
-		/* AQUIRE THE LATES ADM, STA, HDR, CFG, EVT FROM THE DEVICE */
-		go device.MQTTPublication_DeviceClient_CMDReport()
-
-}
-
-/* USED WHEN A DEVICE HAS STARTED A JOB OFFLINE AND ANOTHER JOB IS ALREADY ACTIVE  */
-func (device *Device) OfflineJobEnd(smp Sample) {
-	fmt.Printf("\n(*Device) OfflineJobEnd( )... \n")
-	/* TODO: 
-
-		- SET device.STA.StaLogging = OFFLINE_JOB_END TO AVOID REPEAT CALLS WHILE WE END THE ACTIVE JOB
-
-		- CREATE EVT.EvtCode = OFFLINE_JOB_END 
-			- Evt.MSg = smp.SmpJobName
-
-		- LOG EVT.OFFLINE_JOB_END TO CMDARCHIVE
-		- LOG EVT.OFFLINE_JOB_END TO ACTIVE JOB
-
-		- UPDATE ACTIVE DES JOB REGISTRATION 
-			- DESJob.DESJobRegTime = smp.SmpTime
-			- DESJob.DESJobEnd = smp.SmpTime
-
-		- CALL  device.OfflineJobStart(smp)
-	*/
-}
-
-/* ??? JOB/REPORT ??? USED WHEN A SAMPLE IS RECEIVED, TO CHECK FOR STABILIZED SHUT-IN PRESSURE ( BUILD-MODE )*/
-func (device *Device) CheckSSPCondition(smp Sample) {
-	
-
-}
-
-/* ??? JOB/REPORT ??? USED WHEN A SAMPLE IS RECEIVED, TO CHECK FOR STABILIZED FLOW ( FLOW-MODE )*/
-func (device *Device) CheckSCVFCondition(smp Sample) {
-	
-
-}
 
 /* PREPARE, LOG, AND SEND A SET ADMIN REQUEST TO THE DEVICE */
 func (device *Device) SetAdminRequest(src string) (err error) {
@@ -1233,12 +966,8 @@ func (device *Device) SetAdminRequest(src string) (err error) {
 	return
 }
 
-/*
-USED TO SET THE STATE VALUES FOR A GIVEN DEVICE
-***NOTE***
-
-	THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
-	FUTURE VERSIONS WILL ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
+/* ***NOTE*** THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
+	FUTURE VERSIONS MAY ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
 	CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
 */
 func (device *Device) SetStateRequest(src string) (err error) {
@@ -1377,13 +1106,17 @@ func (device *Device) CreateEventRequest(src string) (err error) {
 	return
 }
 
-/*
-UPDATE THE MAPPED DES DEVICE WITH NEW Debug SETTINGS
-***NOTE***
 
-	DEBUG SETINGS ARE NOT LOGGED TO ANY DATABASE
-	NOR ARE THEY TRANSMITTED TO THE PHYSICAL DEVICE
-*/
+/********************************************************************************************************/
+/* DEVELOPMENT DATA STRUCTURE ***TODO: REMOVE AFTER DEVELOPMENT*** */
+type Debug struct {
+	MQTTDelay int32 `json:"mqtt_delay"`
+}
+
+/* UPDATE THE MAPPED DES DEVICE WITH NEW Debug SETTINGS
+	***NOTE***
+		DEBUG SETINGS ARE NOT LOGGED TO ANY DATABASE
+		NOR ARE THEY TRANSMITTED TO THE PHYSICAL DEVICE */
 func (device *Device) SetDebug() (err error) {
 
 	device.UpdateMappedDBG(true)
@@ -1394,7 +1127,7 @@ func (device *Device) SetDebug() (err error) {
 func (device *Device) TestMsgLimit() (size int, err error) {
 
 	/* 1468 Byte Kafka*/
-	msg := MsgLimit{ 
+	msg := MsgLimit{
 		Kafka: `One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin. He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections. The bedding was hardly able to cover it and seemed ready to slide off any moment. His many legs, pitifully thin compared with the size of the rest of him, waved about helplessly as he looked. "What's happened to me?" he thought. It wasn't a dream. His room, a proper human room although a little too small, lay peacefully between its four familiar walls. A collection of textile samples lay spread out on the table - Samsa was a travelling salesman - and above it there hung a picture that he had recently cut out of an illustrated magazine and housed in a nice, gilded frame. It showed a lady fitted out with a fur hat and fur boa who sat upright, raising a heavy fur muff that covered the whole of her lower arm towards the viewer. Gregor then turned to look out the window at the dull weather. Drops of rain could be heard hitting the pane, which made him feel quite sad. "How about if I sleep a little bit longer and forget all this nonsense", he thought, but that was something he was unable to do because he was used to sleeping on his right, and in his present state couldn't get into that position. However hard he threw himself onto his right, he always rolled back to where he was.`,
 	}
 	out := pkg.ModelToJSONString(msg)
@@ -1403,136 +1136,10 @@ func (device *Device) TestMsgLimit() (size int, err error) {
 
 	// fmt.Printf("\nTestMsgLimit( ) -> getting mapped clients...\n")
 	device.GetMappedClients()
-	
+
 	/* MQTT PUB CMD: EVT */
 	// fmt.Printf("\nTestMsgLimit( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDMsgLimit(msg)
 
 	return
 }
-
-/*
-	REGISTER A C001V001 DEVICE ON THIS DES
-
-- CREATE DES DB RECORDS
-  - A DEVICE RECORD FOR THIS DEVICE IN des_devs
-  - A JOB RECORD FOR THIS DEVICE'S CMDARCHIVE IN des_jobs
-  - A JOB SEARCH RECORDS FOR THIS DEVICE'S CMDARCHIVE IN des_job_searches
-
-- CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE
-  - POPULATE DEFAULT ADM, STA, HDR, CFG, EVT
-
--  CONNECT DEVICE ( DeviceClient_Connect() )
-*/
-func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err error) {
-	fmt.Printf("\n(device *Device)RegisterDevice( )...\n")
-
-	t := time.Now().UTC().UnixMilli()
-
-	/* CREATE A DES DEVICE RECORD */
-	device.DESDev = reg.DESDev
-	device.DESDevRegTime = t
-	device.DESDevRegAddr = src
-	/* TODO: VALIDATE SERIAL # */
-	device.DESDevVersion = "001"
-	device.DESDevClass = "001"
-	if res := pkg.DES.DB.Create(&device.DESDev); res.Error != nil {
-		return res.Error
-	}
-
-	/* CREATE A DES JOB RECORD ( CMDARCHIVE )*/
-	device.DESJobRegTime = t
-	device.DESJobRegAddr = src
-	device.DESJobRegUserID = device.DESDevRegUserID
-	device.DESJobRegApp = device.DESDevRegApp
-	device.DESJobName = device.CmdArchiveName()
-	device.DESJobStart = 0
-	device.DESJobEnd = 0
-	device.DESJobLng = DEFAULT_GEO_LNG
-	device.DESJobLat = DEFAULT_GEO_LAT
-	device.DESJobDevID = device.DESDevID
-
-	pkg.Json("RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
-	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
-		return res.Error
-	}
-
-	/* CREATE A DES USER ACCOUNT FOR THIS DEVICE */
-	_, err = pkg.CreateDESUserForDevice(device.DESDevSerial ,device.CmdArchiveName() )
-	if err != nil {
-		return err
-	}
-
-	/*  CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE */
-	pkg.ADB.CreateDatabase(strings.ToLower(device.CmdArchiveName()))
-
-	/*  TEMPORARILY CONNECT TO CMDARCHIVE DATABASE FOR THIS DEVICE */
-	if err = device.ConnectJobDBC(); err != nil {
-		return err
-	}
-
-	/* CREATE JOB DB TABLES */
-	if err := device.JobDBC.Migrator().CreateTable(
-		&Admin{},
-		&State{},
-		&Header{},
-		&Config{},
-		&EventTyp{},
-		&Event{},
-		&Sample{},
-	); err != nil {
-		pkg.LogErr(err)
-	}
-
-	/* WRITE DEFAULT ADM, STA, HDR, CFG, EVT TO CMDARCHIVE */
-	device.ADM.DefaultSettings_Admin(device.DESRegistration)
-	device.STA.DefaultSettings_State(device.DESRegistration)
-	// device.STA.StaLogging = OP_CODE_DES_REGISTERED
-	device.HDR.DefaultSettings_Header(device.DESRegistration)
-	device.CFG.DefaultSettings_Config(device.DESRegistration)
-	device.SMP = Sample{SmpTime: t, SmpJobName: device.DESJobName}
-	device.EVT = Event{
-		EvtTime:   t,
-		EvtAddr:   src,
-		EvtUserID: device.DESDevRegUserID,
-		EvtApp:    device.DESDevRegApp,
-		EvtCode:   OP_CODE_DES_REGISTERED,
-		EvtTitle:  "DEVICE REGISTRATION",
-		EvtMsg:    "DEVICE REGISTERED",
-	}
-
-	for _, typ := range EVENT_TYPES {
-		WriteETYP(typ, &device.JobDBC)
-	}
-	if err := WriteADM(device.ADM, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteSTA(device.STA, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteEVT(device.EVT, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteSMP(device.SMP, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-
-	/* CLOSE TEMPORARY CONNECTION TO  CMDARCHIVE DB */
-	device.JobDBC.Disconnect()
-
-	/* CREATE DESJobSearch RECORD FOR CMDARCHIVE */
-	device.Create_DESJobSearch(device.DESRegistration)
-
-	/* CREATE PERMANENT DES DEVICE CLIENT CONNECTIONS */
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DeviceClient_Connect()
-
-	return
-}
-
