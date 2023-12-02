@@ -409,7 +409,8 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.STA.StaLogging = OP_CODE_JOB_START_REQ // This means there is a pending request for the device to start a new job
 	device.STA.StaJobName = device.CmdArchiveName()
 	device.STA.Validate()
-	// pkg.Json("HandleStartJob(): -> device.STA", device.STA)
+	device.UpdateMappedSTA()
+	pkg.Json("HandleStartJob(): -> device.STA", device.STA)
 
 	device.HDR.HdrTime = startTime
 	device.HDR.HdrAddr = src
@@ -655,6 +656,7 @@ func (device *Device) OfflineJobStart(smp Sample) {
 	/* AQUIRE THE LATES ADM, STA, HDR, CFG, EVT FROM THE DEVICE */
 	go device.MQTTPublication_DeviceClient_CMDReport()
 
+	fmt.Printf("\n(*Device) OfflineJobStart( ): COMPLETE. \n")
 }
 
 
@@ -798,22 +800,43 @@ func (device *Device) EndJob(sta State) {
 	- USED WHEN A DEVICE HAS STARTED A JOB OFFLINE AND ANOTHER JOB IS ALREADY ACTIVE  */
 func (device *Device) OfflineJobEnd(smp Sample) {
 	fmt.Printf("\n(*Device) OfflineJobEnd( )... \n")
-	/* TODO:
 
-	- SET device.STA.StaLogging = OFFLINE_JOB_END TO AVOID REPEAT CALLS WHILE WE END THE ACTIVE JOB
+	/* AVOID REPEAT CALLS WHILE WE END THE ACTIVE JOB */
+	sta := device.STA
+	sta.StaTime = smp.SmpTime
+	sta.StaAddr = device.DESDevSerial
+	sta.StaUserID = device.DESU.GetUUIDString()
+	sta.StaApp = pkg.DES_APP
+	// sta.StaJobName = DON'T UPDATE JOB NAME
+	sta.StaLogging = OP_CODE_JOB_OFFLINE_END
+	device.STA = sta
+	device.UpdateMappedSTA()
 
-	- CREATE EVT.EvtCode = OFFLINE_JOB_END
-		- Evt.MSg = smp.SmpJobName
+	/* CREATE EVT.EvtCode = OP_CODE_JOB_OFFLINE_END  */
+	evt := Event{
+		EvtTime:   sta.StaTime,
+		EvtAddr:   sta.StaAddr,
+		EvtUserID: sta.StaUserID,
+		EvtApp:    sta.StaApp,
 
-	- LOG EVT.OFFLINE_JOB_END TO CMDARCHIVE
-	- LOG EVT.OFFLINE_JOB_END TO ACTIVE JOB
+		EvtCode:  sta.StaLogging,
+		EvtTitle: GetEventTypeByCode(sta.StaLogging),
+		EvtMsg:   sta.StaJobName,
+	}
+	device.EVT = evt
+	device.UpdateMappedEVT()
 
-	- UPDATE ACTIVE DES JOB REGISTRATION
-		- DESJob.DESJobRegTime = smp.SmpTime
-		- DESJob.DESJobEnd = smp.SmpTime
+	/* ENSURE WE ARE CONNECTED TO THE DB AND MQTT CLIENTS */
+	device.GetMappedClients()
+	
+	/* LOG EVT.OFFLINE_JOB_END TO ACTIVE JOB & CMDARCHIVE */
+	go WriteEVT(evt, &device.JobDBC)
+	go WriteEVT(evt, &device.CmdDBC)
 
-	- CALL  device.OfflineJobStart(smp)
-	*/
+	/* END THE ACTIVE JOB */
+	device.EndJob(sta)
+	
+	fmt.Printf("\n(*Device) OfflineJobEnd( ): COMPLETE. \n")
 }
 
 /* SAMPLE HANDLING ************************************************************************************/
@@ -822,10 +845,11 @@ func (device *Device) OfflineJobEnd(smp Sample) {
 	- UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST )
 	- OPERATIONAL ALARMS / NOTIFICATIONS ( SSP / SCVF )
 */
-func (device *Device) HandleMQTTSample(sta State, mqtts MQTT_Sample) (err error, smp Sample) {
-	fmt.Printf("\n(*Device) HandleMQTTSample( ): -> RegJob: %s, SMPJob: %s \n, OpCode: %d",
-		device.DESJobName, mqtts.DesJobName, sta.StaLogging,
-	)
+func (device *Device) HandleMQTTSample(mqtts MQTT_Sample) (err error, smp Sample) {
+
+	device.GetMappedSTA()
+	sta := device.STA
+	// fmt.Printf("\n(*Device) HandleMQTTSample( ): -> RegJob: %s, SMPJob: %s \n, OpCode: %d, StaJob %s\n", device.DESJobName, mqtts.DesJobName, sta.StaLogging, sta.StaJobName)
 
 	/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
 	smp = Sample{SmpJobName: mqtts.DesJobName}
@@ -837,28 +861,11 @@ func (device *Device) HandleMQTTSample(sta State, mqtts MQTT_Sample) (err error,
 	}
 
 	/* CHECK SAMPLE JOB NAME */
-	if smp.SmpJobName == device.DESJobName && sta.StaLogging > OP_CODE_JOB_START_REQ {
-
-		/* WE'RE LOGGING; WRITE TO JOB DATABASE */
-		go WriteSMP(smp, &device.JobDBC)
-
-		device.CheckSSPCondition(smp)
-
-		device.CheckSCVFCondition(smp)
-
-	} else if smp.SmpJobName != device.CmdArchiveName() && sta.StaLogging != OP_CODE_JOB_START_REQ {
-
-		/* DEVICE STARTED A JOB WITHOUT OUR KNOWLEDGE - WE'RE NOT CURRENTLY LOGGING */
-		device.OfflineJobStart(smp)
-
-	} else if smp.SmpJobName != device.CmdArchiveName() && sta.StaLogging == OP_CODE_JOB_STARTED {
-
-		/* DEVICE ENDED AND STARTED JOBS WITHOUT OUR KNOWLEDGE */
-		device.OfflineJobEnd(smp) // <- CALLS OfflinJobStart( )
-
-	} else {
-
-		/* WRITE TO JOB CMDARCHIVE */
+	if smp.SmpJobName == device.CmdArchiveName() {
+		/* WRITE TO JOB CMDARCHIVE 
+			- SOMETHING HAS GONE WRONG WITH THE DEVICE 
+			- OR WE ARE TESTING THE DEVICE
+		*/
 		go WriteSMP(smp, &device.CmdDBC)
 
 		/* TODO: TEST ?... DO NOTHING ...?
@@ -868,7 +875,27 @@ func (device *Device) HandleMQTTSample(sta State, mqtts MQTT_Sample) (err error,
 		case OP_CODE_JOB_OFFLINE_START:
 		case OP_CODE_JOB_OFFLINE_END:
 		*/
-	}
+
+	} else if smp.SmpJobName == device.DESJobName && sta.StaLogging > OP_CODE_JOB_START_REQ {
+
+		/* WE'RE LOGGING; WRITE TO JOB DATABASE */
+		go WriteSMP(smp, &device.JobDBC)
+
+		device.CheckSSPCondition(smp)
+
+		device.CheckSCVFCondition(smp)
+
+	} else if sta.StaLogging == OP_CODE_JOB_ENDED {
+
+		/* DEVICE STARTED A JOB WITHOUT OUR KNOWLEDGE - WE'RE NOT CURRENTLY LOGGING */
+		device.OfflineJobStart(smp)
+
+	} else if sta.StaLogging == OP_CODE_JOB_STARTED {
+
+		/* DEVICE ENDED AND STARTED JOBS WITHOUT OUR KNOWLEDGE */
+		device.OfflineJobEnd(smp) 
+		device.OfflineJobStart(smp)
+	} 
 
 	device.SMP = smp
 

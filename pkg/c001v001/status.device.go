@@ -195,6 +195,13 @@ func (device *Device) GetMappedClients() {
 	device.DESMQTTClient = pkg.DESMQTTClient{}
 	device.DESMQTTClient.WG = &sync.WaitGroup{}
 
+	// if device.DESMQTTClient.Client == nil {
+	// 	device.DESMQTTClient = pkg.DESMQTTClient{}
+	// }
+	// if device.DESMQTTClient.WG == nil {
+	// 	device.DESMQTTClient.WG = &sync.WaitGroup{}
+	// }
+
 	/* GET THE DEVICE CLIENT DATA FROM THE DEVICES CLIENT MAP */
 	d := ReadDevicesMap(device.DESDevSerial) // fmt.Printf("\n%v", d)
 

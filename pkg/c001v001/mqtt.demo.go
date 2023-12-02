@@ -1456,7 +1456,7 @@ func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
 /*
 	CONVERTS MODEL TO JSON STRING AND WRITES TO ~/jobName/fileName.json
 
-PREPENDS COMMA AFTER FIRST ENTRY
+	MODELS APPENDED TO A SINGLE JSON ARRAY [ { 1 }, { 2 }, { 3 } ]
 */
 func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error) {
 
@@ -1467,16 +1467,17 @@ func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error
 		pkg.LogErr(err)
 	}
 
-	f, err := os.OpenFile(fmt.Sprintf("%s/%s.json", dir, fileName), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
+	path := fmt.Sprintf("%s/%s.json", dir, fileName)
+	
+	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return pkg.LogErr(err)
-	}
-	defer f.Close()
-
+	} // defer f.Close()
 	fi, _ := f.Stat()
+	f.Close()
 
 	if fi.Size() == 0 {
-		/* PREPEND A '[' IF THIS IS THE FIRST RECORD */
+		/* SURROUND IN A '[ ]' IF THIS IS THE FIRST RECORD */
 		js = fmt.Sprintf("[%s]", js)
 	} else {
 		/* REMOVE '] AND PREPEND A COMMA IF THIS IS NOT THE FIRST RECORD */
@@ -1485,12 +1486,10 @@ func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error
 		js = fmt.Sprintf("%s,%s]", trunc, js)
 	}
 
-	_, err = f.WriteString(js)
-	if err != nil {
+	if err = ioutil.WriteFile(path, []byte(js), 644); err != nil {
 		return pkg.LogErr(err)
 	}
 
-	f.Close()
 	return
 }
 
