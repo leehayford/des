@@ -325,7 +325,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	go func() {
 		for demo.Live {
 			demo.PING.Time = time.Now().UTC().UnixMilli()
-			demo.MQTTPublication_DemoDeviceClient_SIGPing()
+			go demo.MQTTPublication_DemoDeviceClient_SIGPing()
 			time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 		}
 	}()
