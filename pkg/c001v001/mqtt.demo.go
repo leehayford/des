@@ -437,7 +437,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStartJob() pk
 				pkg.LogErr(err)
 			}
 
-			go demo.StartDemoJob(start, false)
+			demo.StartDemoJob(start, false)
 
 			// demo.DESMQTTClient.WG.Done()
 		},
@@ -460,7 +460,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEndJob() pkg.
 				pkg.LogErr(err)
 			}
 
-			go demo.EndDemoJob(evt)
+			demo.EndDemoJob(evt)
 
 			// demo.DESMQTTClient.WG.Done()
 		},
@@ -1068,7 +1068,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 
 	if !offline {
 		/* SEND CONFIRMATION */
-		demo.MQTTPublication_DemoDeviceClient_SIGStartJob(
+		go demo.MQTTPublication_DemoDeviceClient_SIGStartJob(
 			StartJob{
 				ADM: demo.ADM,
 				STA: demo.STA,
@@ -1142,12 +1142,12 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	demo.WriteStateToFlash(demo.DESJobName, sta)
 
 	/* SEND FINAL DATA MODELS */
-	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
-	demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
-	demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
+	go demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
+	go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
+	go demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
 
 	/* SEND END JOB CONFIRMATION */
-	demo.MQTTPublication_DemoDeviceClient_SIGEndJob(sta)
+	go demo.MQTTPublication_DemoDeviceClient_SIGEndJob(sta)
 
 	/* GET DEFAULT MODELS AND UPDATE TIMES */
 	adm := demo.ADM
@@ -1163,9 +1163,9 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 
 	/* TRANSMIT DEFAULT MODELS */
 	// time.Sleep(time.Second * 1)
-	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
-	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
-	demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
+	go demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
+	go demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
+	go demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
 
 	/* LOAD DEFAULT MODELS INTO RAM */
 	demo.ADM = adm

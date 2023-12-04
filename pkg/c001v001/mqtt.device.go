@@ -89,7 +89,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGStartJob() pkg.MQTTSubscr
 				pkg.LogErr(err)
 			}
 
-			go device.StartJob(start)
+			device.StartJob(start)
 
 		},
 	}
@@ -109,7 +109,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEndJob() pkg.MQTTSubscrip
 				pkg.LogErr(err)
 			}
 
-			go device.EndJob(sta)
+			device.EndJob(sta)
 
 		},
 	}
@@ -122,8 +122,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDevicePing() pkg.MQTTSubs
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGDevicePing(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// device.DESMQTTClient.WG.Add(1)
 
 			/* TODO : PARSE THE PING MESSAGE
 			TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME
@@ -141,8 +139,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDevicePing() pkg.MQTTSubs
 
 			/* UPDATE THE DevicesPingMap - DO NOT CALL IN GOROUTINE */
 			device.UpdateDevicePing(ping)
-
-			// device.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -154,8 +150,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// device.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			adm := Admin{}
@@ -177,8 +171,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedADM()
-			// device.DESMQTTClient.WG.Done()
-
 		},
 	}
 }
@@ -190,8 +182,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGState(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// device.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE STATE IN CMDARCHIVE */
 			sta := State{}
@@ -212,7 +202,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscript
 
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedSTA()
-			// device.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -224,8 +213,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// device.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE HEADER IN CMDARCHIVE */
 			hdr := Header{}
@@ -252,8 +239,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedHDR()
-			// device.DESMQTTClient.WG.Done()
-
 		},
 	}
 }
@@ -265,8 +250,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// device.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE CONFIG IN CMDARCHIVE */
 			cfg := Config{}
@@ -288,8 +271,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedCFG()
-			// device.DESMQTTClient.WG.Done()
-
 		},
 	}
 }
@@ -301,8 +282,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 		Qos:   0,
 		Topic: device.MQTTTopic_SIGEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// device.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE EVENT IN CMDARCHIVE */
 			evt := Event{}
@@ -325,9 +304,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 
 			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 			device.UpdateMappedEVT()
-
-			// device.DESMQTTClient.WG.Done()
-
 		},
 	}
 }
@@ -340,8 +316,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 		Topic: device.MQTTTopic_SIGSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			// device.DESMQTTClient.WG.Add(1)
-
 			/* DECODE THE PAYLOAD INTO AN MQTT_Sample */
 			mqtts := MQTT_Sample{}
 			if err := json.Unmarshal(msg.Payload(), &mqtts); err != nil {
@@ -349,9 +323,6 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGSample() pkg.MQTTSubscrip
 			} // pkg.Json("MQTTSubscription_DeviceClient_SIGSample(...) ->  mqtts :", mqtts)
 
 			device.HandleMQTTSample(mqtts)
-
-			// device.DESMQTTClient.WG.Done()
-
 		},
 	}
 }
@@ -364,11 +335,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 		Topic: device.MQTTTopic_SIGDiagSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			// device.DESMQTTClient.WG.Add(1)
-
 			fmt.Println("(device *Device) MQTTSubscription_DeviceClient_SIGDiagSample(...) DOES NOT EXIST... DUMMY...")
-
-			// device.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -389,7 +356,7 @@ func (device *Device) MQTTPublication_DeviceClient_DESDeviceClientPing(ping pkg.
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_DESDeviceClientPing(): -> ping", ping)
-	// device.GetMappedClients()
+
 	des.Pub(device.DESMQTTClient)
 }
 
@@ -406,7 +373,7 @@ func (device *Device) MQTTPublication_DeviceClient_DESDevicePing(ping pkg.Ping) 
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_DESDevicePing(): -> ping", ping)
-	// device.GetMappedClients()
+
 	des.Pub(device.DESMQTTClient)
 }
 
@@ -431,7 +398,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDStartJob() {
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDAdmin(): -> cmd", cmd)
-	// device.GetMappedClients()
+
 	cmd.Pub(device.DESMQTTClient)
 }
 
@@ -445,7 +412,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDEndJob(evt Event) {
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDEndJob(): -> cmd", cmd)
-	// device.GetMappedClients()
+
 	cmd.Pub(device.DESMQTTClient)
 }
 
@@ -459,7 +426,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDReport() {
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDReport(): -> cmd", cmd)
-	// device.GetMappedClients()
+
 	cmd.Pub(device.DESMQTTClient)
 }
 
@@ -473,7 +440,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDAdmin(): -> cmd", cmd)
-	// device.GetMappedClients()
+
 	cmd.Pub(device.DESMQTTClient)
 }
 
@@ -487,7 +454,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDState(sta State) {
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_CMDState(): -> sta", sta)
-	// device.GetMappedClients()
+
 	cmd.Pub(device.DESMQTTClient)
 }
 
@@ -501,7 +468,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) {
 		WaitMS:   0,
 		Qos:      0,
 	}
-	// device.GetMappedClients()
+
 	cmd.Pub(device.DESMQTTClient)
 }
 
@@ -515,7 +482,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) {
 		WaitMS:   0,
 		Qos:      0,
 	}
-	// device.GetMappedClients()
+
 	cmd.Pub(device.DESMQTTClient)
 }
 
@@ -529,7 +496,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) {
 		WaitMS:   0,
 		Qos:      0,
 	}
-	// device.GetMappedClients()
+
 	cmd.Pub(device.DESMQTTClient)
 }
 
@@ -543,7 +510,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDMsgLimit(msg MsgLimit) {
 		WaitMS:   0,
 		Qos:      0,
 	}
-	// device.GetMappedClients()
+
 	cmd.Pub(device.DESMQTTClient)
 }
 
@@ -557,6 +524,6 @@ func (device *Device) MQTTPublication_DeviceClient_CMDTestOLS() {
 		WaitMS:   0,
 		Qos:      0,
 	}
-	// device.GetMappedClients()
+
 	cmd.Pub(device.DESMQTTClient)
 }

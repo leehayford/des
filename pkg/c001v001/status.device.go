@@ -56,57 +56,6 @@ var DevicesRWMutex = sync.RWMutex{}
 /* GET THE CURRENT DESRegistration FOR ALL DEVICES ON THIS DES */
 func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 
-	/* OLD...
-	SELECT des_devs.*, des_jobs.*, j.max_time
-	FROM des_jobs
-
-	JOIN (
-		SELECT des_job_dev_id, MAX( des_job_reg_time ) AS max_time
-		FROM des_jobs
-		WHERE des_job_end = 0
-		GROUP BY des_job_dev_id
-	) AS j
-		ON des_jobs.des_job_dev_id = j.des_job_dev_id
-		AND des_jobs.des_job_reg_time = j.max_time
-
-	JOIN des_devs ON des_devs.des_dev_id = des_jobs.des_job_dev_id
-
-	ORDER BY des_job_id ASC
-
-		// WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 ) WE WANT THE LATEST
-		subQryLatestJob := pkg.DES.DB.
-		Table("des_jobs").
-		Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
-		Where("des_job_end = 0").
-		Group("des_job_dev_id")
-
-	qry := pkg.DES.DB.
-		Table("des_jobs").
-		Select("des_devs.*, des_jobs.*").
-		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_job_reg_time = j.max_time`, subQryLatestJob).
-		Joins("JOIN des_devs ON des_devs.des_dev_id = j.des_job_dev_id").
-		Order("des_devs.des_dev_serial DESC")
-	*/
-
-	/* NEW 20231127 *********************************************************** */
-	/*
-		SELECT des_devs.*, des_jobs.*
-		FROM des_devs
-
-		JOIN des_jobs ON des_jobs.des_job_dev_id = des_devs.des_dev_id
-
-		JOIN (
-			SELECT des_job_dev_id, MAX( des_job_reg_time ) AS max_time
-			FROM des_jobs
-			WHERE des_job_end = 0
-			GROUP BY des_job_dev_id
-		) AS j
-			ON des_jobs.des_job_dev_id = j.des_job_dev_id
-			AND des_jobs.des_job_reg_time = j.max_time
-
-		ORDER BY j.max_time DESC
-	*/
-
 	/* WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 ) WE WANT THE LATEST */
 	subQryLatestJob := pkg.DES.DB.
 		Table("des_jobs").Select("des_job_dev_id, MAX(des_job_reg_time) AS max_time").
@@ -165,8 +114,7 @@ func DeviceClient_DisconnectAll() {
 	}
 }
 
-/*
-	WRITE TO THE DevicesMap
+/* WRITE TO THE DevicesMap
 
 WRITE LOCK IS USED TO PREVENT DEVICE MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
@@ -178,8 +126,7 @@ func DevicesMapWrite(serial string, d Device) {
 	DevicesRWMutex.Unlock()
 }
 
-/*
-	READ THE DevicesMap
+/* READ THE DevicesMap
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
@@ -197,7 +144,7 @@ func FromDevicesMapRemove(serial string) {
 	DevicesRWMutex.Lock()
 	delete(Devices, serial)
 	DevicesRWMutex.Unlock()
-	fmt.Printf("\n\nFromDevicesMapRemove( %s ) Removed... \n", serial)
+	// fmt.Printf("\n\nFromDevicesMapRemove( %s ) Removed... \n", serial)
 }
 
 /* HYDRATES THE DEVICE'S DB & MQTT CLIENT OBJECTS OF THE DEVICE FROM DevicesMap */
@@ -208,47 +155,25 @@ func (device *Device) GetMappedClients() {
 
 	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
 	if d.CmdDBC.DB != nil {
-		if device.DESDevSerial == "DEOM000000" {
-			fmt.Printf("\nGetMappedClients( %s ) d.CmdDBC.WG.Wait()... \n", device.DESDevSerial)}
 		d.CmdDBC.WG.Wait()
 	}
 	if device.CmdDBC.DB != nil {
-		if device.DESDevSerial == "DEOM000000" {
-			fmt.Printf("\nGetMappedClients( %s ) device.CmdDBC.WG.Wait()... \n", device.DESDevSerial)}
 		device.CmdDBC.WG.Wait()
 	}
 	device.CmdDBC = d.CmdDBC
 
 	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
-
 	if d.JobDBC.DB != nil {
-		if device.DESDevSerial == "DEOM000000" {
-			fmt.Printf("\nGetMappedClients( %s ) d.JobDBC.WG.Wait()... \n", device.DESDevSerial)}
 		d.JobDBC.WG.Wait()
 	}
 	if device.JobDBC.DB != nil {
-		if device.DESDevSerial == "DEOM000000" {
-			fmt.Printf("\nGetMappedClients( %s ) device.JobDBC.WG.Wait()... \n", device.DESDevSerial)}
 		device.JobDBC.WG.Wait()
 	}
 	device.JobDBC = d.JobDBC
 
-	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DESMQTTClient IS BUSY */
-	// if d.DESMQTTClient.WG != nil {
-	// 	if device.DESDevSerial == "DEOM000000" {
-	// 		fmt.Printf("\nGetMappedClients( %s ) d.DESMQTTClient.WG.Wait()... \n", device.DESDevSerial)}
-	// 	d.DESMQTTClient.WG.Wait()
-	// }
-	if device.DESDevSerial == "DEOM000000" {
-		fmt.Printf("\nGetMappedClients( %s ) d.DESMQTTClient.WG.Wait()... \n", device.DESDevSerial)}
-		
 	if device.DESMQTTClient.Client == nil {
 		device.DESMQTTClient = pkg.DESMQTTClient{}
 	}
-	// if device.DESMQTTClient.WG == nil {
-	// 	device.DESMQTTClient.WG = &sync.WaitGroup{}
-	// }
-	// device.DESMQTTClient.WG.Wait()
 	device.DESMQTTClient = d.DESMQTTClient
 }
 
@@ -361,6 +286,8 @@ func (device *Device) UpdateMappedDBG(sync bool) {
 	}
 }
 
+
+
 /* DES DEVICE CLIENT KEEP ALIVE ********************************************************/
 const DES_PING_TIMEOUT = 10000
 const DES_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
@@ -368,8 +295,7 @@ const DES_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
 var DESDeviceClientPings = make(pkg.PingsMap)
 var DESDeviceClientPingsRWMutex = sync.RWMutex{}
 
-/*
-	WRITE TO THE DESDeviceClientPingsMap
+/* WRITE TO THE DESDeviceClientPingsMap
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
@@ -381,8 +307,7 @@ func DESDeviceClientPingsMapWrite(serial string, ping pkg.Ping) {
 	DESDeviceClientPingsRWMutex.Unlock()
 }
 
-/*
-	READ FROM THE DESDeviceClientPingsMap; RETURS pkg.Ping
+/* READ FROM THE DESDeviceClientPingsMap; RETURS pkg.Ping
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
@@ -400,7 +325,7 @@ func DESDeviceClientPingsMapRemove(serial string) {
 	DESDeviceClientPingsRWMutex.Lock()
 	delete(DESDeviceClientPings, serial)
 	DESDeviceClientPingsRWMutex.Unlock()
-	fmt.Printf("\n\nDESDeviceClientPingsMapRemove( %s ) Removed... \n", serial)
+	// fmt.Printf("\n\nDESDeviceClientPingsMapRemove( %s ) Removed... \n", serial)
 }
 
 /* UPDATE DESDeviceClientPingsMap, AND Publish DESPING */
@@ -413,6 +338,8 @@ func (device *Device) UpdateDESDeviceClientPing(ping pkg.Ping) {
 	go device.MQTTPublication_DeviceClient_DESDeviceClientPing(ping)
 }
 
+
+
 /* PHYSICAL DEVICE KEEP ALIVE ********************************************************/
 const DEVICE_PING_TIMEOUT = 30000
 const DEVICE_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
@@ -420,8 +347,7 @@ const DEVICE_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
 var DevicePings = make(pkg.PingsMap)
 var DevicePingsRWMutex = sync.RWMutex{}
 
-/*
-	WRITE TO THE DevicePingsMap
+/* WRITE TO THE DevicePingsMap
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
@@ -433,8 +359,7 @@ func DevicePingsMapWrite(serial string, ping pkg.Ping) {
 	DevicePingsRWMutex.Unlock()
 }
 
-/*
-	READ FROM THE DevicePingsMap; RETURS pkg.Ping
+/* READ FROM THE DevicePingsMap; RETURS pkg.Ping
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
@@ -452,7 +377,7 @@ func DevicePingsMapRemove(serial string) {
 	DevicePingsRWMutex.Lock()
 	delete(DevicePings, serial)
 	DevicePingsRWMutex.Unlock()
-	fmt.Printf("\n\nDevicePingsMapRemove( %s ) Removed... \n", serial)
+	// fmt.Printf("\n\nDevicePingsMapRemove( %s ) Removed... \n", serial)
 }
 
 /* QUALIFY RECEIVED PING THEN UPDATE DevicePingsMap, AND Publish PING */

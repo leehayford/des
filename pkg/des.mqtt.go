@@ -17,7 +17,6 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	// "sync"
 	"time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
@@ -30,10 +29,6 @@ type DESMQTTClient struct {
 	phao.ClientOptions
 	phao.Client
 	Subs []MQTTSubscription
-
-	/* TODO: FINISH IMPLEMENTATION & TESTING
-	WAIT GROUP USED TO PREVENT CONCURRENT ACCESS  OF MAPPED DEVICE STATE */
-	// WG *sync.WaitGroup
 }
 
 func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) (err error) {
@@ -64,12 +59,6 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 			desm.MQTTClientID,
 			msg.Topic(),
 		)
-		// fmt.Printf(
-		// 	"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s\nDefault Handler:\nTopic: %s:\nMessage:\n%s\n\n",
-		// 	desm.MQTTClientID,
-		// 	msg.Topic(),
-		// 	msg.Payload(),
-		// )
 	} // fmt.Printf("\n(desm *DESMQTTClient)RegisterDESMQTTClient( ... ) -> desm.ClientID: %s\n", desm.ClientID)
 
 	/*Cerate MQTT Client*/
@@ -80,7 +69,6 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 	}
 
 	desm.Client = c
-	// desm.WG = &sync.WaitGroup{}
 
 	return err
 }
@@ -104,9 +92,8 @@ func (sub MQTTSubscription) Sub(client DESMQTTClient) {
 }
 func (sub MQTTSubscription) UnSub(client DESMQTTClient) {
 	token := client.Unsubscribe(sub.Topic)
-	token.WaitTimeout(time.Millisecond * 100)
-	// token.Wait() 
-	fmt.Printf("\nUnsubscribed: %s from:\t%s\n", client.MQTTClientID, sub.Topic)
+	// token.WaitTimeout(time.Millisecond * 100)
+	token.Wait() // fmt.Printf("\nUnsubscribed: %s from:\t%s\n", client.MQTTClientID, sub.Topic)
 }
 
 /* ALL MQTT PUBLICATIONS ON THE DES ARE MANAGED USING THIS STRUCTURE */

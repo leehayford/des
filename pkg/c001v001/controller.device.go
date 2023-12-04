@@ -275,17 +275,17 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 		device.DESPingStop <- struct{}{}
 	}
 
-	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> unsubscribing MQTT... \n", device.DESDevSerial)
+	// fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> unsubscribing MQTT... \n", device.DESDevSerial)
 	if err := device.MQTTDeviceClient_Disconnect(); err != nil {
 		return pkg.LogErr(err)
 	}
 
-	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> disconnecting CmdDBC... \n", device.DESDevSerial)
+	// fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> disconnecting CmdDBC... \n", device.DESDevSerial)
 	if err := device.CmdDBC.Disconnect(); err != nil {
 		return pkg.LogErr(err)
 	}
 
-	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> disconnecting JobDBC... \n", device.DESDevSerial)
+	// fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> disconnecting JobDBC... \n", device.DESDevSerial)
 	if err := device.JobDBC.Disconnect(); err != nil {
 		return pkg.LogErr(err)
 	}
