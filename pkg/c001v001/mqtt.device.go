@@ -67,9 +67,7 @@ func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 	// device.MQTTSubscription_DeviceClient_SIGDiagSample() //.UnSub(device.DESMQTTClient)
 
 	/* DISCONNECT THE DESMQTTCLient */
-	if err = device.DESMQTTClient_Disconnect(); err != nil {
-		pkg.LogErr(err)
-	}
+	device.DESMQTTClient_Disconnect()
 
 	fmt.Printf("\n(device) MQTTDeviceClient_Dicconnect( ) -> %s -> disconnected.\n", device.ClientID)
 	return
@@ -421,7 +419,7 @@ func (device *Device) MQTTPublication_DeviceClient_DESDeviceClientPing(ping pkg.
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_DESDeviceClientPing(): -> ping", ping)
-
+	device.GetMappedClients()
 	des.Pub(device.DESMQTTClient)
 }
 
@@ -438,7 +436,7 @@ func (device *Device) MQTTPublication_DeviceClient_DESDevicePing(ping pkg.Ping) 
 		WaitMS:   0,
 		Qos:      0,
 	} // pkg.Json("(dev *Device) MQTTPublication_DeviceClient_DESDevicePing(): -> ping", ping)
-
+	device.GetMappedClients()
 	des.Pub(device.DESMQTTClient)
 }
 

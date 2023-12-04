@@ -38,7 +38,8 @@ type Device struct {
 	DESU                pkg.UserResponse `json:"-"` // User Account of this Device. Appears in Device / DES generated records / messages
 }
 
-/* REGISTER A C001V001 DEVICE ON THIS DES
+/*
+	REGISTER A C001V001 DEVICE ON THIS DES
 
 - CREATE DES DB RECORDS
   - A DEVICE RECORD FOR THIS DEVICE IN des_devs
@@ -162,7 +163,6 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	return
 }
 
-
 /*  DEVICE CLEINT CONNECTIONS ********************************************************************/
 
 /* GET THIS DEVICE'S REGISTRATION RECORD FROM DES DATABASE */
@@ -180,8 +180,8 @@ func (device *Device) DeviceClient_Connect() (err error) {
 
 	fmt.Printf("\n\n(device *Device) DeviceClient_Connect() -> %s -> connecting... \n", device.DESDevSerial)
 
-	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS 
-		- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
+	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS
+	- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
 	device.GetDeviceDESU()
 
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting CMDARCHIVE... \n", device.DESDevSerial)
@@ -189,7 +189,7 @@ func (device *Device) DeviceClient_Connect() (err error) {
 		return pkg.LogErr(err)
 	}
 
-	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting ACTIVE JOB... \n", device.DESDevSerial)
+	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting ACTIVE JOB: %s\n... \n", device.DESDevSerial, device.DESJobName)
 	if err := device.ConnectJobDBC(); err != nil {
 		return pkg.LogErr(err)
 	}
@@ -219,6 +219,20 @@ func (device *Device) DeviceClient_Connect() (err error) {
 
 	/* START DES DEVICE CLIENT PING */
 	device.DESPingStop = make(chan struct{})
+
+	/* ADD TO Devices MAP */
+	DevicesMapWrite(device.DESDevSerial, *device)
+
+	/* ADD TO DeviceClientPings MAP */
+	DESDeviceClientPingsMapWrite(device.DESDevSerial, pkg.Ping{
+		Time: time.Now().UTC().UnixMilli(),
+		OK:   true,
+	})
+
+	/* ADD TO DevicePings MAP */
+	DevicePingsMapWrite(device.DESDevSerial, pkg.Ping{})
+
+
 	live := true
 	go func() {
 		for live {
@@ -232,17 +246,18 @@ func (device *Device) DeviceClient_Connect() (err error) {
 				device.UpdateDESDeviceClientPing(pkg.Ping{
 					Time: time.Now().UTC().UnixMilli(),
 					OK:   true,
-				})
-				// fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING... \n\n", device.DESDevSerial)
+				}) // fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING... \n\n", device.DESDevSerial)
+
 			}
 		}
-		// device.DESPING = pkg.Ping{}
+		if device.DESPingStop != nil {
+			close(device.DESPingStop)
+			device.DESPingStop = nil
+		}
+
 		delete(DESDeviceClientPings, device.DESDevSerial)
 		fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING STOPPED. \n\n", device.DESDevSerial)
 	}()
-
-	/* ADD TO Devices MAP */
-	UpdateDevicesMap(device.DESDevSerial, *device)
 
 	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connected... \n\n", device.DESDevSerial)
 	return
@@ -254,27 +269,55 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 	- UNREGISTER DEVICE
 	- GRACEFUL SHUTDOWN
 	*/
-	fmt.Printf("\n\n(device *Device) DeviceClient_Disconnect() -> %s -> disconnecting... \n", device.DESDevSerial)
+	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> disconnecting... \n", device.DESDevSerial)
 
 	/* KILL DES DEVICE CLIENT PING REMOVE FROM DeviceClientPings MAP */
-	device.DESPingStop <- struct{}{}
+	if device.DESPingStop != nil {
+		device.DESPingStop <- struct{}{}
+	}
 
+	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> disconnecting CmdDBC... \n", device.DESDevSerial)
 	if err := device.CmdDBC.Disconnect(); err != nil {
 		return pkg.LogErr(err)
 	}
+
+	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> disconnecting JobDBC... \n", device.DESDevSerial)
 	if err := device.JobDBC.Disconnect(); err != nil {
 		return pkg.LogErr(err)
 	}
+	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> unsubscribing MQTT... \n", device.DESDevSerial)
 	if err := device.MQTTDeviceClient_Disconnect(); err != nil {
 		return pkg.LogErr(err)
 	}
 
-	/* REMOVE FROM Devices MAP */
-	delete(Devices, device.DESDevSerial)
+	/* REMOVE DEVICE FROM DevicesMap MAP */
+	RemoveFromDevicesMap(device.DESDevSerial)
 
+	/* REMOVE DEVICE FROM DESDeviceClientPings MAP */
+	DESDeviceClientPingsRemoveFromMap(device.DESDevSerial)
+
+	/* REMOVE DEVICE FROM DevicePings MAP */
+	DevicePingsRemoveFromMap(device.DESDevSerial)
+
+	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> COMPLETE\n", device.DESDevSerial)
 	return
 }
 
+func (device *Device) DeviceClient_RefreshConnections() (err error) {
+	fmt.Printf("\n\n(*Device) DeviceClient_RefreshConnections() -> %s ... \n", device.DESDevSerial)
+
+	/* CLOSE ANY EXISTING CONNECTIONS */
+	if err = device.DeviceClient_Disconnect(); err != nil {
+		return pkg.LogErr(err)
+	}
+
+	/* CONNECT THE DES DEVICE CLIENTS */
+	if err = device.DeviceClient_Connect(); err != nil {
+		return pkg.LogErr(err)
+	}
+
+	return
+}
 
 /* DEVICE CLIENT COMMAND ARCHIVE *************************************************************/
 
@@ -332,7 +375,6 @@ func (device *Device) GetCurrentJob() {
 	return
 }
 
-
 /* DEVICE CLIENT ACTIVE JOB ***********************************************************************/
 
 /* CONNECTS THE ACTIVE JOB DBClient TO THE ACTIVE JOB DATABASE */
@@ -366,12 +408,13 @@ func (device *Device) GetActiveJobEvents() (evts *[]Event, err error) {
 	return
 }
 
-
 /* START JOB **********************************************************************************************/
 
-/* HTTP REQUEST LOGIC - START JOB REQUEST
-	- PREPARE, LOG, AND SEND: StartJob STRUCT to MQTT .../cmd/start 
-	*/
+/*
+	HTTP REQUEST LOGIC - START JOB REQUEST
+
+- PREPARE, LOG, AND SEND: StartJob STRUCT to MQTT .../cmd/start
+*/
 func (device *Device) StartJobRequest(src string) (err error) {
 
 	/* SYNC DEVICE WITH DevicesMap */
@@ -453,14 +496,16 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.MQTTPublication_DeviceClient_CMDStartJob()
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, *device)
+	DevicesMapWrite(device.DESDevSerial, *device)
 
 	return
 }
 
-/* MQTT REPONSE LOGIC - EXPECTED JOB STARTED RESPONSE
-	- CALLED WHEN THE DEVICE CLIENT RECIEVES A 'JOB STARTED' EVENT FROM THE DEVICE 
-	*/
+/*
+	MQTT REPONSE LOGIC - EXPECTED JOB STARTED RESPONSE
+
+- CALLED WHEN THE DEVICE CLIENT RECIEVES A 'JOB STARTED' EVENT FROM THE DEVICE
+*/
 func (device *Device) StartJob(start StartJob) {
 	// pkg.Json("(device *Device) StartJobX(start StartJob): ", start)
 
@@ -580,7 +625,7 @@ func (device *Device) StartJob(start StartJob) {
 	device.STA = start.STA
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, *device)
+	DevicesMapWrite(device.DESDevSerial, *device)
 
 	/* CREATE DESJobSearch RECORD */
 	device.Create_DESJobSearch(device.DESRegistration)
@@ -588,9 +633,11 @@ func (device *Device) StartJob(start StartJob) {
 	pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
 }
 
-/* MQTT RESPONSE LOGIC - UNEXPECTED JOB STARTED RESPONSE
-	- CALLED WHEN A DEVICE HAS STARTED A JOB AND NO REGISTRATION OR DATABASE EXISTS 
-	*/
+/*
+	MQTT RESPONSE LOGIC - UNEXPECTED JOB STARTED RESPONSE
+
+- CALLED WHEN A DEVICE HAS STARTED A JOB AND NO REGISTRATION OR DATABASE EXISTS
+*/
 func (device *Device) OfflineJobStart(smp Sample) {
 	fmt.Printf("\n(*Device) OfflineJobStart( )... \n")
 
@@ -642,12 +689,12 @@ func (device *Device) OfflineJobStart(smp Sample) {
 
 	/* START A JOB */
 	device.StartJob(StartJob{
-			ADM: adm,
-			STA: sta,
-			HDR: hdr,
-			CFG: cfg,
-			EVT: evt,
-		},
+		ADM: adm,
+		STA: sta,
+		HDR: hdr,
+		CFG: cfg,
+		EVT: evt,
+	},
 	)
 
 	/* LOG smp TO JOB DATABASE */
@@ -659,13 +706,14 @@ func (device *Device) OfflineJobStart(smp Sample) {
 	fmt.Printf("\n(*Device) OfflineJobStart( ): COMPLETE. \n")
 }
 
-
 /* END JOB ************************************************************************************************/
 
-/* HTTP REQUEST LOGIC - END JOB REQUEST 
-	- PREPARE, LOG State AND Event STRUCTS 
-	- SEND Event STRUCT to MQTT .../cmd/end
-	*/
+/*
+	HTTP REQUEST LOGIC - END JOB REQUEST
+
+- PREPARE, LOG State AND Event STRUCTS
+- SEND Event STRUCT to MQTT .../cmd/end
+*/
 func (device *Device) EndJobRequest(src string) (err error) {
 
 	endTime := time.Now().UTC().UnixMilli()
@@ -716,12 +764,15 @@ func (device *Device) EndJobRequest(src string) (err error) {
 	device.MQTTPublication_DeviceClient_CMDEndJob(device.EVT)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, *device)
+	DevicesMapWrite(device.DESDevSerial, *device)
 	return err
 }
 
-/* MQTT REPONSE LOGIC - EXPECTED JOB ENDED RESPONSE
-	- CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE */
+/*
+	MQTT REPONSE LOGIC - EXPECTED JOB ENDED RESPONSE
+
+- CALLED WHEN THE DEVICE MQTT CLIENT REVIEVES A 'JOB ENDED' EVENT FROM THE DEVICE
+*/
 func (device *Device) EndJob(sta State) {
 
 	/* UPDATE THE DEVICE EVENT CODE, DISABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB	*/
@@ -791,13 +842,16 @@ func (device *Device) EndJob(sta State) {
 	// pkg.Json("(device *Device) EndJob( ) ->  device.Update_DESJobSearch(device.DESRegistration): ", device)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
-	UpdateDevicesMap(device.DESDevSerial, *device)
+	DevicesMapWrite(device.DESDevSerial, *device)
 
 	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", jobName)
 }
 
-/*  MQTT REPONSE LOGIC - EXPECTED JOB ENDED RESPONSE
-	- USED WHEN A DEVICE HAS STARTED A JOB OFFLINE AND ANOTHER JOB IS ALREADY ACTIVE  */
+/*
+	MQTT REPONSE LOGIC - EXPECTED JOB ENDED RESPONSE
+
+- USED WHEN A DEVICE HAS STARTED A JOB OFFLINE AND ANOTHER JOB IS ALREADY ACTIVE
+*/
 func (device *Device) OfflineJobEnd(smp Sample) {
 	fmt.Printf("\n(*Device) OfflineJobEnd( )... \n")
 
@@ -828,22 +882,24 @@ func (device *Device) OfflineJobEnd(smp Sample) {
 
 	/* ENSURE WE ARE CONNECTED TO THE DB AND MQTT CLIENTS */
 	device.GetMappedClients()
-	
+
 	/* LOG EVT.OFFLINE_JOB_END TO ACTIVE JOB & CMDARCHIVE */
 	go WriteEVT(evt, &device.JobDBC)
 	go WriteEVT(evt, &device.CmdDBC)
 
 	/* END THE ACTIVE JOB */
 	device.EndJob(sta)
-	
+
 	fmt.Printf("\n(*Device) OfflineJobEnd( ): COMPLETE. \n")
 }
 
 /* SAMPLE HANDLING ************************************************************************************/
 
-/* CALLED WHEN DES RECEIVES SAMPLES, HANDLES:
-	- UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST )
-	- OPERATIONAL ALARMS / NOTIFICATIONS ( SSP / SCVF )
+/*
+	CALLED WHEN DES RECEIVES SAMPLES, HANDLES:
+
+- UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST )
+- OPERATIONAL ALARMS / NOTIFICATIONS ( SSP / SCVF )
 */
 func (device *Device) HandleMQTTSample(mqtts MQTT_Sample) (err error, smp Sample) {
 
@@ -862,9 +918,9 @@ func (device *Device) HandleMQTTSample(mqtts MQTT_Sample) (err error, smp Sample
 
 	/* CHECK SAMPLE JOB NAME */
 	if smp.SmpJobName == device.CmdArchiveName() {
-		/* WRITE TO JOB CMDARCHIVE 
-			- SOMETHING HAS GONE WRONG WITH THE DEVICE 
-			- OR WE ARE TESTING THE DEVICE
+		/* WRITE TO JOB CMDARCHIVE
+		- SOMETHING HAS GONE WRONG WITH THE DEVICE
+		- OR WE ARE TESTING THE DEVICE
 		*/
 		go WriteSMP(smp, &device.CmdDBC)
 
@@ -893,9 +949,9 @@ func (device *Device) HandleMQTTSample(mqtts MQTT_Sample) (err error, smp Sample
 	} else if sta.StaLogging == OP_CODE_JOB_STARTED {
 
 		/* DEVICE ENDED AND STARTED JOBS WITHOUT OUR KNOWLEDGE */
-		device.OfflineJobEnd(smp) 
+		device.OfflineJobEnd(smp)
 		device.OfflineJobStart(smp)
-	} 
+	}
 
 	device.SMP = smp
 
@@ -916,11 +972,12 @@ func (device *Device) CheckSCVFCondition(smp Sample) {
 	/* TODO */
 }
 
-
 /* DEVICE SNAPSHOT *************************************************************************************/
 
-/* DEVICE - UPDATE DESJobSearch
-	JSON MARSHALS DEVICE OBJECT AND WRITES TO DES MAIN DB 'des_job_searches.des_job_json'
+/*
+	DEVICE - UPDATE DESJobSearch
+
+JSON MARSHALS DEVICE OBJECT AND WRITES TO DES MAIN DB 'des_job_searches.des_job_json'
 */
 func (device *Device) Create_DESJobSearch(reg pkg.DESRegistration) {
 
@@ -935,8 +992,10 @@ func (device *Device) Create_DESJobSearch(reg pkg.DESRegistration) {
 	}
 }
 
-/* DEVICE - UPDATE DESJobSearch
-	JSON MARSHALS DEVICE OBJECT AND WRITES TO DES MAIN DB 'des_job_searches.des_job_json'
+/*
+	DEVICE - UPDATE DESJobSearch
+
+JSON MARSHALS DEVICE OBJECT AND WRITES TO DES MAIN DB 'des_job_searches.des_job_json'
 */
 func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
 	fmt.Printf("\n Update_DESJobSearch( ): -> %s: reg.DESJobID: %d\n", reg.DESDevSerial, reg.DESJobID)
@@ -954,7 +1013,6 @@ func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
 		pkg.LogErr(res.Error)
 	}
 }
-
 
 /* SET / GET JOB PARAMS *********************************************************************************/
 
@@ -988,14 +1046,16 @@ func (device *Device) SetAdminRequest(src string) (err error) {
 	device.MQTTPublication_DeviceClient_CMDAdmin(adm)
 
 	/* UPDATE DevicesMap */
-	UpdateDevicesMap(device.DESDevSerial, *device)
+	DevicesMapWrite(device.DESDevSerial, *device)
 
 	return
 }
 
-/* ***NOTE*** THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
-	FUTURE VERSIONS MAY ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
-	CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
+/*
+	***NOTE*** THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
+
+FUTURE VERSIONS MAY ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
+CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
 */
 func (device *Device) SetStateRequest(src string) (err error) {
 
@@ -1058,7 +1118,7 @@ func (device *Device) SetHeaderRequest(src string) (err error) {
 	device.MQTTPublication_DeviceClient_CMDHeader(hdr)
 
 	/* UPDATE DevicesMap */
-	UpdateDevicesMap(device.DESDevSerial, *device)
+	DevicesMapWrite(device.DESDevSerial, *device)
 
 	return
 }
@@ -1093,7 +1153,7 @@ func (device *Device) SetConfigRequest(src string) (err error) {
 	device.MQTTPublication_DeviceClient_CMDConfig(cfg)
 
 	/* UPDATE DevicesMap */
-	UpdateDevicesMap(device.DESDevSerial, *device)
+	DevicesMapWrite(device.DESDevSerial, *device)
 
 	return
 }
@@ -1128,11 +1188,10 @@ func (device *Device) CreateEventRequest(src string) (err error) {
 	device.MQTTPublication_DeviceClient_CMDEvent(evt)
 
 	/* UPDATE DevicesMap */
-	UpdateDevicesMap(device.DESDevSerial, *device)
+	DevicesMapWrite(device.DESDevSerial, *device)
 
 	return
 }
-
 
 /********************************************************************************************************/
 /* DEVELOPMENT DATA STRUCTURE ***TODO: REMOVE AFTER DEVELOPMENT*** */
@@ -1140,10 +1199,14 @@ type Debug struct {
 	MQTTDelay int32 `json:"mqtt_delay"`
 }
 
-/* UPDATE THE MAPPED DES DEVICE WITH NEW Debug SETTINGS
-	***NOTE***
-		DEBUG SETINGS ARE NOT LOGGED TO ANY DATABASE
-		NOR ARE THEY TRANSMITTED TO THE PHYSICAL DEVICE */
+/*
+	UPDATE THE MAPPED DES DEVICE WITH NEW Debug SETTINGS
+
+***NOTE***
+
+	DEBUG SETINGS ARE NOT LOGGED TO ANY DATABASE
+	NOR ARE THEY TRANSMITTED TO THE PHYSICAL DEVICE
+*/
 func (device *Device) SetDebug() (err error) {
 
 	device.UpdateMappedDBG(true)

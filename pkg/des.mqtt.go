@@ -79,10 +79,10 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 
 	return err
 }
-func (desm *DESMQTTClient) DESMQTTClient_Disconnect() (err error) {
-	desm.WG.Wait()
-	desm.Client.Disconnect(0) // Wait 10 milliseconds
-	return err
+/* TODO: FIND OUT WHY THIS NEVER RETURNS... */
+func (desm *DESMQTTClient) DESMQTTClient_Disconnect() {
+	// desm.WG.Wait()
+	desm.Client.Disconnect(10) // Wait 10 milliseconds
 }
 
 /* ALL MQTT SUBSCRIPTIONS ON THE DES ARE MANAGED USING THIS STRUCTURE */
@@ -99,8 +99,9 @@ func (sub MQTTSubscription) Sub(client DESMQTTClient) {
 }
 func (sub MQTTSubscription) UnSub(client DESMQTTClient) {
 	token := client.Unsubscribe(sub.Topic)
-	// token.WaitTimeout(time.Millisecond * 100)
-	token.Wait() // fmt.Printf("\nUnsubscribed: %s from:\t%s\n", client.MQTTClientID, sub.Topic)
+	token.WaitTimeout(time.Millisecond * 100)
+	// token.Wait() 
+	fmt.Printf("\nUnsubscribed: %s from:\t%s\n", client.MQTTClientID, sub.Topic)
 }
 
 /* ALL MQTT PUBLICATIONS ON THE DES ARE MANAGED USING THIS STRUCTURE */

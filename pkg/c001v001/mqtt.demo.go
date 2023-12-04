@@ -384,9 +384,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 	demo.MQTTSubscription_DemoDeviceClient_CMDTestOLS().UnSub(demo.DESMQTTClient)
 
 	/* DISCONNECT THE DESMQTTCLient */
-	if err = demo.DESMQTTClient_Disconnect(); err != nil {
-		pkg.LogErr(err)
-	}
+	demo.DESMQTTClient_Disconnect()
 
 	fmt.Printf("\n(device) MQTTDemoDeviceClient_Dicconnect( ) -> %s -> disconnected.\n", demo.ClientID)
 	return

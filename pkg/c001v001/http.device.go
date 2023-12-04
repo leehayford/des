@@ -661,7 +661,7 @@ func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
 	}
 	pkg.Json("HandleDisconnectDevice(): -> c.BodyParser(&device) -> device", device)
 
-	d := ReadDevicesMap(device.DESDevSerial)
+	d := DevicesMapRead(device.DESDevSerial)
 
 	/* CLOSE DEVICE CLIENT CONNECTIONS */
 	if err = d.DeviceClient_Disconnect(); err != nil {
@@ -684,7 +684,7 @@ func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
 }
 
 func HandleConnectDevice(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleConnectDevice( )\n")
+	fmt.Printf("\nHandleConnectDevice( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Admin(c.Locals("role")) {
@@ -701,7 +701,7 @@ func HandleConnectDevice(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("HandleConnectDevice(): -> c.BodyParser(&device) -> device", device)
+	} //pkg.Json("HandleConnectDevice(): -> c.BodyParser(&device) -> device", device)
 
 	/* GET / VALIDATE DESRegistration */
 	ser := device.DESDevSerial
@@ -712,29 +712,17 @@ func HandleConnectDevice(c *fiber.Ctx) (err error) {
 		})
 	} // pkg.Json("HandleConnectDevice(): -> device.GetDeviceDESRegistration -> device", device)
 
-	d := ReadDevicesMap(device.DESDevSerial)
+	d := DevicesMapRead(device.DESDevSerial)
 
-	/* CLOSE ANY EXISTING CONNECTIONS */
-	if err = d.DeviceClient_Disconnect(); err != nil {
-		msg := fmt.Sprintf(
-			"Failed to close existing device connectsions for %s\n%s\n",
-			device.DESDevSerial,
-			err.Error(),
-		)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	/* CLOSE ANY EXISTING CONNECTIONS AND RECONNECT THE DES DEVICE CLIENTS */
+	if err = d.DeviceClient_RefreshConnections(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "fail",
-			"message": msg,
+			"message": fmt.Sprintf("Connections for %s could not be refreshed; ERROR:\n%s\n", ser, err.Error()),
 		})
 	}
 
-	/* CONNECT THE DES DEVICE CLIENTS */
-	if err = d.DeviceClient_Connect(); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	}
-
+	// d = ReadDevicesMap(device.DESDevSerial)
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": fmt.Sprintf("%s DES client connected.", d.DESDevSerial),
