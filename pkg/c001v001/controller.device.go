@@ -613,7 +613,7 @@ func (device *Device) StartJob(start StartJob) {
 	}
 
 	/* WAIT FOR PENDING MQTT MESSAGES TO COMPLETE */
-	device.DESMQTTClient.WG.Wait()
+	// device.DESMQTTClient.WG.Wait()
 
 	/* UPDATE THE DEVICE STATE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB
 	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
@@ -686,9 +686,9 @@ func (device *Device) OfflineJobStart(smp Sample) {
 	}
 	fmt.Printf("\n(*Device) OfflineJobStart( ) -> xxx.DefaultSettings_Xxxxx: OK \n")
 
-	// /* ENSURE WE ARE CONNECTED TO THE DB AND MQTT CLIENTS */
-	// device.GetMappedClients()
-	// fmt.Printf("\n(*Device) OfflineJobStart( ) -> device.GetMappedClients(): OK \n")
+	/* ENSURE WE ARE CONNECTED TO THE DB AND MQTT CLIENTS */
+	device.GetMappedClients()
+	fmt.Printf("\n(*Device) OfflineJobStart( ) -> device.GetMappedClients(): OK \n")
 
 	/* START A JOB */
 	device.StartJob(StartJob{

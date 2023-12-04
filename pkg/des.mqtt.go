@@ -17,7 +17,7 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
+	// "sync"
 	"time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
@@ -33,7 +33,7 @@ type DESMQTTClient struct {
 
 	/* TODO: FINISH IMPLEMENTATION & TESTING
 	WAIT GROUP USED TO PREVENT CONCURRENT ACCESS  OF MAPPED DEVICE STATE */
-	WG *sync.WaitGroup
+	// WG *sync.WaitGroup
 }
 
 func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) (err error) {
@@ -80,7 +80,7 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 	}
 
 	desm.Client = c
-	desm.WG = &sync.WaitGroup{}
+	// desm.WG = &sync.WaitGroup{}
 
 	return err
 }

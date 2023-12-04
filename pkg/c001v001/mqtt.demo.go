@@ -429,7 +429,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStartJob() pk
 		Topic: demo.MQTTTopic_CMDStartJob(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			demo.DESMQTTClient.WG.Add(1)
+			// demo.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			start := StartJob{}
@@ -439,7 +439,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStartJob() pk
 
 			go demo.StartDemoJob(start, false)
 
-			demo.DESMQTTClient.WG.Done()
+			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -452,7 +452,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEndJob() pkg.
 		Topic: demo.MQTTTopic_CMDEndJob(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			demo.DESMQTTClient.WG.Add(1)
+			// demo.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			evt := Event{}
@@ -462,7 +462,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEndJob() pkg.
 
 			go demo.EndDemoJob(evt)
 
-			demo.DESMQTTClient.WG.Done()
+			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -481,7 +481,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDReport() pkg.
 		Topic: demo.MQTTTopic_CMDReport(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			demo.DESMQTTClient.WG.Add(1)
+			// demo.DESMQTTClient.WG.Add(1)
 
 			/* MAKE A COPY OF EACH MODEL - AS IS, NO MODIFICATION */
 			adm := demo.ADM
@@ -498,7 +498,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDReport() pkg.
 			go demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
 			go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
 
-			demo.DESMQTTClient.WG.Done()
+			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -511,7 +511,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 		Topic: demo.MQTTTopic_CMDAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			demo.DESMQTTClient.WG.Add(1)
+			// demo.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			adm := Admin{}
@@ -545,7 +545,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
 
-			demo.DESMQTTClient.WG.Done()
+			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -557,7 +557,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 		Topic: demo.MQTTTopic_CMDState(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			demo.DESMQTTClient.WG.Add(1)
+			// demo.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			sta := State{}
@@ -601,7 +601,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
 
-			demo.DESMQTTClient.WG.Done()
+			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -614,7 +614,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 		Topic: demo.MQTTTopic_CMDHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			demo.DESMQTTClient.WG.Add(1)
+			// demo.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			hdr := Header{}
@@ -648,7 +648,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
 
-			demo.DESMQTTClient.WG.Done()
+			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -661,7 +661,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 		Topic: demo.MQTTTopic_CMDConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			demo.DESMQTTClient.WG.Add(1)
+			// demo.DESMQTTClient.WG.Add(1)
 
 			/* CAPTURE EXISTING CFG */
 			exCFG := demo.CFG
@@ -709,7 +709,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
 
-			demo.DESMQTTClient.WG.Done()
+			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -722,7 +722,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 		Topic: demo.MQTTTopic_CMDEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			demo.DESMQTTClient.WG.Add(1)
+			// demo.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE EVENT IN CMDARCHIVE */
 			evt := Event{}
@@ -757,7 +757,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 			go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
 			
 
-			demo.DESMQTTClient.WG.Done()
+			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -990,8 +990,8 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	// 	demo.EndDemoJob()
 	// }
 
-	demo.DESMQTTClient.WG.Wait()
-	demo.DESMQTTClient.WG.Add(1)
+	// demo.DESMQTTClient.WG.Wait()
+	// demo.DESMQTTClient.WG.Add(1)
 
 	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
 	startTime := time.Now().UTC().UnixMilli()
@@ -1081,7 +1081,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	/* RUN JOB... */
 	go demo.Demo_Simulation(demo.STA.StaJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
 
-	demo.DESMQTTClient.WG.Done()
+	// demo.DESMQTTClient.WG.Done()
 
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( ) -> RUNNING %s...\n", demo.STA.StaJobName)
 }
@@ -1089,8 +1089,8 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	// fmt.Printf("\n%s (demo) EndDemoJob( )...\n", demo.DESDevSerial)
 
-	demo.DESMQTTClient.WG.Wait()
-	demo.DESMQTTClient.WG.Add(1)
+	// demo.DESMQTTClient.WG.Wait()
+	// demo.DESMQTTClient.WG.Add(1)
 	if demo.Stop != nil {
 		demo.Stop <- struct{}{}
 	}
@@ -1172,7 +1172,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	demo.HDR = hdr
 	demo.CFG = cfg
 
-	demo.DESMQTTClient.WG.Done()
+	// demo.DESMQTTClient.WG.Done()
 
 	fmt.Printf("\n(demo) EndDemoJob( ) -> ENDED: %s\n", demo.STA.StaJobName)
 }
@@ -1215,7 +1215,7 @@ func (demo *DemoDeviceClient) SimOfflineStart() {
 func (demo *DemoDeviceClient) Demo_Simulation(job string, mode, rate int32) {
 	// fmt.Printf("\n(demo) Demo_Simulation( ) %s -> Starting simulation...\n", demo.DESDevSerial)
 
-	demo.DESMQTTClient.WG.Wait()
+	// demo.DESMQTTClient.WG.Wait()
 	smp := demo.SMP
 
 	/* CREATE RANDOM SIMULATED WELL CONDITIONS */
