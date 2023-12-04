@@ -60,11 +60,16 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 	}
 	desm.DefaultPublishHandler = func(c phao.Client, msg phao.Message) {
 		fmt.Printf(
-			"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s\nDefault Handler:\nTopic: %s:\nMessage:\n%s\n\n",
+			"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s\nDefault Handler:\nTopic: %s:\n\n",
 			desm.MQTTClientID,
 			msg.Topic(),
-			msg.Payload(),
 		)
+		// fmt.Printf(
+		// 	"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s\nDefault Handler:\nTopic: %s:\nMessage:\n%s\n\n",
+		// 	desm.MQTTClientID,
+		// 	msg.Topic(),
+		// 	msg.Payload(),
+		// )
 	} // fmt.Printf("\n(desm *DESMQTTClient)RegisterDESMQTTClient( ... ) -> desm.ClientID: %s\n", desm.ClientID)
 
 	/*Cerate MQTT Client*/
@@ -116,13 +121,17 @@ type MQTTPublication struct {
 func (pub MQTTPublication) Pub(client DESMQTTClient) {
 
 	// pkg.Json("DEMO_PublishSIG_MQTTSample(...) ->  des.MQTTPublication -> Pub(client phao.Client):", client)
-	if token := client.Publish(
-		pub.Topic,
-		pub.Qos,
-		pub.Retained,
-		pub.Message,
-	); token.Wait() && token.Error() != nil {
-		LogErr(token.Error())
+	if client.Client == nil {
+		fmt.Printf("\n (pub MQTTPublication) Pub( NO CLIENT )")
+	} else {
+		if token := client.Publish(
+			pub.Topic,
+			pub.Qos,
+			pub.Retained,
+			pub.Message,
+		); token.Wait() && token.Error() != nil {
+			LogErr(token.Error())
+		}
 	}
 }
 

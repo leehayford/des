@@ -1178,7 +1178,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 }
 
 func (demo *DemoDeviceClient) SimOfflineStart() {
-	fmt.Printf("\n *DemoDeviceClient) SimOfflineStart( %s )...\n", demo.DESDevSerial)
+	fmt.Printf("\n(*DemoDeviceClient) SimOfflineStart( %s )...\n", demo.DESDevSerial)
 	
 	demo.DESJobRegAddr = demo.DESDevSerial
 	demo.DESJobRegUserID = demo.DESU.GetUUIDString()

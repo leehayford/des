@@ -197,30 +197,31 @@ func FromDevicesMapRemove(serial string) {
 	DevicesRWMutex.Lock()
 	delete(Devices, serial)
 	DevicesRWMutex.Unlock()
-	fmt.Printf("\n\nRemoveFromDevicesMap( %s ) Removed... \n", serial)
+	fmt.Printf("\n\nFromDevicesMapRemove( %s ) Removed... \n", serial)
 }
 
 /* HYDRATES THE DEVICE'S DB & MQTT CLIENT OBJECTS OF THE DEVICE FROM DevicesMap */
 func (device *Device) GetMappedClients() {
 
-	device.DESMQTTClient = pkg.DESMQTTClient{}
-	device.DESMQTTClient.WG = &sync.WaitGroup{}
-
-	// if device.DESMQTTClient.Client == nil {
-	// 	device.DESMQTTClient = pkg.DESMQTTClient{}
-	// }
-	// if device.DESMQTTClient.WG == nil {
-	// 	device.DESMQTTClient.WG = &sync.WaitGroup{}
-	// }
+	if device.DESMQTTClient.Client == nil {
+		device.DESMQTTClient = pkg.DESMQTTClient{}
+	}
+	if device.DESMQTTClient.WG == nil {
+		device.DESMQTTClient.WG = &sync.WaitGroup{}
+	}
 
 	/* GET THE DEVICE CLIENT DATA FROM THE DEVICES CLIENT MAP */
 	d := DevicesMapRead(device.DESDevSerial) // fmt.Printf("\n%v", d)
 
 	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
 	if d.CmdDBC.DB != nil {
+		if device.DESDevSerial == "DEOM000000" {
+			fmt.Printf("\nGetMappedClients( %s ) d.CmdDBC.WG.Wait()... \n", device.DESDevSerial)}
 		d.CmdDBC.WG.Wait()
 	}
 	if device.CmdDBC.DB != nil {
+		if device.DESDevSerial == "DEOM000000" {
+			fmt.Printf("\nGetMappedClients( %s ) device.CmdDBC.WG.Wait()... \n", device.DESDevSerial)}
 		device.CmdDBC.WG.Wait()
 	}
 	device.CmdDBC = d.CmdDBC
@@ -228,17 +229,25 @@ func (device *Device) GetMappedClients() {
 	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
 
 	if d.JobDBC.DB != nil {
+		if device.DESDevSerial == "DEOM000000" {
+			fmt.Printf("\nGetMappedClients( %s ) d.JobDBC.WG.Wait()... \n", device.DESDevSerial)}
 		d.JobDBC.WG.Wait()
 	}
 	if device.JobDBC.DB != nil {
+		if device.DESDevSerial == "DEOM000000" {
+			fmt.Printf("\nGetMappedClients( %s ) device.JobDBC.WG.Wait()... \n", device.DESDevSerial)}
 		device.JobDBC.WG.Wait()
 	}
 	device.JobDBC = d.JobDBC
 
 	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DESMQTTClient IS BUSY */
 	if d.DESMQTTClient.WG != nil {
+		if device.DESDevSerial == "DEOM000000" {
+			fmt.Printf("\nGetMappedClients( %s ) d.DESMQTTClient.WG.Wait()... \n", device.DESDevSerial)}
 		d.DESMQTTClient.WG.Wait()
 	}
+	if device.DESDevSerial == "DEOM000000" {
+		fmt.Printf("\nGetMappedClients( %s ) d.DESMQTTClient.WG.Wait()... \n", device.DESDevSerial)}
 	device.DESMQTTClient.WG.Wait()
 	device.DESMQTTClient = d.DESMQTTClient
 }
@@ -391,7 +400,7 @@ func DESDeviceClientPingsMapRemove(serial string) {
 	DESDeviceClientPingsRWMutex.Lock()
 	delete(DESDeviceClientPings, serial)
 	DESDeviceClientPingsRWMutex.Unlock()
-	fmt.Printf("\n\nDESDeviceClientPingsRemoveFromMap( %s ) Removed... \n", serial)
+	fmt.Printf("\n\nDESDeviceClientPingsMapRemove( %s ) Removed... \n", serial)
 }
 
 /* UPDATE DESDeviceClientPingsMap, AND Publish DESPING */
@@ -443,7 +452,7 @@ func DevicePingsMapRemove(serial string) {
 	DevicePingsRWMutex.Lock()
 	delete(DevicePings, serial)
 	DevicePingsRWMutex.Unlock()
-	fmt.Printf("\n\nDevicePingsRemoveFromMap( %s ) Removed... \n", serial)
+	fmt.Printf("\n\nDevicePingsMapRemove( %s ) Removed... \n", serial)
 }
 
 /* QUALIFY RECEIVED PING THEN UPDATE DevicePingsMap, AND Publish PING */

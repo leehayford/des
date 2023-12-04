@@ -14,7 +14,7 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 
 		/* DEVICE-ADMIN-LEVEL OPERATIONS */
 		router.Post("/register", pkg.DesAuth, HandleRegisterDevice)
-		router.Post("/connect", pkg.DesAuth, HandleConnectDevice)
+		router.Post("/check_des_conn", pkg.DesAuth, HandleCheckDESDeviceClient)
 		router.Post("/disconnect", pkg.DesAuth, HandleDisconnectDevice)
 
 		/* DEVICE-OPERATOR-LEVEL OPERATIONS */
@@ -683,8 +683,8 @@ func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
 	})
 }
 
-func HandleConnectDevice(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleConnectDevice( )\n")
+func HandleCheckDESDeviceClient(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleCheckDESDeviceClient( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Admin(c.Locals("role")) {
@@ -701,7 +701,7 @@ func HandleConnectDevice(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} //pkg.Json("HandleConnectDevice(): -> c.BodyParser(&device) -> device", device)
+	} //pkg.Json("HandleCheckDESDeviceClient(): -> c.BodyParser(&device) -> device", device)
 
 	/* GET / VALIDATE DESRegistration */
 	ser := device.DESDevSerial
@@ -710,7 +710,7 @@ func HandleConnectDevice(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": fmt.Sprintf("DES Registration for %s was not found.\n%s\nDB ERROR", ser, err.Error()),
 		})
-	} // pkg.Json("HandleConnectDevice(): -> device.GetDeviceDESRegistration -> device", device)
+	} // pkg.Json("HandleCheckDESDeviceClient(): -> device.GetDeviceDESRegistration -> device", device)
 
 	d := DevicesMapRead(device.DESDevSerial)
 
@@ -721,11 +721,10 @@ func HandleConnectDevice(c *fiber.Ctx) (err error) {
 			"message": fmt.Sprintf("Connections for %s could not be refreshed; ERROR:\n%s\n", ser, err.Error()),
 		})
 	}
-
-	// d = ReadDevicesMap(device.DESDevSerial)
+	
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
-		"message": fmt.Sprintf("%s DES client connected.", d.DESDevSerial),
+		"message": fmt.Sprintf("%s DES device client connected.", d.DESDevSerial),
 		"data":    fiber.Map{"device": &d},
 	})
 }

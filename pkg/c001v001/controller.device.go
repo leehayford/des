@@ -275,6 +275,11 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 		device.DESPingStop <- struct{}{}
 	}
 
+	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> unsubscribing MQTT... \n", device.DESDevSerial)
+	if err := device.MQTTDeviceClient_Disconnect(); err != nil {
+		return pkg.LogErr(err)
+	}
+
 	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> disconnecting CmdDBC... \n", device.DESDevSerial)
 	if err := device.CmdDBC.Disconnect(); err != nil {
 		return pkg.LogErr(err)
@@ -282,10 +287,6 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 
 	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> disconnecting JobDBC... \n", device.DESDevSerial)
 	if err := device.JobDBC.Disconnect(); err != nil {
-		return pkg.LogErr(err)
-	}
-	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> unsubscribing MQTT... \n", device.DESDevSerial)
-	if err := device.MQTTDeviceClient_Disconnect(); err != nil {
 		return pkg.LogErr(err)
 	}
 
@@ -650,6 +651,7 @@ func (device *Device) OfflineJobStart(smp Sample) {
 	sta.StaLogging = OP_CODE_JOB_OFFLINE_START
 	device.STA = sta
 	device.UpdateMappedSTA()
+	fmt.Printf("\n(*Device) OfflineJobStart( ) -> device.UpdateMappedSTA(): OK \n")
 
 	/* CREATE JOB START MODELS USING sta SOURCE VALUES */
 	adm := Admin{}
@@ -682,9 +684,11 @@ func (device *Device) OfflineJobStart(smp Sample) {
 		EvtTitle: GetEventTypeByCode(sta.StaLogging),
 		EvtMsg:   sta.StaJobName,
 	}
+	fmt.Printf("\n(*Device) OfflineJobStart( ) -> xxx.DefaultSettings_Xxxxx: OK \n")
 
-	/* ENSURE WE ARE CONNECTED TO THE DB AND MQTT CLIENTS */
-	device.GetMappedClients()
+	// /* ENSURE WE ARE CONNECTED TO THE DB AND MQTT CLIENTS */
+	// device.GetMappedClients()
+	// fmt.Printf("\n(*Device) OfflineJobStart( ) -> device.GetMappedClients(): OK \n")
 
 	/* START A JOB */
 	device.StartJob(StartJob{
@@ -698,6 +702,7 @@ func (device *Device) OfflineJobStart(smp Sample) {
 
 	/* LOG smp TO JOB DATABASE */
 	go WriteSMP(smp, &device.JobDBC)
+	fmt.Printf("\n(*Device) OfflineJobStart( ) -> WriteSMP(): OK \n")
 
 	/* AQUIRE THE LATES ADM, STA, HDR, CFG, EVT FROM THE DEVICE */
 	go device.MQTTPublication_DeviceClient_CMDReport()
