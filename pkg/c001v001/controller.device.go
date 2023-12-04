@@ -232,7 +232,6 @@ func (device *Device) DeviceClient_Connect() (err error) {
 	/* ADD TO DevicePings MAP */
 	DevicePingsMapWrite(device.DESDevSerial, pkg.Ping{})
 
-
 	live := true
 	go func() {
 		for live {
@@ -291,13 +290,13 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 	}
 
 	/* REMOVE DEVICE FROM DevicesMap MAP */
-	RemoveFromDevicesMap(device.DESDevSerial)
+	FromDevicesMapRemove(device.DESDevSerial)
 
 	/* REMOVE DEVICE FROM DESDeviceClientPings MAP */
-	DESDeviceClientPingsRemoveFromMap(device.DESDevSerial)
+	DESDeviceClientPingsMapRemove(device.DESDevSerial)
 
 	/* REMOVE DEVICE FROM DevicePings MAP */
-	DevicePingsRemoveFromMap(device.DESDevSerial)
+	DevicePingsMapRemove(device.DESDevSerial)
 
 	fmt.Printf("\n\n(*Device) DeviceClient_Disconnect() -> %s -> COMPLETE\n", device.DESDevSerial)
 	return

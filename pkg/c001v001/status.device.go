@@ -165,7 +165,8 @@ func DeviceClient_DisconnectAll() {
 	}
 }
 
-/* WRITE TO THE DevicesMap
+/*
+	WRITE TO THE DevicesMap
 
 WRITE LOCK IS USED TO PREVENT DEVICE MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
@@ -177,7 +178,8 @@ func DevicesMapWrite(serial string, d Device) {
 	DevicesRWMutex.Unlock()
 }
 
-/* READ THE DevicesMap
+/*
+	READ THE DevicesMap
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
@@ -191,7 +193,7 @@ func DevicesMapRead(serial string) (device Device) {
 }
 
 /* REMOVE DEVICE FROM DevicesMap MAP */
-func RemoveFromDevicesMap(serial string) {
+func FromDevicesMapRemove(serial string) {
 	DevicesRWMutex.Lock()
 	delete(Devices, serial)
 	DevicesRWMutex.Unlock()
@@ -357,7 +359,8 @@ const DES_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
 var DESDeviceClientPings = make(pkg.PingsMap)
 var DESDeviceClientPingsRWMutex = sync.RWMutex{}
 
-/* WRITE TO THE DESDeviceClientPingsMap
+/*
+	WRITE TO THE DESDeviceClientPingsMap
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
@@ -369,7 +372,8 @@ func DESDeviceClientPingsMapWrite(serial string, ping pkg.Ping) {
 	DESDeviceClientPingsRWMutex.Unlock()
 }
 
-/* READ FROM THE DESDeviceClientPingsMap; RETURS pkg.Ping
+/*
+	READ FROM THE DESDeviceClientPingsMap; RETURS pkg.Ping
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
@@ -383,7 +387,7 @@ func DESDeviceClientPingsMapRead(serial string) (ping pkg.Ping) {
 }
 
 /* REMOVE DEVICE FROM DESDeviceClientPings MAP */
-func DESDeviceClientPingsRemoveFromMap(serial string) {
+func DESDeviceClientPingsMapRemove(serial string) {
 	DESDeviceClientPingsRWMutex.Lock()
 	delete(DESDeviceClientPings, serial)
 	DESDeviceClientPingsRWMutex.Unlock()
@@ -435,7 +439,7 @@ func DevicePingsMapRead(serial string) (ping pkg.Ping) {
 }
 
 /* REMOVE DEVICE FROM DevicePings MAP */
-func DevicePingsRemoveFromMap(serial string) {
+func DevicePingsMapRemove(serial string) {
 	DevicePingsRWMutex.Lock()
 	delete(DevicePings, serial)
 	DevicePingsRWMutex.Unlock()

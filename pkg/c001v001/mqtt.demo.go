@@ -10,6 +10,7 @@ import (
 
 	"os"
 	"strings"
+	"sync"
 
 	"time"
 
@@ -52,6 +53,30 @@ type DemoDeviceClient struct {
 type DemoDeviceClientsMap map[string]DemoDeviceClient
 
 var DemoDeviceClients = make(DemoDeviceClientsMap)
+var DemoDeviceClientsRWMutex = sync.RWMutex{}
+
+func DemoDeviceClientsMapWrite(serial string, d DemoDeviceClient) {
+	DemoDeviceClientsRWMutex.Lock()
+	DemoDeviceClients[serial] = d
+	DemoDeviceClientsRWMutex.Unlock()
+}
+func DemoDeviceClientsMapReadAll() (demos DemoDeviceClientsMap) {
+	DemoDeviceClientsRWMutex.Lock()
+	demos = DemoDeviceClients
+	DemoDeviceClientsRWMutex.Unlock()
+	return
+}
+func DemoDeviceClientsMapRead(serial string, d DemoDeviceClient) {
+	DemoDeviceClientsRWMutex.Lock()
+	d = DemoDeviceClients[serial]
+	DemoDeviceClientsRWMutex.Unlock()
+}
+func DemoDeviceClientsMapRemove(serial string) {
+	DemoDeviceClientsRWMutex.Lock()
+	delete(DemoDeviceClients, serial)
+	DemoDeviceClientsRWMutex.Unlock()
+	fmt.Printf("\n\nRemoveFromDemoDeviceClientsMap( %s ) Removed... \n", serial)
+}
 
 /* GET THE CURRENT DESRegistration FOR ALL DEMO DEVICES ON THIS DES */
 func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
@@ -251,16 +276,17 @@ func DemoDeviceClient_DisconnectAll() {
 	- GRACEFUL SHUTDOWN
 	*/
 	fmt.Printf("\nDemoDeviceClient_DisconnectAll()\n")
-	for _, d := range DemoDeviceClients {
+	demos := DemoDeviceClientsMapReadAll()
+	for _, d := range demos {
 		d.DemoDeviceClient_Disconnect()
 	}
 }
 
 func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 
-	fmt.Printf("\n\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connecting... \n", demo.DESDevSerial)
+	fmt.Printf("\n\n(*DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connecting... \n", demo.DESDevSerial)
 
-	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> getting last known status... \n", demo.DESDevSerial)
+	fmt.Printf("\n(*DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> getting last known status... \n", demo.DESDevSerial)
 	demo.ConnectJobDBC()
 	demo.JobDBC.Last(&demo.ADM)
 	demo.JobDBC.Last(&demo.STA)
@@ -287,7 +313,8 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	}
 
 	/* ADD TO DemoDeviceClients MAP */
-	DemoDeviceClients[demo.DESDevSerial] = *demo
+	DemoDeviceClientsMapWrite(demo.DESDevSerial, *demo)
+	// DemoDeviceClients[demo.DESDevSerial] = *demo
 
 	// /* RUN THE SIMULATION IF LAST KNOWN STATUS WAS LOGGING */
 	if demo.STA.StaLogging > OP_CODE_JOB_ENDED {
@@ -303,14 +330,14 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 		}
 	}()
 
-	fmt.Printf("\n(demo *DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
+	fmt.Printf("\n(*DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
 }
 func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
 	/* TODO: TEST WHEN IMPLEMENTING
 	- UNREGISTER DEVICE
 	- GRACEFUL SHUTDOWN
 	*/
-	fmt.Printf("\n\n(demo *DemoDeviceClient) DemoDeviceClient_Disconnect() -> %s -> disconnecting... \n", demo.DESDevSerial)
+	fmt.Printf("\n\n(*DemoDeviceClient) DemoDeviceClient_Disconnect() -> %s -> disconnecting... \n", demo.DESDevSerial)
 
 	if err := demo.MQTTDeviceClient_Disconnect(); err != nil {
 		pkg.LogErr(err)
@@ -330,7 +357,9 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
 
 	demo.Live = false
 
-	delete(DemoDeviceClients, demo.DESDevSerial)
+	/* REMOVE FROM DemoDeviceClients MAP */
+	DemoDeviceClientsMapRemove(demo.DESDevSerial)
+	// delete(DemoDeviceClients, demo.DESDevSerial)
 }
 
 func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
@@ -954,7 +983,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGMsgLimit(msg M
 /* SIMULATIONS *******************************************************************************************/
 
 func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
-	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( X )...\n")
+	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s )...\n", demo.DESDevSerial)
 
 	/* TODO: MAKE SURE THE PREVIOUS JOB IS ENDED */
 	// if state > STATUS_JOB_START_REQ {
@@ -1054,7 +1083,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 
 	demo.DESMQTTClient.WG.Done()
 
-	fmt.Printf("\n(demo *DemoDeviceClient) StartDemoJob( ) -> RUNNING %s...\n", demo.STA.StaJobName)
+	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( ) -> RUNNING %s...\n", demo.STA.StaJobName)
 }
 
 func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
@@ -1149,6 +1178,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 }
 
 func (demo *DemoDeviceClient) SimOfflineStart() {
+	fmt.Printf("\n *DemoDeviceClient) SimOfflineStart( %s )...\n", demo.DESDevSerial)
 	
 	demo.DESJobRegAddr = demo.DESDevSerial
 	demo.DESJobRegUserID = demo.DESU.GetUUIDString()
