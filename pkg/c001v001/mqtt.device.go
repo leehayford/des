@@ -232,7 +232,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 				/* UPDATE THE JOB SEARCH TEXT */
 				d := device
 				d.HDR = hdr
-				go d.Update_DESJobSearch(d.DESRegistration)
+				d.Update_DESJobSearch(d.DESRegistration)
 			}
 
 			device.HDR = hdr

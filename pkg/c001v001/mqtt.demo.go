@@ -47,7 +47,7 @@ type DemoDeviceClient struct {
 	Mode  chan int32
 	TZero chan time.Time
 	Live  bool
-	PING pkg.Ping `json:"ping"`     // Last Ping sent by THID DemoDeviceClient
+	// PING pkg.Ping `json:"ping"`     // Last Ping sent by THID DemoDeviceClient
 }
 
 type DemoDeviceClientsMap map[string]DemoDeviceClient
@@ -324,7 +324,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 
 	go func() {
 		for demo.Live {
-			demo.PING.Time = time.Now().UTC().UnixMilli()
+			// demo.PING.Time = time.Now().UTC().UnixMilli()
 			demo.MQTTPublication_DemoDeviceClient_SIGPing()
 			time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 		}
@@ -845,7 +845,10 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGPing() {
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGDevicePing(),
-		Message:  pkg.ModelToJSONString(demo.PING),
+		Message:  pkg.ModelToJSONString(pkg.Ping{
+			Time: time.Now().UTC().UnixMilli(),
+			OK: true,
+		}),
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
