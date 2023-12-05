@@ -46,7 +46,7 @@ const MODE_LO_FLOW int32 = 6
 
 /* END VALVE POSITIONS ******************************************************************************/
 
-const MIN_SAMPLE_PERIOD int32 = 1000
+const MIN_SAMPLE_PERIOD int32 = 100
 
 type DevicesMap map[string]Device
 

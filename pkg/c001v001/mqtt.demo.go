@@ -325,7 +325,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	go func() {
 		for demo.Live {
 			demo.PING.Time = time.Now().UTC().UnixMilli()
-			go demo.MQTTPublication_DemoDeviceClient_SIGPing()
+			demo.MQTTPublication_DemoDeviceClient_SIGPing()
 			time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 		}
 	}()
@@ -1192,9 +1192,11 @@ func (demo *DemoDeviceClient) SimOfflineStart() {
 
 	hdr := Header{}
 	hdr.DefaultSettings_Header(demo.DESRegistration)
+	hdr.HdrWellCo = "Some Offline Co."
 
 	cfg := Config{}
 	cfg.DefaultSettings_Config(demo.DESRegistration)
+	cfg.CfgOpSample = 200
 
 	evt := Event{}
 	evt.DefaultSettings_Event(demo.DESRegistration)
