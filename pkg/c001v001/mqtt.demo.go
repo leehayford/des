@@ -36,7 +36,6 @@ type DemoModeTransition struct {
 
 type DemoDeviceClient struct {
 	Device
-	// TZero     time.Time
 	MTxCh4    DemoModeTransition `json:"mtx_ch4"`
 	MTxHiFlow DemoModeTransition `json:"mtx_hi_flow"`
 	MTxLoFlow DemoModeTransition `json:"mtx_lo_flow"`
@@ -47,7 +46,6 @@ type DemoDeviceClient struct {
 	Mode  chan int32
 	TZero chan time.Time
 	Live  bool
-	// PING pkg.Ping `json:"ping"`     // Last Ping sent by THID DemoDeviceClient
 }
 
 type DemoDeviceClientsMap map[string]DemoDeviceClient
@@ -429,8 +427,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStartJob() pk
 		Topic: demo.MQTTTopic_CMDStartJob(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			// demo.DESMQTTClient.WG.Add(1)
-
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			start := StartJob{}
 			if err := json.Unmarshal(msg.Payload(), &start); err != nil {
@@ -438,8 +434,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDStartJob() pk
 			}
 
 			demo.StartDemoJob(start, false)
-
-			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -452,8 +446,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEndJob() pkg.
 		Topic: demo.MQTTTopic_CMDEndJob(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			// demo.DESMQTTClient.WG.Add(1)
-
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			evt := Event{}
 			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
@@ -461,8 +453,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEndJob() pkg.
 			}
 
 			demo.EndDemoJob(evt)
-
-			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -481,8 +471,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDReport() pkg.
 		Topic: demo.MQTTTopic_CMDReport(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			// demo.DESMQTTClient.WG.Add(1)
-
 			/* MAKE A COPY OF EACH MODEL - AS IS, NO MODIFICATION */
 			adm := demo.ADM
 			sta := demo.STA
@@ -497,8 +485,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDReport() pkg.
 			go demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
 			go demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
 			go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
-
-			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -510,8 +496,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 		Qos:   0,
 		Topic: demo.MQTTTopic_CMDAdmin(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// demo.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			adm := Admin{}
@@ -544,8 +528,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
-
-			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -556,8 +538,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 		Qos:   0,
 		Topic: demo.MQTTTopic_CMDState(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// demo.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			sta := State{}
@@ -600,8 +580,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
-
-			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -613,8 +591,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 		Qos:   0,
 		Topic: demo.MQTTTopic_CMDHeader(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// demo.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE ADMIN IN CMDARCHIVE */
 			hdr := Header{}
@@ -647,8 +623,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDHeader() pkg.
 
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
-
-			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -660,8 +634,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 		Qos:   0,
 		Topic: demo.MQTTTopic_CMDConfig(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// demo.DESMQTTClient.WG.Add(1)
 
 			/* CAPTURE EXISTING CFG */
 			exCFG := demo.CFG
@@ -708,8 +680,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDConfig() pkg.
 
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
-
-			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -721,8 +691,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 		Qos:   0,
 		Topic: demo.MQTTTopic_CMDEvent(),
 		Handler: func(c phao.Client, msg phao.Message) {
-
-			// demo.DESMQTTClient.WG.Add(1)
 
 			/* PARSE / STORE THE EVENT IN CMDARCHIVE */
 			evt := Event{}
@@ -755,9 +723,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEvent() pkg.M
 
 			/* SEND CONFIRMATION */
 			go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
-			
-
-			// demo.DESMQTTClient.WG.Done()
 		},
 	}
 }
@@ -792,7 +757,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDTestOLS() pkg
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* OFFLINE JOB START */
-			go demo.SimOfflineStart()
+			demo.SimOfflineStart()
 
 		},
 	}
@@ -1199,7 +1164,7 @@ func (demo *DemoDeviceClient) SimOfflineStart() {
 
 	cfg := Config{}
 	cfg.DefaultSettings_Config(demo.DESRegistration)
-	cfg.CfgOpSample = 200
+	// cfg.CfgOpSample = 200
 
 	evt := Event{}
 	evt.DefaultSettings_Event(demo.DESRegistration)
