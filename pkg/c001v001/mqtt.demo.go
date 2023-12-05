@@ -1110,12 +1110,12 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	demo.WriteStateToFlash(demo.DESJobName, sta)
 
 	/* SEND FINAL DATA MODELS */
-	go demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
-	go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
-	go demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
+	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
+	demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
+	demo.MQTTPublication_DemoDeviceClient_SIGState(sta)
 
 	/* SEND END JOB CONFIRMATION */
-	go demo.MQTTPublication_DemoDeviceClient_SIGEndJob(sta)
+	demo.MQTTPublication_DemoDeviceClient_SIGEndJob(sta)
 
 	/* GET DEFAULT MODELS AND UPDATE TIMES */
 	adm := demo.ADM
@@ -1131,9 +1131,9 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 
 	/* TRANSMIT DEFAULT MODELS */
 	// time.Sleep(time.Second * 1)
-	go demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
-	go demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
-	go demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
+	demo.MQTTPublication_DemoDeviceClient_SIGAdmin(adm)
+	demo.MQTTPublication_DemoDeviceClient_SIGHeader(hdr)
+	demo.MQTTPublication_DemoDeviceClient_SIGConfig(cfg)
 
 	/* LOAD DEFAULT MODELS INTO RAM */
 	demo.ADM = adm
