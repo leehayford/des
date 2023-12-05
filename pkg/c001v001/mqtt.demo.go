@@ -531,6 +531,7 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDAdmin() pkg.M
 		},
 	}
 }
+
 /* SUBSCRIPTION -> STATE -> UPON RECEIPT, LOG & REPLY TO .../sig/state */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
@@ -1561,7 +1562,7 @@ func (demo *DemoDeviceClient) WriteSMPToFlashHEX(jobName string, smp Sample) (er
 	return WriteModelBytesToFlashHEX(jobName, "smp", buf)
 }
 
-/* ADM DEMO MEMORY -> 272 BYTES -> HxD 34 x 8 */
+/* ADM DEMO MEMORY -> 284 BYTES -> HxD 71 x 4 */
 func (demo DemoDeviceClient) WriteADMToFlashHex(jobName string, adm Admin) (err error) {
 	buf := adm.AdminToBytes() // fmt.Printf("\nadmBytes ( %d ) : %x\n", len(buf), buf)
 	return WriteModelBytesToFlashHEX(jobName, "adm", buf)
@@ -1572,7 +1573,7 @@ func (demo *DemoDeviceClient) ReadLastADMFromFlashHex(jobName string, adm *Admin
 	if err != nil {
 		return
 	}
-	b := buf[len(buf)-272:]
+	b := buf[len(buf)-284:]
 	// fmt.Printf("\nadmBytes ( %d ) : %v\n", len(b), b)
 	adm.AdminFromBytes(b)
 	return

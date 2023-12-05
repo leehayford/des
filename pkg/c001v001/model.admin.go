@@ -28,6 +28,10 @@ type Admin struct {
 	/*MOTOR ALARMS*/
 	AdmMotHiAmp float32 `json:"adm_mot_hi_amp"`
 
+	AdmPress float32 `json:"adm_press"` // 6991.3 kPa (1014 psia)
+	AdmPressMin float32 `json:"adm_press_min"` // 689.5 kPa (100 psia)
+	AdmPressMax float32 `json:"adm_press_amx"` // 6991.3 kPa (1014 psia)
+
 	// /* POSTURE - NOT IMPLEMENTED */
 	// AdmTiltTgt float32 `json:"adm_tilt_tgt"` // 90.0 °
 	// AdmTiltMgn float32 `json:"adm_tilt_mgn"` // 3.0 °
@@ -38,23 +42,23 @@ type Admin struct {
 	AdmHFSFlow     float32 `json:"adm_hfs_flow"`      // 200.0 L/min
 	AdmHFSFlowMin  float32 `json:"adm_hfs_flow_min"`  // 150.0 L/min
 	AdmHFSFlowMax  float32 `json:"adm_hfs_flow_max"`  //  250.0 L/min
-	AdmHFSPress    float32 `json:"adm_hfs_press"`     // 160.0 psia
-	AdmHFSPressMin float32 `json:"adm_hfs_press_min"` //  23.0 psia
-	AdmHFSPressMax float32 `json:"adm_hfs_press_max"` //  200.0 psia
-	AdmHFSDiff     float32 `json:"adm_hfs_diff"`      //  65.0 psi
-	AdmHFSDiffMin  float32 `json:"adm_hfs_diff_min"`  //  10.0 psi
-	AdmHFSDiffMax  float32 `json:"adm_hfs_diff_max"`  //  75.0 psi
+	AdmHFSPress    float32 `json:"adm_hfs_press"`     // 1103.1 kPa (160 psia)
+	AdmHFSPressMin float32 `json:"adm_hfs_press_min"` // 158.6 kPa (23 psia)
+	AdmHFSPressMax float32 `json:"adm_hfs_press_max"` // 1378.9 kPa (200 psia)
+	AdmHFSDiff     float32 `json:"adm_hfs_diff"`      // 448.2 kPa (65 psia)
+	AdmHFSDiffMin  float32 `json:"adm_hfs_diff_min"`  // 68.9 kPa (10 psia)
+	AdmHFSDiffMax  float32 `json:"adm_hfs_diff_max"`  // 517.1 kPa (75 psia)
 
 	/* LOW FLOW SENSOR ( LFS )*/
 	AdmLFSFlow     float32 `json:"adm_lfs_flow"`      // 1.85 L/min
 	AdmLFSFlowMin  float32 `json:"adm_lfs_flow_min"`  // 0.5 L/min
 	AdmLFSFlowMax  float32 `json:"adm_lfs_flow_max"`  // 2.0 L/min
-	AdmLFSPress    float32 `json:"adm_lfs_press"`     // 60.0 psia
-	AdmLFSPressMin float32 `json:"adm_lfs_press_min"` // 20.0 psia
-	AdmLFSPressMax float32 `json:"adm_lfs_press_max"` // 80.0 psia
-	AdmLFSDiff     float32 `json:"adm_lfs_diff"`      // 9.0 psi
-	AdmLFSDiffMin  float32 `json:"adm_lfs_diff_min"`  // 2.0 psi
-	AdmLFSDiffMax  float32 `json:"adm_lfs_diff_max"`  // 10.0 psi
+	AdmLFSPress    float32 `json:"adm_lfs_press"`     // 413.7 kPa (60 psia)
+	AdmLFSPressMin float32 `json:"adm_lfs_press_min"` // 137.9 kPa (20 psia)
+	AdmLFSPressMax float32 `json:"adm_lfs_press_max"` // 551.5 kPa (80 psia)
+	AdmLFSDiff     float32 `json:"adm_lfs_diff"`      // 62.0 kPa (9 psia)
+	AdmLFSDiffMin  float32 `json:"adm_lfs_diff_min"`  // 13.8 kPa (2 psia)
+	AdmLFSDiffMax  float32 `json:"adm_lfs_diff_max"`  // 68.9 kPa (10 psia)
 }
 func WriteADM(adm Admin, dbc *pkg.DBClient) (err error) {
 
@@ -89,6 +93,10 @@ func (adm Admin) AdminToBytes() (out []byte) {
 	out = append(out, pkg.Float32ToBytes(adm.AdmBatLoVolt)...)
 
 	out = append(out, pkg.Float32ToBytes(adm.AdmMotHiAmp)...)
+	
+	out = append(out, pkg.Float32ToBytes(adm.AdmPress)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmPressMin)...)
+	out = append(out, pkg.Float32ToBytes(adm.AdmPressMax)...)
 
 	out = append(out, pkg.Float32ToBytes(adm.AdmHFSFlow)...)
 	out = append(out, pkg.Float32ToBytes(adm.AdmHFSFlowMin)...)
@@ -131,25 +139,29 @@ func (adm *Admin) AdminFromBytes(b []byte) {
 
 		AdmMotHiAmp: pkg.BytesToFloat32_L(b[196:200]),
 
-		AdmHFSFlow:     pkg.BytesToFloat32_L(b[200:204]),
-		AdmHFSFlowMin:  pkg.BytesToFloat32_L(b[204:208]),
-		AdmHFSFlowMax:  pkg.BytesToFloat32_L(b[208:212]),
-		AdmHFSPress:    pkg.BytesToFloat32_L(b[212:216]),
-		AdmHFSPressMin: pkg.BytesToFloat32_L(b[216:220]),
-		AdmHFSPressMax: pkg.BytesToFloat32_L(b[220:224]),
-		AdmHFSDiff:     pkg.BytesToFloat32_L(b[224:228]),
-		AdmHFSDiffMin:  pkg.BytesToFloat32_L(b[228:232]),
-		AdmHFSDiffMax:  pkg.BytesToFloat32_L(b[232:236]),
+		AdmPress: pkg.BytesToFloat32_L(b[196:200]),
+		AdmPressMin: pkg.BytesToFloat32_L(b[200:204]),
+		AdmPressMax: pkg.BytesToFloat32_L(b[204:208]),
 
-		AdmLFSFlow:     pkg.BytesToFloat32_L(b[236:240]),
-		AdmLFSFlowMin:  pkg.BytesToFloat32_L(b[240:244]),
-		AdmLFSFlowMax:  pkg.BytesToFloat32_L(b[244:248]),
-		AdmLFSPress:    pkg.BytesToFloat32_L(b[248:252]),
-		AdmLFSPressMin: pkg.BytesToFloat32_L(b[252:256]),
-		AdmLFSPressMax: pkg.BytesToFloat32_L(b[256:260]),
-		AdmLFSDiff:     pkg.BytesToFloat32_L(b[260:264]),
-		AdmLFSDiffMin:  pkg.BytesToFloat32_L(b[264:268]),
-		AdmLFSDiffMax:  pkg.BytesToFloat32_L(b[268:272]),
+		AdmHFSFlow:     pkg.BytesToFloat32_L(b[208:212]),
+		AdmHFSFlowMin:  pkg.BytesToFloat32_L(b[212:216]),
+		AdmHFSFlowMax:  pkg.BytesToFloat32_L(b[216:220]),
+		AdmHFSPress:    pkg.BytesToFloat32_L(b[220:224]),
+		AdmHFSPressMin: pkg.BytesToFloat32_L(b[224:228]),
+		AdmHFSPressMax: pkg.BytesToFloat32_L(b[228:232]),
+		AdmHFSDiff:     pkg.BytesToFloat32_L(b[232:236]),
+		AdmHFSDiffMin:  pkg.BytesToFloat32_L(b[236:240]),
+		AdmHFSDiffMax:  pkg.BytesToFloat32_L(b[244:248]),
+
+		AdmLFSFlow:     pkg.BytesToFloat32_L(b[248:252]),
+		AdmLFSFlowMin:  pkg.BytesToFloat32_L(b[252:256]),
+		AdmLFSFlowMax:  pkg.BytesToFloat32_L(b[256:260]),
+		AdmLFSPress:    pkg.BytesToFloat32_L(b[260:264]),
+		AdmLFSPressMin: pkg.BytesToFloat32_L(b[264:268]),
+		AdmLFSPressMax: pkg.BytesToFloat32_L(b[268:272]),
+		AdmLFSDiff:     pkg.BytesToFloat32_L(b[272:276]),
+		AdmLFSDiffMin:  pkg.BytesToFloat32_L(b[276:280]),
+		AdmLFSDiffMax:  pkg.BytesToFloat32_L(b[280:284]),
 	}
 	//  pkg.Json("(demo *DemoDeviceClient)MakeAdmFromBytes() -> adm", adm)
 	return
@@ -178,6 +190,10 @@ func (adm *Admin) DefaultSettings_Admin(reg pkg.DESRegistration) {
 		/* MOTOR */
 		adm.AdmMotHiAmp =1.9 // Volts
 
+        adm.AdmPress = 6894.8 // kPa (1014 psia)
+        adm.AdmPressMin = 689.5 // kPa (100 psia)
+        adm.AdmPressMax = 6894.8 // kPa (1014 psia)
+
 		// /* POSTURE - NOT IMPLEMENTED */
 		// TiltTarget float32 `json:"tilt_target"` // 90.0 °
 		// TiltMargin float32 `json:"tilt_margin"` // 3.0 °
@@ -188,23 +204,23 @@ func (adm *Admin) DefaultSettings_Admin(reg pkg.DESRegistration) {
 		adm.AdmHFSFlow = 200.0 // 200.0 L/min
 		adm.AdmHFSFlowMin =  150.0 // 150.0 L/min
 		adm.AdmHFSFlowMax =  250.0 //  250.0 L/min
-		adm.AdmHFSPress =    160.0 // 160.0 psia
-		adm.AdmHFSPressMin = 23    //  23.0 psia
-		adm.AdmHFSPressMax = 200.0 //  200.0 psia
-		adm.AdmHFSDiff =    65.0  //  65.0 psi
-		adm.AdmHFSDiffMin =  10.0  //  10.0 psi
-		adm.AdmHFSDiffMax =  75.0  //  75.0 psi
+		adm.AdmHFSPress =    1103.1 // kPa (160 psia)
+		adm.AdmHFSPressMin = 158.6 // kPa (23 psia)
+		adm.AdmHFSPressMax = 1378.9 // kPa (200 psia)
+		adm.AdmHFSDiff =    448.2 // kPa (65 psia)
+		adm.AdmHFSDiffMin =  68.9 // kPa (10 psia)
+		adm.AdmHFSDiffMax =  517.1 // kPa (75 psia)
 
 		/* LOW FLOW SENSOR ( LFS )*/
 		adm.AdmLFSFlow =    1.85 // 1.85 L/min
 		adm.AdmLFSFlowMin =  0.5  // 0.5 L/min
 		adm.AdmLFSFlowMax =  2.0  // 2.0 L/min
-		adm.AdmLFSPress =    60.0 // 60.0 psia
-		adm.AdmLFSPressMin = 20.0 // 20.0 psia
-		adm.AdmLFSPressMax = 800  // 80.0 psia
-		adm.AdmLFSDiff =     9.0  // 9.0 psi
-		adm.AdmLFSDiffMin =  2.0  // 2.0 psi
-		adm.AdmLFSDiffMax =  10.0 // 10.0 psi
+		adm.AdmLFSPress =    413.7 // kPa (60 psia)
+		adm.AdmLFSPressMin = 137.9 // kPa (20 psia)
+		adm.AdmLFSPressMax = 551.5 // kPa (80 psia)
+		adm.AdmLFSDiff =     62.0 // kPa (9 psia)
+		adm.AdmLFSDiffMin =  13.8 // kPa (2 psia)
+		adm.AdmLFSDiffMax =  68.9 // kPa (10 psia)
 }
 
 /*
