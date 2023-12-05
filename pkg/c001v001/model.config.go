@@ -22,6 +22,7 @@ type Config struct {
 	CfgSSPDur   int32 `json:"cfg_ssp_dur"`
 	CfgHiSCVF   float32 `json:"cfg_hi_scvf"`
 	CfgFlowTog  float32 `json:"cfg_flow_tog"`
+	CfgSSCVFDur int32 `json:"cfg_sscvf_dur"`
 
 	/*VALVE*/
 	CfgVlvTgt int32 `json:"cfg_vlv_tgt"`
@@ -66,6 +67,7 @@ func (cfg Config) ConfigToBytes() (out []byte) {
 	out = append(out, pkg.Int32ToBytes(cfg.CfgSSPDur)...)
 	out = append(out, pkg.Float32ToBytes(cfg.CfgHiSCVF)...)
 	out = append(out, pkg.Float32ToBytes(cfg.CfgFlowTog)...)
+	out = append(out, pkg.Int32ToBytes(cfg.CfgSSCVFDur)...)
 
 	out = append(out, pkg.Int32ToBytes(cfg.CfgVlvTgt)...)
 	out = append(out, pkg.Int32ToBytes(cfg.CfgVlvPos)...)
@@ -95,17 +97,18 @@ func (cfg *Config) ConfigFromBytes(b []byte) {
 		CfgSSPDur:   pkg.BytesToInt32_L(b[128:132]),
 		CfgHiSCVF:   pkg.BytesToFloat32_L(b[132:136]),
 		CfgFlowTog:  pkg.BytesToFloat32_L(b[136:140]),
+		CfgSSCVFDur: pkg.BytesToInt32_L(b[140:144]),
 
-		CfgVlvTgt: pkg.BytesToInt32_L(b[140:144]),
-		CfgVlvPos: pkg.BytesToInt32_L(b[144:148]),
+		CfgVlvTgt: pkg.BytesToInt32_L(b[144:148]),
+		CfgVlvPos: pkg.BytesToInt32_L(b[148:152]),
 
-		CfgOpSample: pkg.BytesToInt32_L(b[148:152]),
-		CfgOpLog:    pkg.BytesToInt32_L(b[152:156]),
-		CfgOpTrans:  pkg.BytesToInt32_L(b[156:160]),
+		CfgOpSample: pkg.BytesToInt32_L(b[152:156]),
+		CfgOpLog:    pkg.BytesToInt32_L(b[156:160]),
+		CfgOpTrans:  pkg.BytesToInt32_L(b[160:164]),
 
-		CfgDiagSample: pkg.BytesToInt32_L(b[160:164]),
-		CfgDiagLog:    pkg.BytesToInt32_L(b[164:168]),
-		CfgDiagTrans:  pkg.BytesToInt32_L(b[168:172]),
+		CfgDiagSample: pkg.BytesToInt32_L(b[164:168]),
+		CfgDiagLog:    pkg.BytesToInt32_L(b[168:172]),
+		CfgDiagTrans:  pkg.BytesToInt32_L(b[172:176]),
 	}
 	//  pkg.Json("(demo *DemoDeviceClient)MakeCfgFromBytes() -> cfg", cfg)
 	return
@@ -124,9 +127,10 @@ func (cfg *Config) DefaultSettings_Config(reg pkg.DESRegistration) {
 	cfg.CfgSCVD = 596.8    // m
 	cfg.CfgSCVDMult = 10.5 // kPa / m
 	cfg.CfgSSPRate = 1.95  // kPa / hour
-	cfg.CfgSSPDur = 21600000    // hour
+	cfg.CfgSSPDur = 21600000    // 6 hours
 	cfg.CfgHiSCVF = 201.4  //  L/min
 	cfg.CfgFlowTog = 1.85  // L/min
+	cfg.CfgSSCVFDur = 7200000 // 2 hours
 
 	/* VALVE */
 	cfg.CfgVlvTgt = 2 // vent

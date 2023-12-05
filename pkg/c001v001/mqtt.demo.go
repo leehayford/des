@@ -1614,7 +1614,7 @@ func (demo *DemoDeviceClient) ReadLastHDRFromFlashHex(jobName string, hdr *Heade
 	return
 }
 
-/* CFG DEMO MEMORY -> 172 BYTES -> HxD 43 x 4 */
+/* CFG DEMO MEMORY -> 176 BYTES -> HxD 44 x 4 */
 func (demo *DemoDeviceClient) WriteCFGToFlashHex(jobName string, cfg Config) (err error) {
 	buf := cfg.ConfigToBytes() // fmt.Printf("\ncfgBytes ( %d ) : %x\n", len(buf), buf)
 	return WriteModelBytesToFlashHEX(jobName, "cfg", buf)
@@ -1625,7 +1625,7 @@ func (demo *DemoDeviceClient) ReadLastCFGFromFlashHex(jobName string, cfg *Confi
 	if err != nil {
 		return
 	}
-	b := buf[len(buf)-172:]
+	b := buf[len(buf)-176:]
 	// fmt.Printf("\ncfgBytes ( %d ) : %v\n", len(b), b)
 	cfg.ConfigFromBytes(b)
 	return

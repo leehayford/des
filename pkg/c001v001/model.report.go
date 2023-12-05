@@ -221,3 +221,25 @@ func (job *Job) CreateSecAnnotation(sec *RepSection, csv, plot bool, evt Event) 
 
 	return
 }
+
+// type StableFlowAnnotation struct {
+// 	SfaID    int64   `gorm:"unique; primaryKey" json:"sfa_id"`
+// 	SfaUserID string `gorm:"not null; varchar(36)" json:"sfa_user_id"`
+// 	SfaCreated   int64  `gorm:"autoCreateTime:milli" json:"sfa_created"`
+// 	SfaModified   int64  `gorm:"autoUpdateTime:milli" json:"sfa_modified"`
+
+// 	SfaStart int64  `gorm:"not null" json:"sfa_start"`
+// 	SfaEnd   int64  `gorm:"not null" json:"sfa_end"`
+// 	SfaDur   int64  `gorm:"not null" json:"sfa_dur"` // min
+// 	SfaTAC float32 `json:"sfa_tac"` // Total Annual metric ton (1000 kg)
+	
+// 	SfaYAxis string  `json:"sfa_y_axis"`
+
+// 	SfaCSV   bool    `json:"ann_csv"`
+// 	SfaPlot  bool    `json:"ann_plot"`
+// 	SfaSecID int64   `json:"sfa_sec_id"`
+// 	SfaSec RepSection `gorm:"foreignKey:SfaSecID; references:SecID" json:"sec"`
+
+// 	SfaEvtID int64   `json:"sfa_evt_id"`
+// 	SfaEvt Event `gorm:"foreignKey:SfaEvtID; references:EvtID" json:"evt"`
+// }

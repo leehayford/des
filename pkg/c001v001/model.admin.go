@@ -30,7 +30,7 @@ type Admin struct {
 
 	AdmPress float32 `json:"adm_press"` // 6991.3 kPa (1014 psia)
 	AdmPressMin float32 `json:"adm_press_min"` // 689.5 kPa (100 psia)
-	AdmPressMax float32 `json:"adm_press_amx"` // 6991.3 kPa (1014 psia)
+	AdmPressMax float32 `json:"adm_press_max"` // 6991.3 kPa (1014 psia)
 
 	// /* POSTURE - NOT IMPLEMENTED */
 	// AdmTiltTgt float32 `json:"adm_tilt_tgt"` // 90.0 °
