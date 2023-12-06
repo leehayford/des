@@ -46,7 +46,8 @@ type DemoDeviceClient struct {
 	Mode  chan int32
 	TZero chan time.Time
 	Live  bool
-	GPS bool
+	LTE bool
+	GPS chan bool
 }
 
 type DemoDeviceClientsMap map[string]DemoDeviceClient
@@ -301,7 +302,8 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	demo.Mode = make(chan int32)
 	demo.TZero = make(chan time.Time)
 	demo.Live = true
-	demo.GPS = false
+	demo.LTE = true
+	demo.GPS = make(chan bool)
 
 	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS 
 		- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
@@ -323,10 +325,16 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 
 	go func() {
 		for demo.Live {
-			if !demo.GPS {
-				demo.MQTTPublication_DemoDeviceClient_SIGPing()
+			select {
+			
+			case demo.LTE= <- demo.GPS:
+			
+			default: 
+				if demo.LTE {
+					demo.MQTTPublication_DemoDeviceClient_SIGPing()
+				}
+				time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 			}
-			time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 		}
 	}()
 
@@ -342,6 +350,10 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
 	if err := demo.MQTTDeviceClient_Disconnect(); err != nil {
 		pkg.LogErr(err)
 	}
+
+	demo.LTE = false
+	close(demo.GPS)
+	demo.GPS = nil
 
 	close(demo.Stop)
 	demo.Stop = nil
@@ -960,7 +972,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	startTime := time.Now().UTC().UnixMilli()
 
 	/* DISCONNECT TO SIMULATE GPS AQUIRE */
-	demo.GPS = true
+	demo.GPS <- true
 	time.Sleep(time.Millisecond * ( DEVICE_PING_TIMEOUT + DES_PING_TIMEOUT / 2 ) )
 
 	/* USED INCASE WE NEED TO CREATE DEFAULT SETTINGS */
@@ -979,7 +991,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	}
 
 	/* RECONNECT AFTER SIMULATED GPS AQUIRE */
-	demo.GPS = false
+	demo.GPS <- false
 
 	demo.ADM = start.ADM
 	demo.ADM.AdmTime = startTime
