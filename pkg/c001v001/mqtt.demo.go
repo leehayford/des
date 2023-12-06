@@ -974,6 +974,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	evt := start.EVT
 	evt.EvtCode = OP_CODE_GPS_ACQ
 	evt.EvtUserID = demo.STA.StaUserID
+	evt.EvtTitle = GetEventTypeByCode(evt.EvtCode)
 	demo.GPS <- evt
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s ) -> LTE OFF; GPS ON...\n", demo.DESDevSerial)
 	time.Sleep(time.Millisecond * ( DEVICE_PING_TIMEOUT + DES_PING_TIMEOUT / 2 ) )
