@@ -22,6 +22,7 @@ const OP_CODE_JOB_STARTED int32 = 4       // DEVICE RESPONSE -> JOB STARTED
 const OP_CODE_JOB_END_REQ int32 = 5       // USER REQUEST -> END JOB
 const OP_CODE_JOB_OFFLINE_START int32 = 6 // JOB WAS STARTED OFFLINE BY OPERATOR ON SITE
 const OP_CODE_JOB_OFFLINE_END int32 = 7   // JOB WAS ENDED OFFLINE BY OPERATOR ON SITE
+const OP_CODE_GPS_ACQ int32 = 8  // DEVICE NOTIFICATION -> LTE DISABLED FOR GPS AQUISITION
 /* END OPERATION CODES  ( Event.EvtCode ) *********************************************************/
 
 /* STATUS CODES ( Event.EvtCode 1000 : 1999 ) *******************************************************/

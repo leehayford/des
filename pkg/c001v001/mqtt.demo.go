@@ -45,9 +45,8 @@ type DemoDeviceClient struct {
 	Rate  chan int32
 	Mode  chan int32
 	TZero chan time.Time
+	GPS chan Event
 	Live  bool
-	LTE bool
-	GPS chan bool
 }
 
 type DemoDeviceClientsMap map[string]DemoDeviceClient
@@ -301,9 +300,8 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	demo.Rate = make(chan int32)
 	demo.Mode = make(chan int32)
 	demo.TZero = make(chan time.Time)
+	demo.GPS = make(chan Event)
 	demo.Live = true
-	demo.LTE = true
-	demo.GPS = make(chan bool)
 
 	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS 
 		- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
@@ -323,15 +321,18 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 		time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 	}
 
+	evt := Event{}
 	go func() {
 		for demo.Live {
 			select {
 			
-			case v := <- demo.GPS:
-				demo.LTE = !v /* IF GPS IS TRUE, LTE IS NOT */
+			case evt = <- demo.GPS: /* IF GPS IS ON, LTE IS OFF */
+				if evt.EvtTime > 0 {
+					demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
+				}
 			
 			default: 
-				if demo.LTE {
+				if evt.EvtTime == 0 {
 					demo.MQTTPublication_DemoDeviceClient_SIGPing()
 				}
 				time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
@@ -352,7 +353,6 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
 		pkg.LogErr(err)
 	}
 
-	demo.LTE = false
 	close(demo.GPS)
 	demo.GPS = nil
 
@@ -372,7 +372,6 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
 
 	/* REMOVE FROM DemoDeviceClients MAP */
 	DemoDeviceClientsMapRemove(demo.DESDevSerial)
-	// delete(DemoDeviceClients, demo.DESDevSerial)
 }
 
 func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
@@ -972,8 +971,12 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
 	startTime := time.Now().UTC().UnixMilli()
 
-	/* DISCONNECT TO SIMULATE GPS AQUIRE */
-	demo.GPS <- true
+	/* DISCONNECT TO SIMULATE GPS AQUISITION */
+	evt := start.EVT
+	evt.EvtCode = OP_CODE_GPS_ACQ
+	evt.EvtMsg = GetEventTypeByCode(OP_CODE_GPS_ACQ)
+	demo.GPS <- evt
+	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s ) -> LTE OFF; GPS ON...\n", demo.DESDevSerial)
 	time.Sleep(time.Millisecond * ( DEVICE_PING_TIMEOUT + DES_PING_TIMEOUT / 2 ) )
 
 	/* USED INCASE WE NEED TO CREATE DEFAULT SETTINGS */
@@ -992,8 +995,8 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	}
 
 	/* RECONNECT AFTER SIMULATED GPS AQUIRE */
-	demo.GPS <- false
-	demo.MQTTPublication_DemoDeviceClient_SIGPing()
+	demo.GPS <- Event{}
+	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s ) -> LTE ON GPS OFF...\n", demo.DESDevSerial)
 
 	demo.ADM = start.ADM
 	demo.ADM.AdmTime = startTime
