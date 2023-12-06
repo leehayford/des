@@ -46,6 +46,7 @@ type DemoDeviceClient struct {
 	Mode  chan int32
 	TZero chan time.Time
 	Live  bool
+	GPS bool
 }
 
 type DemoDeviceClientsMap map[string]DemoDeviceClient
@@ -300,6 +301,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	demo.Mode = make(chan int32)
 	demo.TZero = make(chan time.Time)
 	demo.Live = true
+	demo.GPS = false
 
 	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS 
 		- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
@@ -312,18 +314,18 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 
 	/* ADD TO DemoDeviceClients MAP */
 	DemoDeviceClientsMapWrite(demo.DESDevSerial, *demo)
-	// DemoDeviceClients[demo.DESDevSerial] = *demo
 
-	// /* RUN THE SIMULATION IF LAST KNOWN STATUS WAS LOGGING */
-	if demo.STA.StaLogging > OP_CODE_JOB_ENDED {
+	/* RUN THE SIMULATION IF LAST KNOWN STATUS WAS LOGGING */
+	if demo.STA.StaLogging == OP_CODE_JOB_STARTED {
 		go demo.Demo_Simulation(demo.STA.StaJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
 		time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 	}
 
 	go func() {
 		for demo.Live {
-			// demo.PING.Time = time.Now().UTC().UnixMilli()
-			demo.MQTTPublication_DemoDeviceClient_SIGPing()
+			if !demo.GPS {
+				demo.MQTTPublication_DemoDeviceClient_SIGPing()
+			}
 			time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 		}
 	}()
@@ -954,16 +956,12 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGMsgLimit(msg M
 func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s )...\n", demo.DESDevSerial)
 
-	/* TODO: MAKE SURE THE PREVIOUS JOB IS ENDED */
-	// if state > STATUS_JOB_START_REQ {
-	// 	demo.EndDemoJob()
-	// }
-
-	// demo.DESMQTTClient.WG.Wait()
-	// demo.DESMQTTClient.WG.Add(1)
-
 	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
 	startTime := time.Now().UTC().UnixMilli()
+
+	/* DISCONNECT TO SIMULATE GPS AQUIRE */
+	demo.GPS = true
+	time.Sleep(time.Millisecond * ( DEVICE_PING_TIMEOUT + DES_PING_TIMEOUT / 2 ) )
 
 	/* USED INCASE WE NEED TO CREATE DEFAULT SETTINGS */
 	demo.DESJob = pkg.DESJob{
@@ -979,6 +977,9 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 		DESJobLat:   51.85 + rand.Float64()*(54.35-51.85),
 		DESJobDevID: demo.DESDevID,
 	}
+
+	/* RECONNECT AFTER SIMULATED GPS AQUIRE */
+	demo.GPS = false
 
 	demo.ADM = start.ADM
 	demo.ADM.AdmTime = startTime
@@ -1049,8 +1050,6 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 
 	/* RUN JOB... */
 	go demo.Demo_Simulation(demo.STA.StaJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
-
-	// demo.DESMQTTClient.WG.Done()
 
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( ) -> RUNNING %s...\n", demo.STA.StaJobName)
 }
