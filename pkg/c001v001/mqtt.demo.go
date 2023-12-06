@@ -45,7 +45,7 @@ type DemoDeviceClient struct {
 	Rate  chan int32
 	Mode  chan int32
 	TZero chan time.Time
-	GPS chan Event
+	GPS chan bool
 	Live  bool
 }
 
@@ -300,7 +300,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	demo.Rate = make(chan int32)
 	demo.Mode = make(chan int32)
 	demo.TZero = make(chan time.Time)
-	demo.GPS = make(chan Event)
+	demo.GPS = make(chan bool)
 	demo.Live = true
 
 	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS 
@@ -321,18 +321,15 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 		time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 	}
 
-	evt := Event{}
+	gps := false
 	go func() {
 		for demo.Live {
 			select {
 			
-			case evt = <- demo.GPS: /* IF GPS IS ON, LTE IS OFF */
-				if evt.EvtTime > 0 {
-					demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
-				}
-			
+			case gps = <- demo.GPS: /* IF GPS IS ON, LTE IS OFF */
+
 			default: 
-				if evt.EvtTime == 0 {
+				if !gps {
 					demo.MQTTPublication_DemoDeviceClient_SIGPing()
 					time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 				}
@@ -967,14 +964,17 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGMsgLimit(msg M
 func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s )...\n", demo.DESDevSerial)
 
-	/* DISCONNECT TO SIMULATE GPS AQUISITION */
+	/* TELL USERS WE ARE SWITCHING FROM LTE TO GPS */
 	evt := start.EVT
 	evt.EvtAddr = demo.DESDevSerial
 	evt.EvtCode = OP_CODE_GPS_ACQ
 	evt.EvtTitle = GetEventTypeByCode(evt.EvtCode)
-	demo.GPS <- evt
+	go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
+	
+	/* DISCONNECT LTE AND SIMULATE GPS AQUISITION */
+	demo.GPS <- true
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s ) -> LTE OFF; GPS ON...\n", demo.DESDevSerial)
-	time.Sleep(time.Millisecond * ( DEVICE_PING_TIMEOUT + DES_PING_TIMEOUT / 2 ) )
+	time.Sleep(time.Millisecond * ( DES_PING_TIMEOUT / 2 ) )
 
 	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
 	startTime := time.Now().UTC().UnixMilli()
@@ -994,8 +994,8 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 		DESJobDevID: demo.DESDevID,
 	}
 
-	/* RECONNECT AFTER SIMULATED GPS AQUIRE */
-	demo.GPS <- Event{}
+	/* RECONNECT LTE AFTER SIMULATED GPS AQUIRE */
+	demo.GPS <- false
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s ) -> LTE ON GPS OFF...\n", demo.DESDevSerial)
 
 	demo.ADM = start.ADM
