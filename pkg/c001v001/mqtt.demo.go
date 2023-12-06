@@ -327,7 +327,8 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 		for demo.Live {
 			select {
 			
-			case demo.LTE= <- demo.GPS:
+			case v := <- demo.GPS:
+				demo.LTE = !v /* IF GPS IS TRUE, LTE IS NOT */
 			
 			default: 
 				if demo.LTE {
@@ -992,6 +993,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 
 	/* RECONNECT AFTER SIMULATED GPS AQUIRE */
 	demo.GPS <- false
+	demo.MQTTPublication_DemoDeviceClient_SIGPing()
 
 	demo.ADM = start.ADM
 	demo.ADM.AdmTime = startTime
