@@ -572,7 +572,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDState() pkg.M
 			/* TEMPORARY USE:
 			COMMENT THIS OUT WHEN STATE WRITES ARE ENABLED **********/
 			sta = demo.STA
-			sta.StaAddr = demo.DESDevSerial
 			sta.StaTime = time.Now().UTC().UnixMilli()
 			/* END TEMPORARY USE ********************************************************************/
 
@@ -974,6 +973,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	/* DISCONNECT TO SIMULATE GPS AQUISITION */
 	evt := start.EVT
 	evt.EvtCode = OP_CODE_GPS_ACQ
+	evt.EvtUserID = demo.STA.StaUserID
 	demo.GPS <- evt
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s ) -> LTE OFF; GPS ON...\n", demo.DESDevSerial)
 	time.Sleep(time.Millisecond * ( DEVICE_PING_TIMEOUT + DES_PING_TIMEOUT / 2 ) )
@@ -1002,11 +1002,8 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	demo.ADM.AdmAddr = demo.DESDevSerial
 
 	/* CREATE A LOCAL STATE VARIABLE TO AVOID ALTERING LOGGING MODE PREMATURELY */
-	sta := start.STA
+	sta := demo.STA
 	sta.StaTime = startTime
-	sta.StaAddr = demo.DESDevSerial
-	sta.StaLogFw = "0.0.009"
-	sta.StaModFw = "0.0.007"
 	sta.StaLogging = OP_CODE_JOB_STARTED
 	sta.StaJobName = demo.DESJobName
 
@@ -1099,11 +1096,6 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 
 	sta := demo.STA
 	sta.StaTime = endTime
-	sta.StaAddr = demo.DESDevSerial
-	sta.StaUserID = evt.EvtUserID
-	sta.StaApp = evt.EvtApp
-	sta.StaLogFw = "0.0.009"
-	sta.StaModFw = "0.0.007"
 	sta.StaLogging = OP_CODE_JOB_ENDED
 	sta.StaJobName = demo.CmdArchiveName()
 
