@@ -334,8 +334,8 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 			default: 
 				if evt.EvtTime == 0 {
 					demo.MQTTPublication_DemoDeviceClient_SIGPing()
+					time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 				}
-				time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 			}
 		}
 	}()
@@ -974,7 +974,6 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	/* DISCONNECT TO SIMULATE GPS AQUISITION */
 	evt := start.EVT
 	evt.EvtCode = OP_CODE_GPS_ACQ
-	evt.EvtMsg = GetEventTypeByCode(OP_CODE_GPS_ACQ)
 	demo.GPS <- evt
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s ) -> LTE OFF; GPS ON...\n", demo.DESDevSerial)
 	time.Sleep(time.Millisecond * ( DEVICE_PING_TIMEOUT + DES_PING_TIMEOUT / 2 ) )
