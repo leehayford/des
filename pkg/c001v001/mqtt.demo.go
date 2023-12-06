@@ -967,17 +967,17 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGMsgLimit(msg M
 func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s )...\n", demo.DESDevSerial)
 
-	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
-	startTime := time.Now().UTC().UnixMilli()
-
 	/* DISCONNECT TO SIMULATE GPS AQUISITION */
 	evt := start.EVT
+	evt.EvtAddr = demo.DESDevSerial
 	evt.EvtCode = OP_CODE_GPS_ACQ
-	evt.EvtUserID = demo.STA.StaUserID
 	evt.EvtTitle = GetEventTypeByCode(evt.EvtCode)
 	demo.GPS <- evt
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s ) -> LTE OFF; GPS ON...\n", demo.DESDevSerial)
 	time.Sleep(time.Millisecond * ( DEVICE_PING_TIMEOUT + DES_PING_TIMEOUT / 2 ) )
+
+	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
+	startTime := time.Now().UTC().UnixMilli()
 
 	/* USED INCASE WE NEED TO CREATE DEFAULT SETTINGS */
 	demo.DESJob = pkg.DESJob{
