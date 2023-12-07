@@ -1,7 +1,9 @@
 package c001v001
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -36,16 +38,8 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 		router.Get("/list", pkg.DesAuth, HandleGetDeviceList)
 
 		/* TODO: ROLES HANDLED PER MQTT TOPIC / WS */
-		app.Use("/ws", func(c *fiber.Ctx) error {
-			if websocket.IsWebSocketUpgrade(c) {
-				c.Locals("allowed", true)
-				return c.Next()
-			}
-			return fiber.ErrUpgradeRequired
-		})
-		router.Get("/ws", pkg.DesAuth, websocket.New(
-			(&DeviceUserClient{}).WSDeviceUserClient_Connect,
-		))
+		app.Use("/ws", pkg.HandleWSUpgrade)
+		router.Get("/ws", pkg.DesAuth, websocket.New((DeviceUserClient{}).HandleDeviceUserClient_Connect))
 
 	})
 }
@@ -128,23 +122,6 @@ func HandleSearchDevices(c *fiber.Ctx) (err error) {
 		"message": "You are a tolerable person!",
 		"data":    fiber.Map{"devices": devices},
 	})
-}
-
-/*
-	USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO START A NEW JOB ON THIS DEVICE
-
-SEND AN MQTT JOB ADMIN, HEADER, CONFIG, & EVENT TO THE DEVICE
-UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
-
-	DES JOB REGISTRATION
-	CLASS/VERSION SPECIFIC JOB START ACTIONS
-*/
-type StartJob struct {
-	ADM Admin  `json:"adm"`
-	STA State  `json:"sta"`
-	HDR Header `json:"hdr"`
-	CFG Config `json:"cfg"`
-	EVT Event  `json:"evt"`
 }
 
 /*
@@ -492,110 +469,40 @@ func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
 	})
 }
 
-/*
-	USED TO ALTER THE DEBUG SETTINGS FOR A GIVEN DEVICE
-
-THIS INFORMATION IS NOT LOGGED TO THE DATABASE OR SENT TO THE PHYSICAL DEVICE
-*/
-func HandleSetDebug(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleSetDebug( )\n")
+/* USED TO OPEN A WEB SOCKET CONNECTION BETWEEN A USER AND A GIVEN DEVICE */
+func (duc DeviceUserClient) HandleDeviceUserClient_Connect(c *websocket.Conn) {
+	fmt.Printf("\nWSDeviceUserClient_Connect( )\n")
 
 	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Admin(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an administrator to change debug settings.",
-		})
+	role := c.Locals("role")
+	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER {
+		/* CREATE JSON WSMessage STRUCT */
+		res := AuthResponse{Status: "fail", Message: "You need permission to watch a live feed."}
+		js, err := json.Marshal(&WSMessage{Type: "auth", Data: res})
+		if err != nil {
+			pkg.LogErr(err)
+			return
+		}
+		c.Conn.WriteJSON(string(js))
+		return
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleSetDebug(): -> c.BodyParser(&device) -> device", device)
-
-	/* UPDATE THE MAPPED DES DEVICE DBG */
-	if err := device.SetDebug(); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+	url_str, _ := url.QueryUnescape(c.Query("device"))
+	if err := json.Unmarshal([]byte(url_str), &device); err != nil {
+		pkg.LogErr(err)
 	}
-	pkg.Json("HandleSetDebug(): ->device.SetDebugRequest() -> device.DBG", device.DBG)
+	duc = DeviceUserClient{Device: device}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "Debug settings updated.",
-		"data":    fiber.Map{"device": &device},
-	})
+	/* CONNECTED DEVICE USER CLIENT *** DO NOT RUN IN GO ROUTINE *** */
+	duc.DeviceUserClient_Connect(c)
 }
 
-type MsgLimit struct {
-	Kafka string `json:"kafka"`
-}
 
-func HandleTestMessageLimit(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleTestMessageLimit( )\n")
-
-	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Admin(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an administrator to change debug settings.",
-		})
-	}
-
-	/* PARSE AND VALIDATE REQUEST DATA */
-	device := &Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleTestMessageLimit(): -> c.BodyParser(&device) -> device", device)
-
-	length, err := device.TestMsgLimit()
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": fmt.Sprintf("%d byte message sent.", length),
-		"data":    fiber.Map{"device": &device},
-	})
-}
-
-func HandleSimOfflineStart(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleSimOfflineStart( )\n")
-
-	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Admin(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an administrator to change debug settings.",
-		})
-	}
-
-	/* PARSE AND VALIDATE REQUEST DATA */
-	device := &Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleTestMessageLimit(): -> c.BodyParser(&device) -> device", device)
-
-	device.GetMappedClients()
-	device.MQTTPublication_DeviceClient_CMDTestOLS()
-	// device.GetDeviceDESU()
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "Offline job start simmulation running.",
-		"data":    fiber.Map{"device.DESU": &device.DESU},
-	})
-}
+/**************************************************************************************************************/
+/* DES ADMINISTRATION ************************************************************************************/
+/**************************************************************************************************************/
 
 /*
 	 TODO: TEST *** DO NOT USE ***
@@ -721,10 +628,120 @@ func HandleCheckDESDeviceClient(c *fiber.Ctx) (err error) {
 			"message": fmt.Sprintf("Connections for %s could not be refreshed; ERROR:\n%s\n", ser, err.Error()),
 		})
 	}
-	
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": fmt.Sprintf("%s DES device client connected.", d.DESDevSerial),
 		"data":    fiber.Map{"device": &d},
+	})
+}
+
+
+/**************************************************************************************************************/
+/* DEBUGGING STUFF :  REMOVE FOR PRODUCTION *******************************************************/
+/**************************************************************************************************************/
+
+/*
+	USED TO ALTER THE DEBUG SETTINGS FOR A GIVEN DEVICE
+
+THIS INFORMATION IS NOT LOGGED TO THE DATABASE OR SENT TO THE PHYSICAL DEVICE
+*/
+func HandleSetDebug(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleSetDebug( )\n")
+
+	/* CHECK USER PERMISSION */
+	if !pkg.UserRole_Admin(c.Locals("role")) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to change debug settings.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleSetDebug(): -> c.BodyParser(&device) -> device", device)
+
+	/* UPDATE THE MAPPED DES DEVICE DBG */
+	if err := device.SetDebug(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	pkg.Json("HandleSetDebug(): ->device.SetDebugRequest() -> device.DBG", device.DBG)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Debug settings updated.",
+		"data":    fiber.Map{"device": &device},
+	})
+}
+
+type MsgLimit struct {
+	Kafka string `json:"kafka"`
+}
+
+func HandleTestMessageLimit(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleTestMessageLimit( )\n")
+
+	/* CHECK USER PERMISSION */
+	if !pkg.UserRole_Admin(c.Locals("role")) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to change debug settings.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := &Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleTestMessageLimit(): -> c.BodyParser(&device) -> device", device)
+
+	length, err := device.TestMsgLimit()
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": fmt.Sprintf("%d byte message sent.", length),
+		"data":    fiber.Map{"device": &device},
+	})
+}
+
+func HandleSimOfflineStart(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleSimOfflineStart( )\n")
+
+	/* CHECK USER PERMISSION */
+	if !pkg.UserRole_Admin(c.Locals("role")) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to change debug settings.",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := &Device{}
+	if err = c.BodyParser(&device); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // pkg.Json("HandleTestMessageLimit(): -> c.BodyParser(&device) -> device", device)
+
+	device.GetMappedClients()
+	device.MQTTPublication_DeviceClient_CMDTestOLS()
+	// device.GetDeviceDESU()
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Offline job start simmulation running.",
+		"data":    fiber.Map{"device.DESU": &device.DESU},
 	})
 }

@@ -3,160 +3,18 @@ package c001v001
 import (
 	"encoding/json"
 	"fmt"
-	"time"
-
-	"net/url"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
-	"github.com/gofiber/websocket/v2"
 
 	"github.com/leehayford/des/pkg"
 )
 
 /*
-	MQTT DEVICE USER CLIENT
-
-SUBSCRIBES TO ALL SIGNALS FOR A SINGLE DEVICE
-  - SENDS LIVE DATA TO A SINGLE USER WSMessage
+	 MQTT DEVICE USER CLIENT
+		SUBSCRIBES TO ALL SIGNALS FOR A SINGLE DEVICE
+		PUBLICATIONS: NONE
 */
-type DeviceUserClient struct {
-	Device
-	WSClientID string
-	pkg.DESMQTTClient
-	DataOut chan string
-	Close   chan struct{}
-	Kill    chan struct{}
-}
-
-type WSMessage struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
-}
-
-type AuthResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}
-
-func (duc DeviceUserClient) WSDeviceUserClient_Connect(c *websocket.Conn) {
-	fmt.Printf("\nWSDeviceUserClient_Connect( )\n")
-
-	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER {
-		/* CREATE JSON WSMessage STRUCT */
-		res := AuthResponse{
-			Status:  "fail",
-			Message: "You need permission to watch a live feed.",
-		}
-		js, err := json.Marshal(&WSMessage{Type: "auth", Data: res})
-		if err != nil {
-			pkg.LogErr(err)
-			return
-		}
-		c.Conn.WriteJSON(string(js))
-		return
-	}
-
-	des_regStr, _ := url.QueryUnescape(c.Query("des_reg"))
-
-	des_reg := pkg.DESRegistration{}
-	if err := json.Unmarshal([]byte(des_regStr), &des_reg); err != nil {
-		pkg.LogErr(err)
-	}
-	des_reg.DESDevRegAddr = c.RemoteAddr().String()
-	des_reg.DESJobRegAddr = c.RemoteAddr().String()
-
-	wscid := fmt.Sprintf("%d-%s",
-		time.Now().UTC().UnixMilli()/10,
-		des_reg.DESDevSerial,
-	) // fmt.Printf("WSDeviceUserClient_Connect -> wscid: %s\n", wscid)
-
-	duc = DeviceUserClient{
-		Device: Device{
-			DESRegistration: des_reg,
-		},
-		WSClientID: wscid,
-	} // fmt.Printf("\nHandle_ConnectDeviceUser(...) -> duc: %v\n\n", duc)
-
-	duc.DataOut = make(chan string)
-	duc.Close = make(chan struct{})
-	duc.Kill = make(chan struct{})
-
-	duc.MQTTDeviceUserClient_Connect( /* TODO: PASS IN USER ROLE */ )
-
-	/* LISTEN FOR MESSAGES FROM CONNECTED USER */
-	go func() {
-		for {
-			_, msg, err := c.ReadMessage()
-			if err != nil {
-				fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() %s\n ERROR:\n%s\n", duc.DESDevSerial, err.Error())
-				pkg.LogErr(err)
-				break
-			}
-			if string(msg) == "close" {
-				/* USER HAS CLOSED THE CONNECTION */
-				fmt.Printf("WSDeviceUserClient_Connect -> go func() -> c.ReadMessage(): %s\n", string(msg))
-				duc.MQTTDeviceUserClient_Disconnect()
-				duc.Close <- struct{}{}
-				break
-			}
-		}
-		fmt.Printf("WSDeviceUserClient_Connect -> go func() done\n")
-	}()
-
-	/* KEEP ALIVE GO ROUTINE SEND "live" EVERY 30 SECONDS TO PREVENT DISCONNECT */
-	live := true
-	go func() {
-		for live {
-			select {
-
-			case <-duc.Kill:
-				live = false
-
-			default:
-				time.Sleep(time.Second * 30)
-				js, err := json.Marshal(&WSMessage{Type: "live", Data: ""})
-				if err != nil {
-					pkg.LogErr(err)
-				}
-				duc.DataOut <- string(js)
-				// fmt.Printf("WSDeviceUserClient_Connect -> go func() KEEP ALIVE... \n")
-			}
-		}
-	}()
-
-	/* SEND MESSAGES TO CONNECTED USER */
-	open := true
-	for open {
-		select {
-
-		case <-duc.Close:
-			duc.Kill <- struct{}{}
-			open = false
-
-		case data := <-duc.DataOut:
-			if err := c.WriteJSON(data); err != nil {
-				pkg.LogErr(err)
-				duc.MQTTDeviceUserClient_Disconnect()
-				duc.Close <- struct{}{}
-			}
-
-		}
-	}
-	close(duc.Close)
-	duc.Close = nil
-
-	close(duc.Kill)
-	duc.Kill = nil
-
-	close(duc.DataOut)
-	duc.DataOut = nil
-
-	return
-}
-
-func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /* TODO: PASS IN USER ROLE */ ) (err error) {
+func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect() (err error) {
 
 	/* TODO: replace with user specific credentials */
 	user := pkg.MQTT_USER
@@ -183,14 +41,14 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect( /* TODO: PASS IN USER
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGSample().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().Sub(duc.DESMQTTClient)
-	
+
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	duc.MQTTSubscription_DeviceUserClient_SIGMsgLimit().Sub(duc.DESMQTTClient)
 
 	fmt.Printf("\n(duc) MQTTDeviceUserClient_Connect( ) -> ClientID: %s\n", duc.ClientID)
 	return err
 }
-func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( /* TODO: PASS IN USER ROLE */ ) {
+func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
 	duc.MQTTSubscription_DeviceUserClient_SIGStartJob().UnSub(duc.DESMQTTClient)
@@ -203,7 +61,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( /* TODO: PASS IN U
 	duc.MQTTSubscription_DeviceUserClient_SIGEvent().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGSample().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().UnSub(duc.DESMQTTClient)
-	
+
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	duc.MQTTSubscription_DeviceUserClient_SIGMsgLimit().UnSub(duc.DESMQTTClient)
 
@@ -214,7 +72,6 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect( /* TODO: PASS IN U
 }
 
 /* SUBSCRIPTIONS ****************************************************************************************/
-
 
 /* SUBSCRIPTIONS -> ADMIN  */
 func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGStartJob( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
@@ -288,7 +145,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESDevicePing( /*
 			js, err := json.Marshal(&WSMessage{Type: "ping", Data: ping})
 			if err != nil {
 				pkg.LogErr(err)
-			} // pkg.Json("MQTTSubscription_DeviceUserClient_DESDevicePing(...) -> ping :", ping)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_DESDevicePing(...) -> ping :", js)
 
 			/* SEND WSMessage AS JSON STRING */
 			duc.DataOut <- string(js)
@@ -500,14 +357,13 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGMsgLimit() pkg
 			js, err := json.Marshal(&WSMessage{Type: "msg_limit", Data: kafka})
 			if err != nil {
 				pkg.LogErr(err)
-			}  // pkg.Json("MQTTSubscription_DemoDeviceClient_SIGMsgLimit(...) -> kafka :", kafka)
+			} // pkg.Json("MQTTSubscription_DemoDeviceClient_SIGMsgLimit(...) -> kafka :", kafka)
 
 			/* SEND WSMessage AS JSON STRING */
 			duc.DataOut <- string(js)
 		},
 	}
 }
-
 
 /* PUBLICATIONS ******************************************************************************************/
 /* NONE; WE DON'T DO THAT;

@@ -411,6 +411,23 @@ func (device *Device) GetActiveJobEvents() (evts *[]Event, err error) {
 /* START JOB **********************************************************************************************/
 
 /*
+	USED WHEN DEVICE OPERATOR WEB CLIENTS WANT TO START A NEW JOB ON THIS DEVICE
+
+SEND AN MQTT JOB ADMIN, HEADER, CONFIG, & EVENT TO THE DEVICE
+UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
+
+	DES JOB REGISTRATION
+	CLASS/VERSION SPECIFIC JOB START ACTIONS
+*/
+type StartJob struct {
+	ADM Admin  `json:"adm"`
+	STA State  `json:"sta"`
+	HDR Header `json:"hdr"`
+	CFG Config `json:"cfg"`
+	EVT Event  `json:"evt"`
+}
+
+/*
 	HTTP REQUEST LOGIC - START JOB REQUEST
 
 - PREPARE, LOG, AND SEND: StartJob STRUCT to MQTT .../cmd/start
