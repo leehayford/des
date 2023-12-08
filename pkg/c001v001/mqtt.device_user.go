@@ -31,7 +31,10 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect() (err error) {
 	// duc.DESMQTTClient.ClientOptions.ClientID:`,
 	// duc.DESMQTTClient.ClientOptions.ClientID)
 
-	duc.MQTTSubscription_DeviceUserClient_SIGStartJob().Sub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_StartJob(duc.MQTTTopic_SIGStartJob()).Sub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_StartJob(duc.MQTTTopic_CMDStartJob()).Sub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_SIGEndJob().Sub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_CMDEndJob().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_DESDeviceClientPing().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_DESDevicePing().Sub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().Sub(duc.DESMQTTClient)
@@ -51,7 +54,10 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect() (err error) {
 func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
-	duc.MQTTSubscription_DeviceUserClient_SIGStartJob().UnSub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_StartJob(duc.MQTTTopic_SIGStartJob()).UnSub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_StartJob(duc.MQTTTopic_CMDStartJob()).UnSub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_SIGEndJob().UnSub(duc.DESMQTTClient)
+	duc.MQTTSubscription_DeviceUserClient_CMDEndJob().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_DESDeviceClientPing().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_DESDevicePing().UnSub(duc.DESMQTTClient)
 	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().UnSub(duc.DESMQTTClient)
@@ -73,12 +79,12 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
 /* SUBSCRIPTIONS ****************************************************************************************/
 
-/* SUBSCRIPTIONS -> ADMIN  */
-func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGStartJob( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
+/* SUBSCRIPTIONS -> START JOB -> SIGNAL FROM DEVICE & CMD FROM OTHER USERS */
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_StartJob(topic string) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
 		Qos:   0,
-		Topic: duc.MQTTTopic_SIGStartJob(),
+		Topic: topic,
 		Handler: func(c phao.Client, msg phao.Message) {
 
 			/* DECODE MESSAGE PAYLOAD TO Admin STRUCT */
@@ -99,6 +105,59 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGStartJob( /* T
 		},
 	}
 }
+/* SUBSCRIPTIONS -> START END -> SIGNAL FROM DEVICE */
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEndJob() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: duc.MQTTTopic_SIGEndJob(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* DECODE MESSAGE PAYLOAD TO Admin STRUCT */
+			sta := State{}
+			if err := json.Unmarshal(msg.Payload(), &sta); err != nil {
+				pkg.LogErr(err)
+			}
+
+			/* CREATE JSON WSMessage STRUCT */
+			js, err := json.Marshal(&WSMessage{Type: "end_sig", Data: sta})
+			if err != nil {
+				pkg.LogErr(err)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGEndJob(...) -> sta :", sta)
+
+			/* SEND WSMessage AS JSON STRING */
+			duc.DataOut <- string(js)
+
+		},
+	}
+}
+/* SUBSCRIPTIONS -> START END -> CMD FROM OTHER USERS */
+func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_CMDEndJob() pkg.MQTTSubscription {
+	return pkg.MQTTSubscription{
+
+		Qos:   0,
+		Topic: duc.MQTTTopic_CMDEndJob(),
+		Handler: func(c phao.Client, msg phao.Message) {
+
+			/* DECODE MESSAGE PAYLOAD TO Admin STRUCT */
+			evt := Event{}
+			if err := json.Unmarshal(msg.Payload(), &evt); err != nil {
+				pkg.LogErr(err)
+			}
+
+			/* CREATE JSON WSMessage STRUCT */
+			js, err := json.Marshal(&WSMessage{Type: "end_cmd", Data: evt})
+			if err != nil {
+				pkg.LogErr(err)
+			} // pkg.Json("MQTTSubscription_DeviceUserClient_CMDEndJob(...) -> evt :", evt)
+
+			/* SEND WSMessage AS JSON STRING */
+			duc.DataOut <- string(js)
+
+		},
+	}
+}
+
 
 /* SUBSCRIPTIONS -> DES DEVICE PING  */
 func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESDeviceClientPing( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
@@ -181,7 +240,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin( /* TODO
 	}
 }
 
-/* SUBSCRIPTIONS -> HARDWARE ID  */
+/* SUBSCRIPTIONS -> STATE  */
 func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGState( /* TODO: PASS IN USER ROLE */ ) pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
 
