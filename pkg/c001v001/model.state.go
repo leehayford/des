@@ -1,6 +1,7 @@
 package c001v001
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/leehayford/des/pkg"
@@ -143,4 +144,21 @@ func (sta *State) Validate() {
 	
 	sta.StaJobName = pkg.ValidateStringLength(sta.StaJobName, 24)
 
+}
+
+/* 
+STATE - VALIDATE MQTT SIG FROM DEVICE
+*/
+func (sta *State) SIGValidate(device *Device) (err error) {
+	
+	if err = pkg.ValidateUnixMilli(sta.StaTime); err != nil {
+		return pkg.LogErr(err)
+	}
+	if sta.StaUserID != device.DESU.ID.String() { 
+		pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
+		sta.StaUserID = device.DESU.ID.String() 
+	}
+	sta.Validate()
+	
+	return
 }

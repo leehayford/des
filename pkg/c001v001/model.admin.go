@@ -1,6 +1,7 @@
 package c001v001
 
 import (
+	"errors"
 	"github.com/leehayford/des/pkg"
 )
 
@@ -236,4 +237,21 @@ func (adm *Admin) Validate() {
 	adm.AdmDefHost = pkg.ValidateStringLength(adm.AdmDefHost, 32)
 	adm.AdmOpHost = pkg.ValidateStringLength(adm.AdmOpHost, 32)
 
+}
+
+/* 
+ADMIN - VALIDATE MQTT SIG FROM DEVICE
+*/
+func (adm *Admin) SIGValidate(device *Device) (err error) {
+	
+	if err = pkg.ValidateUnixMilli(adm.AdmTime); err != nil {
+		return pkg.LogErr(err)
+	}
+	if adm.AdmUserID != device.DESU.ID.String() { 
+		pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
+		adm.AdmUserID = device.DESU.ID.String() 
+	}
+	adm.Validate()
+	
+	return
 }

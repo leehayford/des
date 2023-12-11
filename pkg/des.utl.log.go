@@ -34,7 +34,7 @@ func LogChk(msg string) {
 	pc, file, line, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
-	fmt.Printf("\n***CHECK***\n\tFile :\t%s\n\tFunc :\t%s\n\tLine :\t%d\n\n\t%s\n\n***********\n\n", file, name, line, msg)
+	fmt.Printf("\n***OK***\n\tFile :\t%s\n\tFunc :\t%s\n\tLine :\t%d\n\n\t%s\n\n***********\n\n", file, name, line, msg)
 	/* TODO: LOG msg TO FILE */
 }
 

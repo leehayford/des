@@ -392,7 +392,8 @@ func (device *Device) GetDeviceDESU() (err error) {
 	if res.Error != nil {
 		pkg.LogErr(res.Error)
 		err = res.Error
-	} // pkg.Json("GetDeviceDESU( ): ", u)
+	} 
+	pkg.Json("GetDeviceDESU( ): ", u)
 	device.DESU = u.FilterUserRecord()
 	return
 }
@@ -525,6 +526,8 @@ func (device *Device) StartJobRequest(src string) (err error) {
 */
 func (device *Device) StartJob(start StartJob) {
 	// pkg.Json("(device *Device) StartJobX(start StartJob): ", start)
+
+
 
 	/* CALL DB WRITE IN GOROUTINE */
 	WriteADM(start.ADM, &device.CmdDBC)
@@ -922,65 +925,71 @@ func (device *Device) OfflineJobEnd(smp Sample) {
 - UNKNOWN JOB NAME ( DATABASE DOES NOT EXIST )
 - OPERATIONAL ALARMS / NOTIFICATIONS ( SSP / SCVF )
 */
-func (device *Device) HandleMQTTSample(mqtts MQTT_Sample) (err error, smp Sample) {
+func (device *Device) HandleMQTTSample(mqtts MQTT_Sample) {
 
 	device.GetMappedSTA()
 	sta := device.STA
 	// fmt.Printf("\n(*Device) HandleMQTTSample( ): -> RegJob: %s, SMPJob: %s \n, OpCode: %d, StaJob %s\n", device.DESJobName, mqtts.DesJobName, sta.StaLogging, sta.StaJobName)
 
 	/* CREATE Sample STRUCT INTO WHICH WE'LL DECODE THE MQTT_Sample  */
-	smp = Sample{SmpJobName: mqtts.DesJobName}
+	smp := Sample{SmpJobName: mqtts.DesJobName}
 
 	/* DECODE BASE64URL STRING ( DATA ) */
-	if err = smp.DecodeMQTTSample(mqtts.Data); err != nil {
+	if err := smp.DecodeMQTTSample(mqtts.Data); err != nil {
 		pkg.LogErr(err)
-		return
+		// return
 	}
 
-	/* CHECK SAMPLE JOB NAME */
-	if smp.SmpJobName == device.CmdArchiveName() {
-		/* WRITE TO JOB CMDARCHIVE
-		- SOMETHING HAS GONE WRONG WITH THE DEVICE
-		- OR WE ARE TESTING THE DEVICE
-		*/
-		go WriteSMP(smp, &device.CmdDBC)
+	/* TODO: VALIDATE */
+	valid := true
+	if valid { 
+		/* CHECK SAMPLE JOB NAME */
+		if smp.SmpJobName == device.CmdArchiveName() {
+			/* WRITE TO JOB CMDARCHIVE
+			- SOMETHING HAS GONE WRONG WITH THE DEVICE
+			- OR WE ARE TESTING THE DEVICE
+			*/
+			go WriteSMP(smp, &device.CmdDBC)
 
-		/* TODO: TEST ?... DO NOTHING ...?
-		case OP_CODE_DES_REG_REQ:
-		case OP_CODE_DES_REGISTERED:
-		case OP_CODE_JOB_END_REQ:
-		case OP_CODE_JOB_OFFLINE_START:
-		case OP_CODE_JOB_OFFLINE_END:
-		*/
+			/* TODO: TEST ?... DO NOTHING ...?
+			case OP_CODE_DES_REG_REQ:
+			case OP_CODE_DES_REGISTERED:
+			case OP_CODE_JOB_END_REQ:
+			case OP_CODE_JOB_OFFLINE_START:
+			case OP_CODE_JOB_OFFLINE_END:
+			*/
 
-	} else if smp.SmpJobName == device.DESJobName && sta.StaLogging > OP_CODE_JOB_START_REQ {
+		} else if smp.SmpJobName == device.DESJobName && sta.StaLogging > OP_CODE_JOB_START_REQ {
 
-		/* WE'RE LOGGING; WRITE TO JOB DATABASE */
-		go WriteSMP(smp, &device.JobDBC)
+			/* WE'RE LOGGING; WRITE TO JOB DATABASE */
+			go WriteSMP(smp, &device.JobDBC)
 
-		device.CheckSSPCondition(smp)
+			device.CheckSSPCondition(smp)
 
-		device.CheckSCVFCondition(smp)
+			device.CheckSCVFCondition(smp)
 
-	} else if sta.StaLogging == OP_CODE_JOB_ENDED {
+		} else if sta.StaLogging == OP_CODE_JOB_ENDED {
 
-		/* DEVICE STARTED A JOB WITHOUT OUR KNOWLEDGE - WE'RE NOT CURRENTLY LOGGING */
-		device.OfflineJobStart(smp)
+			/* DEVICE STARTED A JOB WITHOUT OUR KNOWLEDGE - WE'RE NOT CURRENTLY LOGGING */
+			device.OfflineJobStart(smp)
 
-	} else if sta.StaLogging == OP_CODE_JOB_STARTED {
+		} else if sta.StaLogging == OP_CODE_JOB_STARTED {
 
-		/* DEVICE ENDED AND STARTED JOBS WITHOUT OUR KNOWLEDGE */
-		device.OfflineJobEnd(smp)
-		device.OfflineJobStart(smp)
+			/* DEVICE ENDED AND STARTED JOBS WITHOUT OUR KNOWLEDGE */
+			device.OfflineJobEnd(smp)
+			device.OfflineJobStart(smp)
+		}
+
+		device.SMP = smp
+
+		/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+		device.UpdateMappedSMP()
+
+	// } else {
+	// 	smp = Sample{}
 	}
-
-	device.SMP = smp
-
-	/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-	device.UpdateMappedSMP()
-
 	// fmt.Printf("\n(*Device) HandleMQTTSample( ): COMPLETE.\n")
-	return
+	// return
 }
 
 /* ??? JOB/REPORT ??? USED WHEN A SAMPLE IS RECEIVED, TO CHECK FOR STABILIZED SHUT-IN PRESSURE ( BUILD-MODE )*/

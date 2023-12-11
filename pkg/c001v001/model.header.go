@@ -1,6 +1,7 @@
 package c001v001
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/leehayford/des/pkg"
@@ -87,6 +88,23 @@ func (hdr *Header) Validate() {
 	hdr.HdrWellBHLoc = pkg.ValidateStringLength(hdr.HdrWellBHLoc, 32)
 	hdr.HdrWellLic = pkg.ValidateStringLength(hdr.HdrWellLic, 32)
 
+}
+
+/* 
+HEADER - VALIDATE MQTT SIG FROM DEVICE
+*/
+func (hdr *Header) SIGValidate(device *Device) (err error) {
+	
+	if err = pkg.ValidateUnixMilli(hdr.HdrTime); err != nil {
+		return pkg.LogErr(err)
+	}
+	if hdr.HdrUserID != device.DESU.ID.String() { 
+		pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
+		hdr.HdrUserID = device.DESU.ID.String() 
+	}
+	hdr.Validate()
+	
+	return
 }
 
 /*

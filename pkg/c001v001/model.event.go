@@ -1,6 +1,7 @@
 package c001v001
 
 import (
+	"errors"
 	"github.com/leehayford/des/pkg"
 )
 
@@ -94,6 +95,23 @@ func (evt *Event) Validate() {
 
 	evt.EvtTitle = pkg.ValidateStringLength(evt.EvtTitle, 36)
 	evt.EvtMsg = pkg.ValidateStringLength(evt.EvtMsg, 512)
+}
+
+/* 
+EVENT - VALIDATE MQTT SIG FROM DEVICE
+*/
+func (evt *Event) SIGValidate(device *Device) (err error) {
+	
+	if err = pkg.ValidateUnixMilli(evt.EvtTime); err != nil {
+		return pkg.LogErr(err)
+	}
+	if evt.EvtUserID != device.DESU.ID.String() { 
+		pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
+		evt.EvtUserID = device.DESU.ID.String() 
+	}
+	evt.Validate()
+	
+	return
 }
 
 type EventTyp struct {

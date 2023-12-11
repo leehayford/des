@@ -1,6 +1,7 @@
 package c001v001
 
 import (
+	"errors"
 	"github.com/leehayford/des/pkg"
 )
 
@@ -181,4 +182,21 @@ func (cfg *Config) Validate() {
 	if cfg.CfgSSPDur < cfg.CfgOpLog {
 		cfg.CfgSSPDur = cfg.CfgOpLog
 	}
+}
+
+/* 
+CONFIG - VALIDATE MQTT SIG FROM DEVICE
+*/
+func (cfg *Config) SIGValidate(device *Device) (err error) {
+	
+	if err = pkg.ValidateUnixMilli(cfg.CfgTime); err != nil {
+		return pkg.LogErr(err)
+	}
+	if cfg.CfgUserID != device.DESU.ID.String() { 
+		pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
+		cfg.CfgUserID = device.DESU.ID.String() 
+	}
+	cfg.Validate()
+	
+	return
 }

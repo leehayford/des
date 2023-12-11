@@ -88,9 +88,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGStartJob() pkg.MQTTSubscr
 			if err := json.Unmarshal(msg.Payload(), &start); err != nil {
 				pkg.LogErr(err)
 			}
-
-			device.StartJob(start)
-
+			/* TODO: VALIDATE */
+			valid := true
+			if valid { 
+				device.StartJob(start) 
+			} 
 		},
 	}
 }
@@ -109,7 +111,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEndJob() pkg.MQTTSubscrip
 				pkg.LogErr(err)
 			}
 
-			device.EndJob(sta)
+			/* TODO: VALIDATE */
+			valid := true
+			if valid { 
+				device.EndJob(sta)
+			}
 
 		},
 	}
@@ -157,20 +163,24 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 				pkg.LogErr(err)
 			}
 
-			/* CALL DB WRITE IN GOROUTINE */
-			go WriteADM(adm, &device.CmdDBC)
-
-			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+			/* VALIDATE */
+			if err := adm.SIGValidate(device); err == nil { 
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go WriteADM(adm, &device.JobDBC)
+				go WriteADM(adm, &device.CmdDBC)
+
+				/* DECIDE WHAT TO DO BASED ON LAST STATE */
+				if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+
+					/* CALL DB WRITE IN GOROUTINE */
+					go WriteADM(adm, &device.JobDBC)
+				}
+
+				device.ADM = adm
+
+				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+				device.UpdateMappedADM()
 			}
-
-			device.ADM = adm
-
-			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-			device.UpdateMappedADM()
 		},
 	}
 }
@@ -189,19 +199,23 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscript
 				pkg.LogErr(err)
 			}
 
-			/* CALL DB WRITE IN GOROUTINE */
-			go WriteSTA(sta, &device.CmdDBC)
+			/* VALIDATE */
+			if err := sta.SIGValidate(device); err == nil { 
 
-			if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+				/* CALL DB WRITE IN GOROUTINE */
+				go WriteSTA(sta, &device.CmdDBC)
 
-				/* STORE THE STATE IN THE ACTIVE JOB;  CALL DB WRITE IN GOROUTINE */
-				go WriteSTA(sta, &device.JobDBC)
+				if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+
+					/* STORE THE STATE IN THE ACTIVE JOB;  CALL DB WRITE IN GOROUTINE */
+					go WriteSTA(sta, &device.JobDBC)
+				}
+
+				device.STA = sta
+
+				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+				device.UpdateMappedSTA()
 			}
-
-			device.STA = sta
-
-			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-			device.UpdateMappedSTA()
 		},
 	}
 }
@@ -220,25 +234,29 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 				pkg.LogErr(err)
 			}
 
-			/* CALL DB WRITE IN GOROUTINE */
-			go WriteHDR(hdr, &device.CmdDBC)
-
-			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+			/* VALIDATE */
+			if err := hdr.SIGValidate(device); err == nil { 
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go WriteHDR(hdr, &device.JobDBC)
+				go WriteHDR(hdr, &device.CmdDBC)
 
-				/* UPDATE THE JOB SEARCH TEXT */
-				d := device
-				d.HDR = hdr
-				d.Update_DESJobSearch(d.DESRegistration)
+				/* DECIDE WHAT TO DO BASED ON LAST STATE */
+				if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+
+					/* CALL DB WRITE IN GOROUTINE */
+					go WriteHDR(hdr, &device.JobDBC)
+
+					/* UPDATE THE JOB SEARCH TEXT */
+					d := device
+					d.HDR = hdr
+					d.Update_DESJobSearch(d.DESRegistration)
+				}
+
+				device.HDR = hdr
+
+				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+				device.UpdateMappedHDR()
 			}
-
-			device.HDR = hdr
-
-			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-			device.UpdateMappedHDR()
 		},
 	}
 }
@@ -257,20 +275,24 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 				pkg.LogErr(err)
 			}
 
-			/* CALL DB WRITE IN GOROUTINE */
-			go WriteCFG(cfg, &device.CmdDBC)
-
-			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+			/* VALIDATE */
+			if err := cfg.SIGValidate(device); err == nil { 
 
 				/* CALL DB WRITE IN GOROUTINE */
-				go WriteCFG(cfg, &device.JobDBC)
+				go WriteCFG(cfg, &device.CmdDBC)
+
+				/* DECIDE WHAT TO DO BASED ON LAST STATE */
+				if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+
+					/* CALL DB WRITE IN GOROUTINE */
+					go WriteCFG(cfg, &device.JobDBC)
+				}
+
+				device.CFG = cfg
+
+				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+				device.UpdateMappedCFG()
 			}
-
-			device.CFG = cfg
-
-			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-			device.UpdateMappedCFG()
 		},
 	}
 }
@@ -290,20 +312,24 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 				pkg.LogErr(err)
 			}
 
-			/* CALL DB WRITE IN GOROUTINE */
-			go WriteEVT(evt, &device.CmdDBC)
+			/* VALIDATE */
+			if err := evt.SIGValidate(device); err == nil { 
 
-			/* DECIDE WHAT TO DO BASED ON LAST STATE */
-			if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+				/* CALL DB WRITE IN GOROUTINE */
+				go WriteEVT(evt, &device.CmdDBC)
 
-				/* STORE THE EVENT IN THE ACTIVE JOB; CALL DB WRITE IN GOROUTINE */
-				go WriteEVT(evt, &device.JobDBC)
+				/* DECIDE WHAT TO DO BASED ON LAST STATE */
+				if device.STA.StaLogging > OP_CODE_JOB_START_REQ {
+
+					/* STORE THE EVENT IN THE ACTIVE JOB; CALL DB WRITE IN GOROUTINE */
+					go WriteEVT(evt, &device.JobDBC)
+				}
+
+				device.EVT = evt
+
+				/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
+				device.UpdateMappedEVT()
 			}
-
-			device.EVT = evt
-
-			/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
-			device.UpdateMappedEVT()
 		},
 	}
 }
@@ -335,7 +361,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 		Topic: device.MQTTTopic_SIGDiagSample(),
 		Handler: func(c phao.Client, msg phao.Message) {
 
-			fmt.Println("(device *Device) MQTTSubscription_DeviceClient_SIGDiagSample(...) DOES NOT EXIST... DUMMY...")
+			/* TODO: VALIDATE */
+			valid := true
+			if valid { 
+				fmt.Println("(device *Device) MQTTSubscription_DeviceClient_SIGDiagSample(...) DOES NOT EXIST... DUMMY...")
+			}
 		},
 	}
 }

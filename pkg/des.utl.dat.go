@@ -18,14 +18,39 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"gonum.org/v1/gonum/stat" // go get gonum.org/v1/gonum/...
 )
+
+/* VALIDATE UNIX MILLI */
+const MIN_TIME = 946710000
+func ValidateUnixMilli( t int64 ) (err error) {
+	now := time.Now().UTC()
+	y := now.Year( ) 
+	m := now.Month( )
+	// d := now.Day( )
+
+	test := time.UnixMilli(t)
+	ty := test.Year()
+	tm := test.Month()
+	// td := test.Day()
+
+	if t < MIN_TIME {
+		return errors.New("\nInvalid time; moment has too long since passed.")
+	} else if (ty - y) > 1 {
+		return errors.New("\nInvalid time; year has not yet come to pass.")
+	} else if (ty-y) > 0 && (tm-m+12) > 0 {
+		return errors.New("\nInvalid time; month has not yet come to pass.")
+	}
+	return
+}
 
 /*BYTES OUTPUT*/
 func GetBytes_B(v any) []byte {
