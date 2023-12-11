@@ -192,10 +192,14 @@ func (cfg *Config) SIGValidate(device *Device) (err error) {
 	if err = pkg.ValidateUnixMilli(cfg.CfgTime); err != nil {
 		return pkg.LogErr(err)
 	}
-	if cfg.CfgUserID != device.DESU.ID.String() { 
-		pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
-		cfg.CfgUserID = device.DESU.ID.String() 
+	if cfg.CfgAddr != device.DESDevSerial { 
+		pkg.LogErr(errors.New("\nInvalid device.CFG.CfgAddr."))
+		cfg.CfgAddr = device.DESDevSerial 
 	}
+	// if cfg.CfgAddr == device.DESDevSerial && cfg.CfgUserID != device.DESU.ID.String() { 
+	// 	pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
+	// 	cfg.CfgUserID = device.DESU.ID.String() 
+	// }
 	cfg.Validate()
 	
 	return

@@ -1097,6 +1097,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 
 	sta := demo.STA
 	sta.StaTime = endTime
+	sta.StaAddr = demo.DESDevSerial
 	sta.StaLogging = OP_CODE_JOB_ENDED
 	sta.StaJobName = demo.CmdArchiveName()
 

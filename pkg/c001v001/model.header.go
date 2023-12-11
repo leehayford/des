@@ -98,10 +98,15 @@ func (hdr *Header) SIGValidate(device *Device) (err error) {
 	if err = pkg.ValidateUnixMilli(hdr.HdrTime); err != nil {
 		return pkg.LogErr(err)
 	}
-	if hdr.HdrUserID != device.DESU.ID.String() { 
-		pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
-		hdr.HdrUserID = device.DESU.ID.String() 
+	
+	if hdr.HdrAddr != device.DESDevSerial { 
+		pkg.LogErr(errors.New("\nInvalid device.HDR.HdrDddr."))
+		hdr.HdrAddr = device.DESDevSerial 
 	}
+	// if hdr.HdrAddr == device.DESDevSerial && hdr.HdrUserID != device.DESU.ID.String() { 
+	// 	pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
+	// 	hdr.HdrUserID = device.DESU.ID.String() 
+	// }
 	hdr.Validate()
 	
 	return

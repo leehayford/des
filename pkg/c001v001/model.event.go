@@ -2,6 +2,7 @@ package c001v001
 
 import (
 	"errors"
+
 	"github.com/leehayford/des/pkg"
 )
 
@@ -84,7 +85,7 @@ func (evt *Event) DefaultSettings_Event(job pkg.DESRegistration) {
 
 /*
 EVENT - VALIDATE FIELDS
- 	- INVALID FIELDS ARE MADE VALID 
+  - INVALID FIELDS ARE MADE VALID
 */
 func (evt *Event) Validate() {
 	/* TODO: SET ACCEPTABLE LIMITS FOR THE REST OF THE CONFIG SETTINGS */
@@ -97,20 +98,26 @@ func (evt *Event) Validate() {
 	evt.EvtMsg = pkg.ValidateStringLength(evt.EvtMsg, 512)
 }
 
-/* 
+/*
 EVENT - VALIDATE MQTT SIG FROM DEVICE
 */
 func (evt *Event) SIGValidate(device *Device) (err error) {
-	
+
 	if err = pkg.ValidateUnixMilli(evt.EvtTime); err != nil {
 		return pkg.LogErr(err)
 	}
-	if evt.EvtUserID != device.DESU.ID.String() { 
+	if evt.EvtAddr != device.DESDevSerial { 
+		pkg.LogErr(errors.New("\nInvalid device.EVT.EvtAddr."))
+		evt.EvtAddr = device.DESDevSerial 
+	}
+	if evt.EvtCode > MAX_OP_CODE && 
+		evt.EvtCode <= MAX_STATUS_CODE && 
+		evt.EvtUserID != device.DESU.ID.String() {
 		pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
-		evt.EvtUserID = device.DESU.ID.String() 
+		evt.EvtUserID = device.DESU.ID.String()
 	}
 	evt.Validate()
-	
+
 	return
 }
 
@@ -171,12 +178,13 @@ var EVENT_TYPES = []EventTyp{
 	{EvtTypCode: 2000, EvtTypName: "OPERATOR COMMENT"},
 	{EvtTypCode: 2001, EvtTypName: "REPORT COMMENT"},
 }
-func GetEventTypeByCode( code int32 ) (name string) {
+
+func GetEventTypeByCode(code int32) (name string) {
 	for i := range EVENT_TYPES {
 		if EVENT_TYPES[i].EvtTypCode == code {
 			name = EVENT_TYPES[i].EvtTypName
 			break
-		} 
+		}
 	}
 	return
 }

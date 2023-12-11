@@ -22,7 +22,10 @@ const OP_CODE_JOB_STARTED int32 = 4       // DEVICE RESPONSE -> JOB STARTED
 const OP_CODE_JOB_END_REQ int32 = 5       // USER REQUEST -> END JOB
 const OP_CODE_JOB_OFFLINE_START int32 = 6 // JOB WAS STARTED OFFLINE BY OPERATOR ON SITE
 const OP_CODE_JOB_OFFLINE_END int32 = 7   // JOB WAS ENDED OFFLINE BY OPERATOR ON SITE
-const OP_CODE_GPS_ACQ int32 = 8  // DEVICE NOTIFICATION -> LTE DISABLED FOR GPS AQUISITION
+const OP_CODE_GPS_ACQ int32 = 8           // DEVICE NOTIFICATION -> LTE DISABLED FOR GPS AQUISITION
+
+const MAX_OP_CODE int32 = 999
+
 /* END OPERATION CODES  ( Event.EvtCode ) *********************************************************/
 
 /* STATUS CODES ( Event.EvtCode 1000 : 1999 ) *******************************************************/
@@ -36,6 +39,8 @@ const STATUS_HFS_MAX_DIFF int32 = 1006
 const STATUS_LFS_MAX_FLOW int32 = 1007
 const STATUS_LFS_MAX_PRESS int32 = 1008
 const STATUS_LFS_MAX_DIFF int32 = 1009
+
+const MAX_STATUS_CODE int32 = 1999
 
 /* END STATUS CODES ( Event.EvtCode ) **************************************************************/
 
@@ -115,7 +120,8 @@ func DeviceClient_DisconnectAll() {
 	}
 }
 
-/* WRITE TO THE DevicesMap
+/*
+	WRITE TO THE DevicesMap
 
 WRITE LOCK IS USED TO PREVENT DEVICE MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
@@ -127,7 +133,8 @@ func DevicesMapWrite(serial string, d Device) {
 	DevicesRWMutex.Unlock()
 }
 
-/* READ THE DevicesMap
+/*
+	READ THE DevicesMap
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
@@ -287,8 +294,6 @@ func (device *Device) UpdateMappedDBG(sync bool) {
 	}
 }
 
-
-
 /* DES DEVICE CLIENT KEEP ALIVE ********************************************************/
 const DES_PING_TIMEOUT = 10000
 const DES_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
@@ -296,7 +301,8 @@ const DES_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
 var DESDeviceClientPings = make(pkg.PingsMap)
 var DESDeviceClientPingsRWMutex = sync.RWMutex{}
 
-/* WRITE TO THE DESDeviceClientPingsMap
+/*
+	WRITE TO THE DESDeviceClientPingsMap
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
@@ -308,7 +314,8 @@ func DESDeviceClientPingsMapWrite(serial string, ping pkg.Ping) {
 	DESDeviceClientPingsRWMutex.Unlock()
 }
 
-/* READ FROM THE DESDeviceClientPingsMap; RETURS pkg.Ping
+/*
+	READ FROM THE DESDeviceClientPingsMap; RETURS pkg.Ping
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE
@@ -339,8 +346,6 @@ func (device *Device) UpdateDESDeviceClientPing(ping pkg.Ping) {
 	go device.MQTTPublication_DeviceClient_DESDeviceClientPing(ping)
 }
 
-
-
 /* PHYSICAL DEVICE KEEP ALIVE ********************************************************/
 const DEVICE_PING_TIMEOUT = 30000
 const DEVICE_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
@@ -348,7 +353,8 @@ const DEVICE_PING_LIMIT = DEVICE_PING_TIMEOUT + 1000
 var DevicePings = make(pkg.PingsMap)
 var DevicePingsRWMutex = sync.RWMutex{}
 
-/* WRITE TO THE DevicePingsMap
+/*
+	WRITE TO THE DevicePingsMap
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS WRITE OPERATION IS BLOCKED UNTIL THE READ IS COMPLETE
@@ -360,7 +366,8 @@ func DevicePingsMapWrite(serial string, ping pkg.Ping) {
 	DevicePingsRWMutex.Unlock()
 }
 
-/* READ FROM THE DevicePingsMap; RETURS pkg.Ping
+/*
+	READ FROM THE DevicePingsMap; RETURS pkg.Ping
 
 WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - WHERE THE MAP IS ALREADY LOCKED, THIS READ OPERATION IS BLOCKED UNTIL THE WRITE IS COMPLETE

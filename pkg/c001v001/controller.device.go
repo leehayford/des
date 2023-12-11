@@ -393,8 +393,8 @@ func (device *Device) GetDeviceDESU() (err error) {
 		pkg.LogErr(res.Error)
 		err = res.Error
 	} 
-	pkg.Json("GetDeviceDESU( ): ", u)
 	device.DESU = u.FilterUserRecord()
+	pkg.Json("GetDeviceDESU( ): ", device.DESU)
 	return
 }
 
