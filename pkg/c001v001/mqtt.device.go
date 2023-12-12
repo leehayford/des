@@ -88,9 +88,8 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGStartJob() pkg.MQTTSubscr
 			if err := json.Unmarshal(msg.Payload(), &start); err != nil {
 				pkg.LogErr(err)
 			}
-			/* TODO: VALIDATE */
-			valid := true
-			if valid { 
+			/* VALIDATE */
+			if err := start.SIGValidate(device); err == nil { 
 				device.StartJob(start) 
 			} 
 		},
@@ -111,9 +110,8 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEndJob() pkg.MQTTSubscrip
 				pkg.LogErr(err)
 			}
 
-			/* TODO: VALIDATE */
-			valid := true
-			if valid { 
+			/* VALIDATE */
+			if err := sta.SIGValidate(device); err == nil { 
 				device.EndJob(sta)
 			}
 

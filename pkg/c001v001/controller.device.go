@@ -394,7 +394,7 @@ func (device *Device) GetDeviceDESU() (err error) {
 		err = res.Error
 	} 
 	device.DESU = u.FilterUserRecord()
-	pkg.Json("GetDeviceDESU( ): ", device.DESU)
+	// pkg.Json("GetDeviceDESU( ): ", device.DESU)
 	return
 }
 
@@ -426,6 +426,16 @@ type StartJob struct {
 	HDR Header `json:"hdr"`
 	CFG Config `json:"cfg"`
 	EVT Event  `json:"evt"`
+}
+func (start *StartJob) SIGValidate(device *Device) (err error) {
+
+	if err = start.ADM.SIGValidate(device); err != nil { return	}
+	if err = start.STA.SIGValidate(device); err != nil { return	}
+	if err = start.HDR.SIGValidate(device); err != nil { return	}
+	if err = start.CFG.SIGValidate(device); err != nil { return	}
+	if err = start.EVT.SIGValidate(device); err != nil { return	}
+
+	return
 }
 
 /*

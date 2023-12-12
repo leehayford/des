@@ -1009,7 +1009,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	sta.StaJobName = demo.DESJobName
 
 	demo.HDR = start.HDR
-	demo.HDR.HdrTime = startTime
+	demo.HDR.HdrTime = startTime 
 	demo.HDR.HdrAddr = demo.DESDevSerial
 	demo.HDR.HdrJobStart = startTime
 	demo.HDR.HdrJobEnd = 0

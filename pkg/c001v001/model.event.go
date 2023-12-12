@@ -175,8 +175,8 @@ var EVENT_TYPES = []EventTyp{
 	{EvtTypCode: STATUS_LFS_MAX_DIFF, EvtTypName: "ALARM LFS MAX DIFF-PRESSURE"},
 
 	// 	/* ANNOTATION EVENT TYPES 2000 - 65535 */
-	{EvtTypCode: 2000, EvtTypName: "OPERATOR COMMENT"},
-	{EvtTypCode: 2001, EvtTypName: "REPORT COMMENT"},
+	{EvtTypCode: NOTE_OPERATOR_COMMENT, EvtTypName: "OPERATOR COMMENT"},
+	{EvtTypCode: NOTE_REPORT_COMMENT, EvtTypName: "REPORT COMMENT"},
 }
 
 func GetEventTypeByCode(code int32) (name string) {

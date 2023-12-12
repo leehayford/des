@@ -44,6 +44,13 @@ const MAX_STATUS_CODE int32 = 1999
 
 /* END STATUS CODES ( Event.EvtCode ) **************************************************************/
 
+/* ANNOTATION ( NOTE ) CODES ( Event.EvtCode 2000 : 65535 ) *******************************************************/
+const NOTE_OPERATOR_COMMENT int32 = 2000
+const NOTE_REPORT_COMMENT int32 = 2001
+const NOTE_SSP_COMMENT int32 = 2002
+const NOTE_SSCVF_COMMENT int32 = 2003
+/* END ANNOTATION ( NOTE ) CODES ( Event.EvtCode ) **************************************************************/
+
 /* MODE ( VALVE POSITIONS ) *************************************************************************/
 const MODE_BUILD int32 = 0
 const MODE_VENT int32 = 2
@@ -52,7 +59,7 @@ const MODE_LO_FLOW int32 = 6
 
 /* END VALVE POSITIONS ******************************************************************************/
 
-const MIN_SAMPLE_PERIOD int32 = 100
+const MIN_SAMPLE_PERIOD int32 = 1000
 
 type DevicesMap map[string]Device
 
