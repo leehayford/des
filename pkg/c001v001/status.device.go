@@ -158,8 +158,7 @@ func DevicesMapRead(serial string) (device Device) {
 func FromDevicesMapRemove(serial string) {
 	DevicesRWMutex.Lock()
 	delete(Devices, serial)
-	DevicesRWMutex.Unlock()
-	// fmt.Printf("\n\nFromDevicesMapRemove( %s ) Removed... \n", serial)
+	DevicesRWMutex.Unlock() // fmt.Printf("\n\nFromDevicesMapRemove( %s ) Removed... \n", serial)
 }
 
 /* HYDRATES THE DEVICE'S DB & MQTT CLIENT OBJECTS OF THE DEVICE FROM DevicesMap */
@@ -255,7 +254,6 @@ func (device *Device) UpdateMappedSTA() {
 }
 
 /* UPDATES THE DevicesMap WITH THE DEVICE'S CURRENT Header */
-// func (device *Device) UpdateMappedHDR(hdr Header) {
 func (device *Device) UpdateMappedHDR() {
 	d := DevicesMapRead(device.DESDevSerial)
 	// d.HDR = hdr

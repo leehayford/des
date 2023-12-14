@@ -23,6 +23,17 @@ func InitializeJobRoutes(app, api *fiber.App) (err error) {
 }
 
 /*
+RETURNS THE LIST OF EVENT TYPES FOR A CLASS 001 VERSION 001 DEVICE / JOB
+*/
+func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "You are a tolerable person!",
+		"data":    fiber.Map{"event_types": EVENT_TYPES},
+	})
+}
+
+/*
 RETURNS THE LIST OF JOBS REGISTERED TO THIS DES
 
 ALONG WITH THE DEVICE FOR EACH OF THOSE JOBS
@@ -79,15 +90,26 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	reg := pkg.DESRegistration{}
-	if err = c.BodyParser(&reg); err != nil {
+	/* PARSE AND VALIDATE REQUEST DATA */
+	job := Job{}
+	if err = c.BodyParser(&job); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("HandleGetJobData(): -> c.BodyParser(&reg) -> reg", reg)
+	} // pkg.Json("HandleGetJobData(): -> c.BodyParser(&job) -> job", job)
 
-	job := Job{DESRegistration: reg}
+	/* OPEN A JOB DATABASE CONNECTION FOR THIS REQUEST */
+	if err = job.ConnectDBC(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
+	defer job.DBClient.Disconnect()
+
+	/* QUERY JOB DATABASE */
 	if err = job.GetJobData(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
@@ -99,17 +121,6 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 		"status":  "success",
 		"message": "You are a tolerable person!",
 		"data":    fiber.Map{"job": job},
-	})
-}
-
-/*
-RETURNS THE LIST OF EVENT TYPES FOR A CLASS 001 VERSION 001 DEVICE / JOB
-*/
-func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"event_types": EVENT_TYPES},
 	})
 }
 
@@ -128,26 +139,28 @@ func HandleNewReport(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	rep := &Report{}
-	if err = c.BodyParser(rep); err != nil {
+	/* PARSE AND VALIDATE REQUEST DATA */
+	rep := Report{}
+	if err = c.BodyParser(&rep); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
 	} // pkg.Json("HandleCreateReport(): -> c.BodyParser(&rep) -> rep", rep)
 
-	job := &Job{DESRegistration: rep.DESRegistration}
-	// pkg.Json("HandleCreateReport(): job", job)
+	/* OPEN A JOB DATABASE CONNECTION FOR THIS REQUEST */
+	job := Job{DESRegistration: rep.DESRegistration}
+	if err = job.ConnectDBC(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
+	defer job.DBClient.Disconnect()
 
-	// scls := &SecScales{}
-	// if err = scls.AutoScaleSection(job, job.DESJobStart, job.DESJobEnd); err != nil {
-	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-	// 		"status":  "fail",
-	// 		"message": err.Error(),
-	// 	})
-	// } // pkg.Json("AutoScaleSection(): SecScales", scls)
-
-	job.CreateDefaultReport(rep)
+	/* GENERATE THE NEW REPORT RECORDS IN THE JOB DATABASE */
+	job.GenerateReport(&rep)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
@@ -156,7 +169,7 @@ func HandleNewReport(c *fiber.Ctx) (err error) {
 	})
 }
 
-/*
+/* TODO:
  */
 func HandleJobNewHeader(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleJobNewHeader( )\n")
@@ -191,6 +204,7 @@ func HandleGetJobEvents(c *fiber.Ctx) (err error) {
 		})
 	}
 
+	/* PARSE AND VALIDATE REQUEST DATA */
 	job := Job{}
 	if err = c.BodyParser(&job); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -199,6 +213,16 @@ func HandleGetJobEvents(c *fiber.Ctx) (err error) {
 		})
 	}
 	pkg.Json("HandleGetJobEvents(): -> c.BodyParser(&job) -> job.DESRegistration", job.DESRegistration)
+
+	/* OPEN A JOB DATABASE CONNECTION FOR THIS REQUEST */
+	if err = job.ConnectDBC(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
+	defer job.DBClient.Disconnect()
 
 	if err = job.GetJobEvents(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -229,6 +253,7 @@ func HandleNewReportEvent(c *fiber.Ctx) (err error) {
 		})
 	}
 
+	/* PARSE AND VALIDATE REQUEST DATA */
 	job := Job{}
 	if err = c.BodyParser(&job); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -237,6 +262,16 @@ func HandleNewReportEvent(c *fiber.Ctx) (err error) {
 		})
 	}
 	pkg.Json("HandleNewReportEvent(): -> c.BodyParser(&job) -> job", job)
+
+	/* OPEN A JOB DATABASE CONNECTION FOR THIS REQUEST */
+	if err = job.ConnectDBC(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
+	defer job.DBClient.Disconnect()
 
 	if err = job.NewReportEvent(c.IP(), &job.Events[0]); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

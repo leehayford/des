@@ -39,7 +39,7 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 
 		/* TODO: ROLES HANDLED PER MQTT TOPIC / WS */
 		app.Use("/ws", pkg.HandleWSUpgrade)
-		router.Get("/ws", pkg.DesAuth, websocket.New((DeviceUserClient{}).HandleDeviceUserClient_Connect))
+		router.Get("/ws", pkg.DesAuth, websocket.New(HandleDeviceUserClient_Connect))
 
 	})
 }
@@ -395,9 +395,9 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 }
 
 /*
-USED TO CREATE AN EVENT FOR A GIVEN DEVICE, BOTH:
-- DURING A JOB AND
-- TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. )
+	USED TO CREATE AN EVENT FOR A GIVEN DEVICE
+
+BOTH DURING A JOB AND TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. )
 */
 func HandleCreateDeviceEvent(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleCreateDeviceEvent( )\n")
@@ -470,7 +470,7 @@ func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
 }
 
 /* USED TO OPEN A WEB SOCKET CONNECTION BETWEEN A USER AND A GIVEN DEVICE */
-func (duc DeviceUserClient) HandleDeviceUserClient_Connect(c *websocket.Conn) {
+func HandleDeviceUserClient_Connect(c *websocket.Conn) {
 	fmt.Printf("\nWSDeviceUserClient_Connect( )\n")
 
 	/* CHECK USER PERMISSION */
@@ -493,9 +493,9 @@ func (duc DeviceUserClient) HandleDeviceUserClient_Connect(c *websocket.Conn) {
 	if err := json.Unmarshal([]byte(url_str), &device); err != nil {
 		pkg.LogErr(err)
 	}
-	duc = DeviceUserClient{Device: device}
 
 	/* CONNECTED DEVICE USER CLIENT *** DO NOT RUN IN GO ROUTINE *** */
+	duc := DeviceUserClient{Device: device}
 	duc.DeviceUserClient_Connect(c)
 }
 

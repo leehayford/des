@@ -392,7 +392,7 @@ func (device *Device) GetDeviceDESU() (err error) {
 	if res.Error != nil {
 		pkg.LogErr(res.Error)
 		err = res.Error
-	} 
+	}
 	device.DESU = u.FilterUserRecord()
 	// pkg.Json("GetDeviceDESU( ): ", device.DESU)
 	return
@@ -427,13 +427,24 @@ type StartJob struct {
 	CFG Config `json:"cfg"`
 	EVT Event  `json:"evt"`
 }
+
 func (start *StartJob) SIGValidate(device *Device) (err error) {
 
-	if err = start.ADM.SIGValidate(device); err != nil { return	}
-	if err = start.STA.SIGValidate(device); err != nil { return	}
-	if err = start.HDR.SIGValidate(device); err != nil { return	}
-	if err = start.CFG.SIGValidate(device); err != nil { return	}
-	if err = start.EVT.SIGValidate(device); err != nil { return	}
+	if err = start.ADM.SIGValidate(device); err != nil {
+		return
+	}
+	if err = start.STA.SIGValidate(device); err != nil {
+		return
+	}
+	if err = start.HDR.SIGValidate(device); err != nil {
+		return
+	}
+	if err = start.CFG.SIGValidate(device); err != nil {
+		return
+	}
+	if err = start.EVT.SIGValidate(device); err != nil {
+		return
+	}
 
 	return
 }
@@ -536,8 +547,6 @@ func (device *Device) StartJobRequest(src string) (err error) {
 */
 func (device *Device) StartJob(start StartJob) {
 	// pkg.Json("(device *Device) StartJobX(start StartJob): ", start)
-
-
 
 	/* CALL DB WRITE IN GOROUTINE */
 	WriteADM(start.ADM, &device.CmdDBC)
@@ -830,16 +839,20 @@ func (device *Device) EndJob(sta State) {
 	d.Update_DESJobSearch(d.DESRegistration)
 	// pkg.Json("(device *Device) EndJob( ) ->  d.Update_DESJobSearch(d.DESRegistration): ", d)
 
-	jobName := device.DESJobName
 	/* CLOSE DES JOB */
 	device.DESJobRegTime = sta.StaTime
 	device.DESJobRegAddr = sta.StaAddr
 	device.DESJobRegUserID = sta.StaUserID
 	device.DESJobRegApp = sta.StaApp
 	device.DESJobEnd = sta.StaTime
-	fmt.Printf("\n(device *Device) EndJob( ) ENDING: %s\nDESJobID: %d\n", jobName, device.DESJobID)
 	pkg.DES.DB.Save(device.DESJob)
-	fmt.Printf("\n(device *Device) EndJob( ) %s ENDED\n", jobName)
+	fmt.Printf("\n(device *Device) EndJob( ) %s ENDED\n", device.DESJobName)
+
+	/* GENERATE DEFAULT REPORT AFTER ACTIVE JOB HAS BEEN CLOSED IN DES.DB*/
+	job := Job{DESRegistration: device.DESRegistration}
+	title := fmt.Sprintf("%s - Default Report", job.DESJobName)
+	fmt.Printf("\n(device *Device) EndJob( ) GENERATING REPORT: %s\n", title)
+	go job.GenerateReport(&Report{RepTitle: title, DESRegistration: job.DESRegistration})
 
 	/* UPDATE DES CMDARCHIVE */
 	cmd := device.GetCmdArchiveDESRegistration()
@@ -848,7 +861,6 @@ func (device *Device) EndJob(sta State) {
 	cmd.DESJobRegUserID = sta.StaUserID
 	cmd.DESJobRegApp = sta.StaApp
 	cmd.DESJob.DESJobEnd = 0 // ENSURE THE DEVICE IS DISCOVERABLE
-	fmt.Printf("\n(device *Device) EndJob( ) UPDATING CMDARCHIVE\ncmd.DESJobID: %d\v", cmd.DESJobID)
 	pkg.DES.DB.Save(cmd.DESJob)
 	fmt.Printf("\n(device *Device) EndJob( ) CMDARCHIVE UPDATED\n")
 
@@ -869,7 +881,6 @@ func (device *Device) EndJob(sta State) {
 	device.GetMappedDBG()
 
 	device.SMP = Sample{SmpTime: cmd.DESJobRegTime, SmpJobName: cmd.DESJobName}
-	// pkg.Json("(device *Device) EndJobX( ) ->  BEFORE Update_DESJobSearch(): ", device)
 
 	/* UPDATE DESJobSearch RECORD USING RETRIEVED CMD ARCHIVE RECORDS */
 	device.Update_DESJobSearch(device.DESRegistration)
@@ -878,7 +889,7 @@ func (device *Device) EndJob(sta State) {
 	/* UPDATE THE DEVICES CLIENT MAP */
 	DevicesMapWrite(device.DESDevSerial, *device)
 
-	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", jobName)
+	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", job.DESJobName)
 }
 
 /*
@@ -952,7 +963,7 @@ func (device *Device) HandleMQTTSample(mqtts MQTT_Sample) {
 
 	/* TODO: VALIDATE */
 	valid := true
-	if valid { 
+	if valid {
 		/* CHECK SAMPLE JOB NAME */
 		if smp.SmpJobName == device.CmdArchiveName() {
 			/* WRITE TO JOB CMDARCHIVE
@@ -995,8 +1006,8 @@ func (device *Device) HandleMQTTSample(mqtts MQTT_Sample) {
 		/* UPDATE THE DevicesMap - DO NOT CALL IN GOROUTINE  */
 		device.UpdateMappedSMP()
 
-	// } else {
-	// 	smp = Sample{}
+		// } else {
+		// 	smp = Sample{}
 	}
 	// fmt.Printf("\n(*Device) HandleMQTTSample( ): COMPLETE.\n")
 	// return
