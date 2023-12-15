@@ -850,9 +850,16 @@ func (device *Device) EndJob(sta State) {
 
 	/* GENERATE DEFAULT REPORT AFTER ACTIVE JOB HAS BEEN CLOSED IN DES.DB*/
 	job := Job{DESRegistration: device.DESRegistration}
-	title := fmt.Sprintf("%s - Default Report", job.DESJobName)
-	fmt.Printf("\n(device *Device) EndJob( ) GENERATING REPORT: %s\n", title)
-	go job.GenerateReport(&Report{RepTitle: title, DESRegistration: job.DESRegistration})
+	/* OPEN A SEPARATE JOB DATABASE CONNECTION FOR THIS REPORTING OPERATION */
+	if err := job.ConnectDBC(); err != nil {
+		pkg.LogErr(err)
+	} else {
+		title := fmt.Sprintf("%s - Default Report", job.DESJobName)
+		fmt.Printf("\n(device *Device) EndJob( ) GENERATING REPORT: %s\n", title)
+		go job.GenerateReport(&Report{RepTitle: title, DESRegistration: job.DESRegistration})
+	}
+	/* ENSURE THE REPORTING JOB DATABASE CONNECTION CLOSES AFTER THIS OPERATION */
+	defer job.DBClient.Disconnect()
 
 	/* UPDATE DES CMDARCHIVE */
 	cmd := device.GetCmdArchiveDESRegistration()
