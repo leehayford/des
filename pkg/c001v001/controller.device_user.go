@@ -70,7 +70,8 @@ func (duc DeviceUserClient) SendMessages(c *websocket.Conn) {
 
 		case data := <-duc.DataOut:
 			if err := c.WriteJSON(data); err != nil {
-				pkg.LogErr(err)
+				// pkg.LogErr(err)
+				fmt.Printf("(DeviceUserClient) SendMessages -> data := <-duc.DataOut: %s\n", string(data))
 				duc.MQTTDeviceUserClient_Disconnect()
 				duc.Close <- struct{}{}
 			}
@@ -100,8 +101,8 @@ func (duc DeviceUserClient) ListenForMessages(c *websocket.Conn) {
 	for listen {
 		_, msg, err := c.ReadMessage()
 		if err != nil {
-			fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() %s -> ERROR: %s\n", duc.DESDevSerial, err.Error())
-			pkg.LogErr(err)
+			// fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() %s -> ERROR: %s\n", duc.DESDevSerial, err.Error())
+			// pkg.LogErr(err)
 			break
 		}
 		if string(msg) == "close" {

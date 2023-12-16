@@ -76,7 +76,7 @@ func HandleLoginUser(c *fiber.Ctx) (err error) {
 	}
 
 	/* ATTEMPT LOGIN */
-	acc, ref, err := LoginUser(lunp)
+	ures, acc, ref, err := LoginUser(lunp)
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
 			"status":  "fail",
@@ -86,8 +86,9 @@ func HandleLoginUser(c *fiber.Ctx) (err error) {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":    "success",
-		"token":     acc,
-		"ref_token": ref,
+		"user": ures,
+		"acc": acc,
+		"ref": ref,
 	})
 }
 

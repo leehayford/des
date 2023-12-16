@@ -29,10 +29,10 @@ import (
 /* https://codevoweb.com/how-to-properly-use-jwt-for-authentication-in-golang/ */
 
 type UserSession struct {
-	ID uuid.UUID
-	UserID uuid.UUID
-	AccTok string
-	RefTok string
+	SID uuid.UUID `json:"sid"`
+	REFTok string `json:"ref_token"`
+	ACCTok string `json:"acc_token"`
+	USR UserResponse `json:"user"`
 }
 
 type UserSessionMap map[string]UserSession
@@ -50,7 +50,7 @@ func UserSessionsMapRead(usid string) (u UserSession, err error) {
 	u = UserSessions[usid]
 	UserSessionsRWMutex.Unlock()
 	
-	if u.ID.String() == "" {
+	if u.SID.String() == "" {
 		err = fmt.Errorf("No session exists with ID %s.", usid)
 	}
 	return
@@ -69,39 +69,39 @@ func UserSessionsMapRemove(usid string) {
 
 
 func (us *UserSession) UpdateMappedAccTok() (err error) {
-	u, err := UserSessionsMapRead(us.ID.String())
+	u, err := UserSessionsMapRead(us.SID.String())
 	if err != nil {
 		return
 	}
-	u.AccTok = us.AccTok
-	UserSessionsMapWrite(us.ID.String(), u)
+	u.ACCTok = us.ACCTok
+	UserSessionsMapWrite(us.SID.String(), u)
 	return
 }
 func (us *UserSession) UpdateMappedRefTok() (err error) {
-	u, err := UserSessionsMapRead(us.ID.String())
+	u, err := UserSessionsMapRead(us.SID.String())
 	if err != nil {
 		return
 	}
-	u.RefTok = us.RefTok
-	UserSessionsMapWrite(us.ID.String(), u)
+	u.REFTok = us.REFTok
+	UserSessionsMapWrite(us.SID.String(), u)
 	return
 }
 
 
 func (us *UserSession) GetMappedAccTok() (err error) {
-	u, err := UserSessionsMapRead(us.ID.String())
+	u, err := UserSessionsMapRead(us.SID.String())
 	if err != nil {
 		return
 	}
-	us.AccTok = u.AccTok
+	us.ACCTok = u.ACCTok
 	return
 }
 func (us *UserSession) GetMappedRefTok() (err error) {
-	u, err := UserSessionsMapRead(us.ID.String())
+	u, err := UserSessionsMapRead(us.SID.String())
 	if err != nil {
 		return
 	}
-	us.RefTok = u.RefTok
+	us.REFTok = u.REFTok
 	return
 }
 
@@ -112,17 +112,17 @@ func RefreshAccessToken(usid string) (acc string, err error) {
 		return
 	}
 
-	user, err := GetUserByID(us.UserID.String())
+	user, err := GetUserByID(us.USR.ID.String())
 	if err != nil {
 		return
 	}
 
-	acc, err = CreateJWTAccess(user)
+	acc, err = CreateJWTAccessToken(user)
 	if err != nil {
 		return
 	}
 
-	us.AccTok = acc
+	us.ACCTok = acc
 	us.UpdateMappedAccTok()
 
 	return
@@ -134,7 +134,7 @@ func RevokeRefreshToken(user User) {
 	sess := UserSessionsMapCopy()
 
 	for id, ses := range sess {
-		if ses.UserID == user.ID {
+		if ses.USR.ID == user.ID {
 			UserSessionsMapRemove(id)
 		}
 	}
@@ -169,10 +169,9 @@ func RegisterUser(runp RegisterUserInput) (user User, err error) {
 }
 
 /* AUTHENTICATE USER INPUT AND RETURN JWTs */
-func LoginUser(lunp LoginUserInput) (acc, ref string, err error) {
+func LoginUser(lunp LoginUserInput) (ures UserResponse, acc, ref string, err error) {
 
 	user := User{}
-
 	/* CHECK EMAIL */
 	res := DES.DB.First(&user, "email = ?", strings.ToLower(lunp.Email)) 
 	if res.Error != nil {
@@ -186,49 +185,42 @@ func LoginUser(lunp LoginUserInput) (acc, ref string, err error) {
 		return
 	}
 
-	/* CREATE JWT PAIR */
-	acc, ref, err = CreateJWTPair(user)
+	/* CREATE REFRESH TOKEN*/
+	ref, err = CreateJWTRefreshToken(user)
 	if err != nil {
-		err = fmt.Errorf("Token generation failed: %v", err)
+		err = fmt.Errorf("Refresh token generation failed: %v", err)
 		return
 	}
 
+	/* CREATE ACCESS TOKEN */
+	acc, err = CreateJWTAccessToken(user)
+	if err != nil {
+		err = fmt.Errorf("Access token generation failed: %v", err)
+		return
+	}
+
+	/*  RETURN FILTERED USER DATA */
+	ures = user.FilterUserRecord()
 
 	return
 }
 
-/* CREATE AN ACCESS & REFRESH JWT PAIR */
-func CreateJWTPair(user User) (acc, ref string, err error) {
+func CreateJWTRefreshToken(user User) (tok string, err error) {
 
-	// claims, err := CreateJWTClaims(user)
-	// if err != nil {
-	// 	return "", "", err
-	// }
+	tokByte := jwt.New(jwt.SigningMethodHS256)
+	tokClaims := tokByte.Claims.(jwt.MapClaims)
+	tokClaims["sub"] = user.ID // SUBJECT
+	tokClaims["exp"] = time.Now().UTC().Add(time.Duration(time.Hour * 24)).Unix()
 
-	// tokenByte := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	// acc, err = tokenByte.SignedString([]byte(JWT_SECRET))
-	// if err != nil {
-	// 	return "", "", err
-	// }
-
-	acc, err = CreateJWTAccess(user)
+	tok, err = tokByte.SignedString([]byte(JWT_SECRET))
 	if err != nil {
-		return "", "", err
-	}
-
-	refTokenByte := jwt.New(jwt.SigningMethodHS256)
-	refClaims := refTokenByte.Claims.(jwt.MapClaims)
-	refClaims["sub"] = user.ID // SUBJECT
-	refClaims["exp"] = time.Now().UTC().Add(time.Duration(time.Hour * 24)).Unix()
-
-	ref, err = refTokenByte.SignedString([]byte(JWT_SECRET))
-	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	return
 }
-func CreateJWTAccess(user User) (acc string, err error) {
+
+func CreateJWTAccessToken(user User) (acc string, err error) {
 
 	claims, err := CreateJWTClaims(user)
 	if err != nil {
@@ -277,30 +269,6 @@ func LogoutUser(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success"})
 }
 
-func GetMe(c *fiber.Ctx) (err error) {
-	id := c.Locals("sub") // fmt.Printf("\nID:\t%s\n", id)
-
-	user, err := GetUserByID(id)
-	if err != nil {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	}
-	// user := User{}
-	// DES.DB.First(&user, "id = ?", id)
-	// if user.ID.String() != id {
-	// 	return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-	// 		"status":  "fail",
-	// 		"message": "The user belonging to this token no logger exists.",
-	// 	})
-	// }
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
-		"data":   fiber.Map{"user": user.FilterUserRecord()},
-	})
-}
 func GetUserByID(userID interface{}) (user User, err error) {
 
 	DES.DB.First(&user, "id = ?", userID)

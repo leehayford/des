@@ -94,9 +94,7 @@ func main() {
 
 			router.Post("/register", pkg.HandleRegisterUser)
 			router.Post("/login", pkg.HandleLoginUser)
-
 			router.Get("/logout", pkg.DesAuth, pkg.LogoutUser)
-			router.Get("/me", pkg.DesAuth, pkg.GetMe)
 
 			router.Get("/list", pkg.GetUserList) /* TODO: AUTH */
 		})
