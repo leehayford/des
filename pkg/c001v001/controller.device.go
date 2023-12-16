@@ -114,7 +114,6 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	/* WRITE DEFAULT ADM, STA, HDR, CFG, EVT TO CMDARCHIVE */
 	device.ADM.DefaultSettings_Admin(device.DESRegistration)
 	device.STA.DefaultSettings_State(device.DESRegistration)
-	// device.STA.StaLogging = OP_CODE_DES_REGISTERED
 	device.HDR.DefaultSettings_Header(device.DESRegistration)
 	device.CFG.DefaultSettings_Config(device.DESRegistration)
 	device.SMP = Sample{SmpTime: t, SmpJobName: device.DESJobName}
@@ -291,7 +290,7 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 	}
 
 	/* REMOVE DEVICE FROM DevicesMap MAP */
-	FromDevicesMapRemove(device.DESDevSerial)
+	DevicesMapRemove(device.DESDevSerial)
 
 	/* REMOVE DEVICE FROM DESDeviceClientPings MAP */
 	DESDeviceClientPingsMapRemove(device.DESDevSerial)

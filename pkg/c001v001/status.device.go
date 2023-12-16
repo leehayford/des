@@ -49,6 +49,7 @@ const NOTE_OPERATOR_COMMENT int32 = 2000
 const NOTE_REPORT_COMMENT int32 = 2001
 const NOTE_SSP_COMMENT int32 = 2002
 const NOTE_SSCVF_COMMENT int32 = 2003
+
 /* END ANNOTATION ( NOTE ) CODES ( Event.EvtCode ) **************************************************************/
 
 /* MODE ( VALVE POSITIONS ) *************************************************************************/
@@ -67,7 +68,7 @@ var Devices = make(DevicesMap)
 var DevicesRWMutex = sync.RWMutex{}
 
 /* GET THE CURRENT DESRegistration FOR ALL DEVICES ON THIS DES */
-func GetDeviceList() (devices []pkg.DESRegistration, err error) {
+func GetDeviceList() (regs []pkg.DESRegistration, err error) {
 
 	/* WHERE MORE THAN ONE JOB IS ACTIVE ( des_job_end = 0 ) WE WANT THE LATEST */
 	subQryLatestJob := pkg.DES.DB.
@@ -81,8 +82,8 @@ func GetDeviceList() (devices []pkg.DESRegistration, err error) {
 		Joins(`JOIN ( ? ) j ON des_jobs.des_job_dev_id = j.des_job_dev_id AND des_jobs.des_job_reg_time = j.max_time`, subQryLatestJob).
 		Order("j.max_time DESC")
 
-	res := qry.Scan(&devices)
-	// pkg.Json("GetDeviceList(): DESRegistrations", res)
+	res := qry.Scan(&regs)
+	// pkg.Json("GetDeviceList(): DESRegistrations", regs)
 	err = res.Error
 	return
 }
@@ -155,7 +156,7 @@ func DevicesMapRead(serial string) (device Device) {
 }
 
 /* REMOVE DEVICE FROM DevicesMap MAP */
-func FromDevicesMapRemove(serial string) {
+func DevicesMapRemove(serial string) {
 	DevicesRWMutex.Lock()
 	delete(Devices, serial)
 	DevicesRWMutex.Unlock() // fmt.Printf("\n\nFromDevicesMapRemove( %s ) Removed... \n", serial)

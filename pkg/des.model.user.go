@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -19,24 +18,24 @@ import (
 	"fmt"
 	// "time"
 
-	"github.com/google/uuid" // go get github.com/google/uuid
 	"github.com/go-playground/validator/v10" // go get github.com/go-playground/validator/v10
+	"github.com/google/uuid"                 // go get github.com/google/uuid
 )
 
 type User struct {
 	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primary_key"`
-	Name      string     `gorm:"type:varchar(100);not null"`
-	Email     string     `gorm:"type:varchar(100);uniqueIndex;not null"`
-	Password  string     `gorm:"type:varchar(100);not null"`
+	Name      string    `gorm:"type:varchar(100);not null"`
+	Email     string    `gorm:"type:varchar(100);uniqueIndex;not null"`
+	Password  string    `gorm:"type:varchar(100);not null"`
 	Role      string    `gorm:"type:varchar(50);default:'user';not null"`
 	Provider  string    `gorm:"type:varchar(50);default:'local';not null"`
 	Photo     string    `gorm:"not null;default:'default.png'"`
 	Verified  bool      `gorm:"not null;default:false"`
-	CreatedAt int64 `gorm:"autoCreateTime:milli"`
-	UpdatedAt int64 `gorm:"autoUpdateTime:milli"`
+	CreatedAt int64     `gorm:"autoCreateTime:milli"`
+	UpdatedAt int64     `gorm:"autoUpdateTime:milli"`
 }
 
-type SignUpInput struct {
+type RegisterUserInput struct {
 	Name            string `json:"name" validate:"required"`
 	Email           string `json:"email" validate:"required"`
 	Password        string `json:"password" validate:"required,min=8"`
@@ -44,31 +43,32 @@ type SignUpInput struct {
 	Photo           string `json:"photo"`
 }
 
-type SignInInput struct {
+type LoginUserInput struct {
 	Email    string `json:"email" validate:"required"`
 	Password string `json:"password" validate:"required"`
 }
 
 type UserResponse struct {
-	ID        uuid.UUID `json:"id,omitempty"`
-	Name      string    `json:"name,omitempty"`
-	Email     string    `json:"email,omitempty"`
-	Role      string    `json:"role,omitempty"`
+	ID    uuid.UUID `json:"id,omitempty"`
+	Name  string    `json:"name,omitempty"`
+	Email string    `json:"email,omitempty"`
+	Role  string    `json:"role,omitempty"`
 	// Provider  string    `json:"provider"`
 	// Photo     string    `json:"photo,omitempty"`
 	CreatedAt int64 `json:"created_at"`
 	UpdatedAt int64 `json:"updated_at"`
 }
+
 func (ur UserResponse) GetUUIDString() (id string) {
 	return fmt.Sprintf("%s", ur.ID)
 }
 
 func (user *User) FilterUserRecord() UserResponse {
 	return UserResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		Role:      user.Role,
+		ID:    user.ID,
+		Name:  user.Name,
+		Email: user.Email,
+		Role:  user.Role,
 		// Photo:     user.Photo,
 		// Provider:  user.Provider,
 		CreatedAt: user.CreatedAt,

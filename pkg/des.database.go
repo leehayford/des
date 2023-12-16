@@ -199,6 +199,15 @@ func (des DESDatabase) CreateDESTables(exists bool) (err error) {
 
 	return err
 }
+func(des DESDatabase) GetAllTables() (err error) {
+
+	return
+}
+func(des DESDatabase) GetAllRows() (err error) {
+
+	return
+}
+
 
 // type WGTestThing struct {
 // 	Name string

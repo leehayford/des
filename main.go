@@ -91,11 +91,14 @@ func main() {
 			TODO: MOVE TO DES HTTP
 		*/
 		api.Route("/user", func(router fiber.Router) {
-			router.Post("/signup", pkg.SignUpUser)
-			router.Post("/login", pkg.SignInUser)
-			router.Get("/list", pkg.GetUserList) /* TODO: AUTH */
-			router.Get("/me", pkg.DesAuth, pkg.GetMe)
+
+			router.Post("/register", pkg.HandleRegisterUser)
+			router.Post("/login", pkg.HandleLoginUser)
+
 			router.Get("/logout", pkg.DesAuth, pkg.LogoutUser)
+			router.Get("/me", pkg.DesAuth, pkg.GetMe)
+
+			router.Get("/list", pkg.GetUserList) /* TODO: AUTH */
 		})
 
 		/* C001V001 DEVICE ROUTES */

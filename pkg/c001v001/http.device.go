@@ -530,6 +530,12 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 			"message": err.Error(),
 		})
 	} // pkg.Json("HandleRegisterDevice( ) -> c.BodyParser( reg ) -> reg", reg)
+	
+	/* TODO: VALIDATE SERIAL# ( TO UPPER ): 
+			!= ""
+			DOESN'T ALREADY EXIST
+			LENGTH < 10
+	*/
 
 	/* REGISTER A C001V001 DEVICE ON THIS DES */
 	device := &Device{}

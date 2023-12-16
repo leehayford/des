@@ -12,7 +12,6 @@ License:
 	2. Prohibits <Third Party> from taking any action which might interfere with DataCan's right to use, modify, distributre this software in perpetuity.
 */
 
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -32,42 +31,25 @@ package pkg
 import (
 	"fmt"
 	"time"
-
-	"github.com/gofiber/fiber/v2"
 )
 
+/* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE */
+// func ValidateDESDevSerial
 
 /* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */
-func HandleRegisterDesDev(c *fiber.Ctx) (err error) {
-
-	role := c.Locals("role")
-	if role != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an administrator to register devices",
-		})
-	}
-
-	device := DESDev{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	}
+func RegisterDESDevice(src string, dev DESDev) ( reg DESRegistration, err error) {
 
 	/*
 		CREATE A DEVICE RECORD IN THE DES DB FOR THIS DEVICE
 		 - Creates a new DESevice in the DES database
 		 - Gets the C001V001Device's DeviceID from the DES Database
 	*/
-	device.DESDevRegTime = time.Now().UTC().UnixMilli()
-	device.DESDevRegAddr = c.IP()
-	if device_res := DES.DB.Create(&device); device_res.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": device_res.Error.Error(),
-		})
+	
+	dev.DESDevRegTime = time.Now().UTC().UnixMilli()
+	dev.DESDevRegAddr = src
+	if dev_res := DES.DB.Create(&dev); dev_res.Error != nil {
+		err =  dev_res.Error
+		return
 	}
 
 	/*
@@ -79,77 +61,47 @@ func HandleRegisterDesDev(c *fiber.Ctx) (err error) {
 		 -
 	*/
 	job := DESJob{
-		DESJobRegTime:   device.DESDevRegTime,
-		DESJobRegAddr:   device.DESDevRegAddr,
-		DESJobRegUserID: device.DESDevRegUserID,
-		DESJobRegApp:    device.DESDevRegApp,
+		DESJobRegTime:   dev.DESDevRegTime,
+		DESJobRegAddr:   dev.DESDevRegAddr,
+		DESJobRegUserID: dev.DESDevRegUserID,
+		DESJobRegApp:    dev.DESDevRegApp,
 
-		DESJobName:  fmt.Sprintf("%s_CMDARCHIVE", device.DESDevSerial),
-		DESJobStart: device.DESDevRegTime,
+		DESJobName:  fmt.Sprintf("%s_CMDARCHIVE", dev.DESDevSerial),
+		DESJobStart: dev.DESDevRegTime,
 		DESJobEnd:   0,
 
-		DESJobDevID: device.DESDevID,
+		DESJobDevID: dev.DESDevID,
 	}
 	if job_res := DES.DB.Create(&job); job_res.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": job_res.Error.Error(),
-		})
+		err = job_res.Error
+		return
 	}
 
-	reg := DESRegistration{
-		DESDev: device,
-		DESJob: job,
-	}
+	reg = DESRegistration{DESDev: dev, DESJob: job}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status": "success",
-		"data":   fiber.Map{"device": &reg},
-	})
+	return
 }
 
 /* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */
-func HandleGetDesDevList(c *fiber.Ctx) (err error) {
+func GetDESDeviceList() (devs []DESDev, err error) {
 
-	devices := []DESDev{}
-
-	if err = GetDesDevList(&devices); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("GetDesDevList(...) -> query failed:\n%s\n", err),
-			"data":    fiber.Map{"devices": devices},
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"devices": devices},
-	})
+	qry := DES.DB.
+		Table("des_devs").
+		Select("des_devs.*").
+		Order("des_devs.des_dev_serial ASC")
+	
+	res := qry.Scan(&devs)
+	// pkg.Json("GetDESDeviceList(): DESDevs", devs)
+	err = res.Error
+	return
 }
 
 /* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */
-func HandleGetDesDevBySerial(c *fiber.Ctx) (err error) {
+func GetDESDeviceBySerial(serial string) (dev DESDev,  err error) {
+	
+	// qry := DES.DB.Table("des_devs").Select().Where()
 
-	reg := DESRegistration{}
-	if err = c.BodyParser(&reg); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("GetDesDevBySerial(...) -> BodyParser failed:\n%s\n", err.Error()),
-		})
-	}
-
-	if res := DES.DB.Order("des_dev_reg_time desc").First(&reg.DESDev, "des_dev_serial =?", reg.DESDev.DESDevSerial); res.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("GetDesDevBySerial(...) -> query failed:\n%s\n", res.Error.Error()),
-			"data":    fiber.Map{"device": reg},
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"device": reg},
-	})
+	res := DES.DB.Order("des_dev_reg_time desc").First(&dev, "des_dev_serial =?", dev.DESDevSerial) 
+	err = res.Error
+	return 
 }

@@ -17,152 +17,255 @@ package pkg
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2" // go get github.com/gofiber/fiber/v2
 	"github.com/golang-jwt/jwt"   // go get github.com/golang-jwt/jwt
 	"golang.org/x/crypto/bcrypt"  // go get golang.org/x/crypto/bcrypt
+	"github.com/google/uuid"                 // go get github.com/google/uuid
 )
+
 /* https://codevoweb.com/how-to-properly-use-jwt-for-authentication-in-golang/ */
-func SignUpUser(c *fiber.Ctx) error {
-	var payload *SignUpInput
 
-	if err := c.BodyParser(&payload); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": err.Error()})
-	}
-
-	errors := ValidateStruct(payload)
-	if errors != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "errors": errors})
-
-	}
-
-	if payload.Password != payload.PasswordConfirm {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "fail", 
-			"message": "Passwords do not match",
-		})
-
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "fail", "message": err.Error()})
-	}
-
-	user := User{
-		Name:     payload.Name,
-		Email:    strings.ToLower(payload.Email),
-		Password: string(hashedPassword),
-		Role: "user",
-		Photo:    payload.Photo,
-	}
-
-	result := DES.DB.Create(&user)
-
-	if result.Error != nil && strings.Contains(result.Error.Error(), "duplicate key value violates unique") {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "fail", "message": "User with that email already exists"})
-	} else if result.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Something bad happened"})
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status": "success", 
-		"data": fiber.Map{"user": user.FilterUserRecord()},
-	})
+type UserSession struct {
+	ID uuid.UUID
+	UserID uuid.UUID
+	AccTok string
+	RefTok string
 }
 
-func SignInUser(c *fiber.Ctx) error {
-	payload := SignInInput{} // fmt.Println("SignInUser(c *fiber.Ctx)")
+type UserSessionMap map[string]UserSession
+var UserSessions = make(UserSessionMap)
+var UserSessionsRWMutex = sync.RWMutex{}
 
-	if err := c.BodyParser(&payload); err != nil {
-		fmt.Println("SignInUser(c *fiber.Ctx) -> c.BodyParser")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message":  fmt.Sprintf("Malformed request body: %v", err.Error()),
-		})
+
+func UserSessionsMapWrite(usid string, u UserSession) {
+	UserSessionsRWMutex.Lock()
+	UserSessions[usid] = u
+	UserSessionsRWMutex.Unlock()
+}
+func UserSessionsMapRead(usid string) (u UserSession, err error) {
+	UserSessionsRWMutex.Lock()
+	u = UserSessions[usid]
+	UserSessionsRWMutex.Unlock()
+	
+	if u.ID.String() == "" {
+		err = fmt.Errorf("No session exists with ID %s.", usid)
 	}
-	if errors := ValidateStruct(payload); errors != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("Malformed request body: %v", errors),
-		})
+	return
+}
+func UserSessionsMapCopy() (usm UserSessionMap) {
+	UserSessionsRWMutex.Lock()
+	usm = UserSessions
+	UserSessionsRWMutex.Unlock()
+	return
+}
+func UserSessionsMapRemove(usid string) {
+	UserSessionsRWMutex.Lock()
+	delete(UserSessions, usid)
+	UserSessionsRWMutex.Unlock()
+}
+
+
+func (us *UserSession) UpdateMappedAccTok() (err error) {
+	u, err := UserSessionsMapRead(us.ID.String())
+	if err != nil {
+		return
 	}
+	u.AccTok = us.AccTok
+	UserSessionsMapWrite(us.ID.String(), u)
+	return
+}
+func (us *UserSession) UpdateMappedRefTok() (err error) {
+	u, err := UserSessionsMapRead(us.ID.String())
+	if err != nil {
+		return
+	}
+	u.RefTok = us.RefTok
+	UserSessionsMapWrite(us.ID.String(), u)
+	return
+}
+
+
+func (us *UserSession) GetMappedAccTok() (err error) {
+	u, err := UserSessionsMapRead(us.ID.String())
+	if err != nil {
+		return
+	}
+	us.AccTok = u.AccTok
+	return
+}
+func (us *UserSession) GetMappedRefTok() (err error) {
+	u, err := UserSessionsMapRead(us.ID.String())
+	if err != nil {
+		return
+	}
+	us.RefTok = u.RefTok
+	return
+}
+
+func RefreshAccessToken(usid string) (acc string, err error) {
+
+	us, err := UserSessionsMapRead(usid)
+	if err != nil {
+		return
+	}
+
+	user, err := GetUserByID(us.UserID.String())
+	if err != nil {
+		return
+	}
+
+	acc, err = CreateJWTAccess(user)
+	if err != nil {
+		return
+	}
+
+	us.AccTok = acc
+	us.UpdateMappedAccTok()
+
+	return
+}
+
+/* REMOVES ALL SESSIONS FOR GIVEN USER  */
+func RevokeRefreshToken(user User) {
+
+	sess := UserSessionsMapCopy()
+
+	for id, ses := range sess {
+		if ses.UserID == user.ID {
+			UserSessionsMapRemove(id)
+		}
+	}
+}
+
+/* CREATE A NEW USER WITH DEFAULT ROLES */
+func RegisterUser(runp RegisterUserInput) (user User, err error) {
+
+	pwHash, err := bcrypt.GenerateFromPassword([]byte(runp.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return
+	}
+
+	user = User{
+		Name:     runp.Name,
+		Email:    strings.ToLower(runp.Email),
+		Password: string(pwHash),
+		Role:     "user",
+		Photo:    runp.Photo,
+	}
+
+	res := DES.DB.Create(&user)
+	if res.Error != nil {
+		if strings.Contains(res.Error.Error(), "duplicate key value violates unique") {
+			err = fmt.Errorf("User with that email already exists")
+		} else {
+			err = res.Error
+		}
+	}
+
+	return
+}
+
+/* AUTHENTICATE USER INPUT AND RETURN JWTs */
+func LoginUser(lunp LoginUserInput) (acc, ref string, err error) {
 
 	user := User{}
-	if result := DES.DB.First(&user, "email = ?", strings.ToLower(payload.Email)); result.Error != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "Invalid email or password",
-		})
+
+	/* CHECK EMAIL */
+	res := DES.DB.First(&user, "email = ?", strings.ToLower(lunp.Email)) 
+	if res.Error != nil {
+		err = fmt.Errorf("Invalid email or password")
+		return
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(payload.Password)); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "Invalid email or password",
-		})
+
+	/* CHECK PASSWORD */
+	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(lunp.Password)); err != nil {
+		err = fmt.Errorf("Invalid email or password")
+		return
 	}
+
+	/* CREATE JWT PAIR */
+	acc, ref, err = CreateJWTPair(user)
+	if err != nil {
+		err = fmt.Errorf("Token generation failed: %v", err)
+		return
+	}
+
+
+	return
+}
+
+/* CREATE AN ACCESS & REFRESH JWT PAIR */
+func CreateJWTPair(user User) (acc, ref string, err error) {
+
+	// claims, err := CreateJWTClaims(user)
+	// if err != nil {
+	// 	return "", "", err
+	// }
+
+	// tokenByte := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	// acc, err = tokenByte.SignedString([]byte(JWT_SECRET))
+	// if err != nil {
+	// 	return "", "", err
+	// }
+
+	acc, err = CreateJWTAccess(user)
+	if err != nil {
+		return "", "", err
+	}
+
+	refTokenByte := jwt.New(jwt.SigningMethodHS256)
+	refClaims := refTokenByte.Claims.(jwt.MapClaims)
+	refClaims["sub"] = user.ID // SUBJECT
+	refClaims["exp"] = time.Now().UTC().Add(time.Duration(time.Hour * 24)).Unix()
+
+	ref, err = refTokenByte.SignedString([]byte(JWT_SECRET))
+	if err != nil {
+		return "", "", err
+	}
+
+	return
+}
+func CreateJWTAccess(user User) (acc string, err error) {
+
+	claims, err := CreateJWTClaims(user)
+	if err != nil {
+		return "", err
+	}
+
+	tokenByte := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	acc, err = tokenByte.SignedString([]byte(JWT_SECRET))
+	if err != nil {
+		return "", err
+	}
+
+	return
+}
+
+/* CREATE JWT CLAIMS FOR A GIVEN USER */
+func CreateJWTClaims(user User) (claims jwt.MapClaims, err error) {
 
 	now := time.Now().UTC()
 
-	claims := jwt.MapClaims{
-		"sub": user.ID, // SUBJECT
+	/* TODO: BUILD MORE COMPLEX CLAIMS OBJECT WITH:
+	DES ROLE
+	DEVICE-SPECIFIC ROLES
+	JOB-SPECIFIC ROLES
+	*/
+
+	claims = jwt.MapClaims{
+		"sub": user.ID,   // SUBJECT
 		"rol": user.Role, // ROLE
 		"exp": now.Add(JWT_EXPIRED_IN).Unix(),
 		"iat": now.Unix(), // ISSUED AT
 		"nbf": now.Unix(), // NOT VALID BEFORE
 	}
-	tokenByte := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := tokenByte.SignedString([]byte(JWT_SECRET))
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("Failed to generate access token: %v", err),
-		})
-	}
 
-	// c.Cookie(&fiber.Cookie{
-	// 	Name:     "token",
-	// 	Value:    tokenString,
-	// 	Path:     "/",
-	// 	Expires:   now.Add(JWT_EXPIRED_IN),
-	// 	Secure:   false,
-	// 	HTTPOnly: true,
-	// 	Domain:   "localhost",
-	// })
-
-	// refTokenByte := jwt.New(jwt.SigningMethodES256)
-	// refClaims := refTokenByte.Claims.(jwt.MapClaims)
-	// refClaims["sub"] = user.ID // SUBJECT
-	// // refClaims["rol"] = user.Role // ROLE
-	// refClaims["exp"] = now.Add(time.Duration(time.Hour * 24)).Unix()
-	// // refClaims["iat"] = now.Unix() // ISSUED AT
-	// // refClaims["nbf"] = now.Unix() // NOT VALID BEFORE
-
-	// refTokenString, err := refTokenByte.SignedString([]byte("SOMETINGELSE"))
-	// if err != nil {
-	// 	return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
-	// 		"status":  "fail",
-	// 		"message": fmt.Sprintf("generate refresh token failed: %v", err),
-	// 	})
-	// }
-
-	// c.Cookie(&fiber.Cookie{
-	// 	Name:     "refresh",
-	// 	Value:    refTokenString,
-	// 	Path:     "/",
-	// 	// MaxAge:   JWT_MAXAGE * 60,
-	// 	Secure:   false,
-	// 	HTTPOnly: true,
-	// 	Domain:   "localhost",
-	// })
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
-		"token":  tokenString,
-		// "refresh": refTokenString,
-	})
+	return
 }
+
 
 func LogoutUser(c *fiber.Ctx) error {
 	expired := time.Now().Add(-time.Hour * 24)
@@ -174,22 +277,37 @@ func LogoutUser(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success"})
 }
 
-func GetMe(c *fiber.Ctx) error {
+func GetMe(c *fiber.Ctx) (err error) {
 	id := c.Locals("sub") // fmt.Printf("\nID:\t%s\n", id)
 
-	user := User{}
-	DES.DB.First(&user, "id = ?", id)
-	if user.ID.String() != id {
+	user, err := GetUserByID(id)
+	if err != nil {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "The user belonging to this token no logger exists.",
+			"message": err.Error(),
 		})
 	}
+	// user := User{}
+	// DES.DB.First(&user, "id = ?", id)
+	// if user.ID.String() != id {
+	// 	return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+	// 		"status":  "fail",
+	// 		"message": "The user belonging to this token no logger exists.",
+	// 	})
+	// }
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"data":   fiber.Map{"user": user.FilterUserRecord()},
 	})
+}
+func GetUserByID(userID interface{}) (user User, err error) {
+
+	DES.DB.First(&user, "id = ?", userID)
+	if user.ID.String() != userID {
+		err = fmt.Errorf("The user belonging to this token no logger exists.")
+	}
+	return
 }
 
 func GetUserList(c *fiber.Ctx) error {
@@ -212,15 +330,14 @@ func GetUserList(c *fiber.Ctx) error {
 	})
 }
 
+func CreateDESUserForDevice(serial, pw string) (user UserResponse, err error) {
 
-func CreateDESUserForDevice(serial, pw string ) (user UserResponse, err error) {
-	
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
 	u := User{
-		Name: serial,
-		Email: fmt.Sprintf("%s@datacan.ca", strings.ToLower(serial)),
+		Name:     serial,
+		Email:    fmt.Sprintf("%s@datacan.ca", strings.ToLower(serial)),
 		Password: string(hashedPassword),
-		Role: "device",
+		Role:     "device",
 	}
 	result := DES.DB.Create(&u)
 	err = result.Error
