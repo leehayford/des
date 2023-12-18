@@ -92,6 +92,27 @@ func HandleLoginUser(c *fiber.Ctx) (err error) {
 	})
 }
 
+/* VERIFY REFRESH TOKEN AND RETURN NEW ACCESS TOKEN */
+func HandleRefreshAccessToken(c *fiber.Ctx) (err error) {
+
+	/* VALIDATE REQUEST DATA */
+	usid := fmt.Sprintf("%v", c.Locals("sub"))
+	fmt.Printf("\nHandleRefreshAccessToken( ) -> usid: %s\n", usid)
+	acc, err := RefreshAccessToken(usid)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "fail",
+			"message": fmt.Sprintf("Token refresh failed: %s", err.Error()),
+		})
+	}
+
+	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		"status":  "success",
+		"message": fmt.Sprintf("Welcome back citizen!"),
+		"acc_token": acc,
+	})
+} 
+
 
 
 /********************************************************************************************************/

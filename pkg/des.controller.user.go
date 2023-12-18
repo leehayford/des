@@ -106,13 +106,16 @@ func (us *UserSession) GetMappedRefTok() (err error) {
 }
 
 func RefreshAccessToken(usid string) (acc string, err error) {
+	fmt.Printf("\nRefreshAccessToken( ): \n%s\n", usid)
+
 
 	us, err := UserSessionsMapRead(usid)
 	if err != nil {
 		return
 	}
 
-	user, err := GetUserByID(us.USR.ID.String())
+	// user, err := GetUserByID(us.USR.ID.String())
+	user, err := GetUserByID(usid)
 	if err != nil {
 		return
 	}
@@ -210,7 +213,7 @@ func CreateJWTRefreshToken(user User) (tok string, err error) {
 	tokByte := jwt.New(jwt.SigningMethodHS256)
 	tokClaims := tokByte.Claims.(jwt.MapClaims)
 	tokClaims["sub"] = user.ID // SUBJECT
-	tokClaims["exp"] = time.Now().UTC().Add(time.Duration(time.Hour * 24)).Unix()
+	tokClaims["exp"] = time.Now().UTC().Add(time.Duration(time.Minute * 3)).Unix()
 
 	tok, err = tokByte.SignedString([]byte(JWT_SECRET))
 	if err != nil {

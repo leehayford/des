@@ -134,7 +134,7 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	CLASS/VERSION SPECIFIC JOB START ACTIONS
 */
 func HandleStartJob(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleStartJobX( )\n")
+	fmt.Printf("\nHandleStartJob( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
