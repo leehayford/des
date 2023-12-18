@@ -16,11 +16,10 @@ License:
 package pkg
 
 import (
-	"fmt"
+	// "fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v2" // go get github.com/gofiber/fiber/v2
-	"github.com/golang-jwt/jwt"   // go get github.com/golang-jwt/jwt
 )
 
 /* https://codevoweb.com/how-to-properly-use-jwt-for-authentication-in-golang/ */
@@ -47,27 +46,14 @@ func DesAuth(c *fiber.Ctx) (err error) {
 		})
 	}
 
-	tokenByte, err := jwt.Parse(tokenString, func(jwtToken *jwt.Token) (interface{}, error) {
-		if _, jwt_err := jwtToken.Method.(*jwt.SigningMethodHMAC); !jwt_err {
-			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
-		}
-		return []byte(JWT_SECRET), nil
-	})
+	claims, err := GetClaimsFromTokenString(tokenString)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "fail",
-			"message": fmt.Sprintf("%v", err),
+			"message": err.Error(),
 		})
 	}
 
-	/* GET THE USER ROLE & PASS ALONG TO THE NEXT HANDLER */
-	claims, ok := tokenByte.Claims.(jwt.MapClaims)
-	if !ok || !tokenByte.Valid {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "invalid token claim",
-		})
-	}
 	c.Locals("role", claims["rol"])
 	c.Locals("sub", claims["sub"])
 

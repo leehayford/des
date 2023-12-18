@@ -94,8 +94,9 @@ func main() {
 
 			router.Post("/register", pkg.HandleRegisterUser)
 			router.Post("/login", pkg.HandleLoginUser)
-			router.Get("/refresh", pkg.DesAuth, pkg.HandleRefreshAccessToken)
-			router.Get("/logout", pkg.DesAuth, pkg.LogoutUser)
+			router.Post("/refresh", pkg.DesAuth, pkg.HandleRefreshAccessToken)
+			router.Post("/terminate", pkg.DesAuth, pkg.HandleTerminateUserSessions)
+			router.Post("/logout", pkg.DesAuth, pkg.HandleLogoutUser)
 
 			router.Get("/list", pkg.GetUserList) /* TODO: AUTH */
 		})

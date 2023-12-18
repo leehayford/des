@@ -23,14 +23,14 @@ func HandleRegisterUser(c *fiber.Ctx) (err error) {
 	runp := RegisterUserInput{}
 	if err := c.BodyParser(&runp); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "fail", 
+			"status":  "fail",
 			"message": err.Error(),
 		})
 	}
 	errors := ValidateStruct(runp)
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "fail", 
+			"status": "fail",
 			"errors": errors,
 		})
 	}
@@ -76,44 +76,98 @@ func HandleLoginUser(c *fiber.Ctx) (err error) {
 	}
 
 	/* ATTEMPT LOGIN */
-	ures, acc, ref, err := LoginUser(lunp)
+	us, err := LoginUser(lunp)
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
 			"status":  "fail",
-			"message": fmt.Sprintf("Token generation failed: %v", err),
+			"message": fmt.Sprintf("Login failed: %v", err),
 		})
-	}
+	} // Json("HandleLoginUser( ) -> LoginUser( ) -> us: ", us)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":    "success",
-		"user": ures,
-		"acc": acc,
-		"ref": ref,
+		"status":       "success",
+		"user_session": us,
 	})
 }
 
 /* VERIFY REFRESH TOKEN AND RETURN NEW ACCESS TOKEN */
 func HandleRefreshAccessToken(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleRefreshAccessToken( )\n")
 
-	/* VALIDATE REQUEST DATA */
-	usid := fmt.Sprintf("%v", c.Locals("sub"))
-	fmt.Printf("\nHandleRefreshAccessToken( ) -> usid: %s\n", usid)
-	acc, err := RefreshAccessToken(usid)
+	/* PARSE AND VALIDATE REQUEST DATA */
+	us := UserSession{}
+	if err = c.BodyParser(&us); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} // Json("HandleRefreshAccessToken(): -> c.BodyParser(&us) -> user session", us)
+
+	err = us.RefreshAccessToken()
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "fail",
-			"message": fmt.Sprintf("Token refresh failed: %s", err.Error()),
+			"message": fmt.Sprintf("Login refresh failed: %s", err.Error()),
 		})
 	}
 
-	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-		"status":  "success",
-		"message": fmt.Sprintf("Welcome back citizen!"),
-		"acc_token": acc,
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":       "success",
+		"message":      fmt.Sprintf("Welcome back citizen!"),
+		"user_session": us,
 	})
-} 
+}
 
+func HandleLogoutUser(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleLogoutUser( )\n")
 
+	/* PARSE AND VALIDATE REQUEST DATA */
+	us := UserSession{}
+	if err = c.BodyParser(&us); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	} 
+	Json("HandleLogoutUser(): -> c.BodyParser(&us) -> user session", us)
+
+	us.LogoutUser()
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"message": "You have logged out.",
+	})
+}
+
+/* REVOKE ACCESS BASED ON A USER ID ( ALL SESSIONS ) */
+func HandleTerminateUserSessions(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleTerminateUserSessions( )\n")
+
+	/* CHECK USER PERMISSION */
+	if !UserRole_Admin(c.Locals("role")) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You must be an administrator to revoke user access",
+		})
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	ur := UserResponse{}
+	if err = c.BodyParser(&ur); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	Json("HandleTerminateUserSessions( ) -> c.BodyParser( ) -> ur", ur)
+
+	count := TerminateUserSessions(ur)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": fmt.Sprintf("%d user sessions terminated.", count),
+	})
+}
 
 /********************************************************************************************************/
 /* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  *******************************/
