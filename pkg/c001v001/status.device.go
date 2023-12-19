@@ -348,8 +348,9 @@ func (device *Device) UpdateDESDeviceClientPing(ping pkg.Ping) {
 	/* UPDATE DESDeviceClientPings MAP */
 	DESDeviceClientPingsMapWrite(device.DESDevSerial, ping)
 
-	/* CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
-	go device.MQTTPublication_DeviceClient_DESDeviceClientPing(ping)
+	/* DO NOT CALL IN GO ROUTINE  *** DES TOPIC *** - ALERT USER CLIENTS */
+	device.MQTTPublication_DeviceClient_DESDeviceClientPing(ping)
+
 }
 
 /* PHYSICAL DEVICE KEEP ALIVE ********************************************************/
@@ -380,9 +381,9 @@ WRITE LOCK IS USED TO PREVENT MAP READS DURING WRITE OPERATIONS
   - ONCE THIS READ OPERATION ESTABLISHES A LOCK, ALL READ & WRITE OPERATIONS ARE BLOCKED UNTIL THIS READ IS COMPLETE
 */
 func DevicePingsMapRead(serial string) (ping pkg.Ping) {
-	DevicesRWMutex.Lock()
+	DevicePingsRWMutex.Lock()
 	ping = DevicePings[serial]
-	DevicesRWMutex.Unlock()
+	DevicePingsRWMutex.Unlock()
 	return
 }
 

@@ -219,16 +219,10 @@ func (device *Device) DeviceClient_Connect() (err error) {
 	/* START DES DEVICE CLIENT PING */
 	device.DESPingStop = make(chan struct{})
 
-	/* ADD TO Devices MAP */
+	/* ADD DeviceClient TO Devices MAP */
 	DevicesMapWrite(device.DESDevSerial, *device)
 
-	/* ADD TO DeviceClientPings MAP */
-	DESDeviceClientPingsMapWrite(device.DESDevSerial, pkg.Ping{
-		Time: time.Now().UTC().UnixMilli(),
-		OK:   true,
-	})
-
-	/* ADD TO DevicePings MAP */
+	/* ADD Ping FOR THIS DEVICE TO DevicePings MAP */
 	DevicePingsMapWrite(device.DESDevSerial, pkg.Ping{})
 
 	live := true
@@ -240,12 +234,12 @@ func (device *Device) DeviceClient_Connect() (err error) {
 				live = false
 
 			default:
-				time.Sleep(time.Millisecond * DES_PING_TIMEOUT)
+				/* ADD TO / UPDATE DeviceClientPings MAP */
 				device.UpdateDESDeviceClientPing(pkg.Ping{
 					Time: time.Now().UTC().UnixMilli(),
 					OK:   true,
 				}) // fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING... \n\n", device.DESDevSerial)
-
+				time.Sleep(time.Millisecond * DES_PING_TIMEOUT)
 			}
 		}
 		if device.DESPingStop != nil {
