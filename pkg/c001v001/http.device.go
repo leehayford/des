@@ -134,7 +134,7 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	CLASS/VERSION SPECIFIC JOB START ACTIONS
 */
 func HandleStartJob(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleStartJob( )\n")
+	// fmt.Printf("\nHandleStartJob( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
@@ -222,15 +222,6 @@ func HandleEndJob(c *fiber.Ctx) (err error) {
 }
 
 /*
-USED WHEN THE DES NEEDS TO AQUIRE THE LATES MODELS
-- EX: WHERE A DEVICE HAS STARTED A JOB AND THERE IS NO DATABASE REGISTERED
-*/
-func HandleReportRequest(c *fiber.Ctx) (err error) {
-
-	return
-}
-
-/*
 	USED TO ALTER THE ADMIN SETTINGS FOR A GIVEN DEVICE
 
 BOTH DURING A JOB OR WHEN SENT TO CMDARCHIVE, TO ALTER THE DEVICE DEFAULTS
@@ -296,8 +287,7 @@ func HandleSetState(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}
-	pkg.Json("HandleSetState(): -> c.BodyParser(&device) -> device.STA", device.STA)
+	} // pkg.Json("HandleSetState(): -> c.BodyParser(&device) -> device.STA", device.STA)
 
 	/* SEND GET STATE REQUEST */
 	if err = device.SetStateRequest(c.IP()); err != nil {
@@ -554,7 +544,7 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 }
 
 func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleDisconnectDevice( )\n")
+	// fmt.Printf("\nHandleDisconnectDevice( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Admin(c.Locals("role")) {
@@ -571,8 +561,7 @@ func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	}
-	pkg.Json("HandleDisconnectDevice(): -> c.BodyParser(&device) -> device", device)
+	} // pkg.Json("HandleDisconnectDevice(): -> c.BodyParser(&device) -> device", device)
 
 	d := DevicesMapRead(device.DESDevSerial)
 
@@ -597,7 +586,7 @@ func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
 }
 
 func HandleCheckDESDeviceClient(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleCheckDESDeviceClient( )\n")
+	// fmt.Printf("\nHandleCheckDESDeviceClient( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Admin(c.Locals("role")) {

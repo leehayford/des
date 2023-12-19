@@ -478,7 +478,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.ADM.AdmOpHost = pkg.MQTT_HOST
 	device.ADM.AdmOpPort = pkg.MQTT_PORT
 	device.ADM.Validate()
-	// pkg.Json("HandleStartJob(): -> device.ADM", device.ADM)
+	// pkg.Json("StartJobRequest(): -> device.ADM", device.ADM)
 
 	device.STA.StaTime = startTime
 	device.STA.StaAddr = src
@@ -491,7 +491,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.STA.StaJobName = device.CmdArchiveName()
 	device.STA.Validate()
 	device.UpdateMappedSTA()
-	pkg.Json("HandleStartJob(): -> device.STA", device.STA)
+	// pkg.Json("StartJobRequest(): -> device.STA", device.STA)
 
 	device.HDR.HdrTime = startTime
 	device.HDR.HdrAddr = src
@@ -502,14 +502,14 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.HDR.HdrGeoLng = DEFAULT_GEO_LNG
 	device.HDR.HdrGeoLat = DEFAULT_GEO_LAT
 	device.HDR.Validate()
-	// pkg.Json("HandleStartJob(): -> device.HDR", device.HDR)
+	// pkg.Json("StartJobRequest(): -> device.HDR", device.HDR)
 
 	device.CFG.CfgTime = startTime
 	device.CFG.CfgAddr = src
 	device.CFG.CfgUserID = device.DESJobRegUserID
 	device.CFG.CfgApp = device.DESJobRegApp
 	device.CFG.Validate()
-	// pkg.Json("HandleStartJob(): -> device.CFG", device.CFG)
+	// pkg.Json("StartJobRequest(): -> device.CFG", device.CFG)
 
 	device.EVT = Event{
 		EvtTime:   startTime,
@@ -529,7 +529,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.CmdDBC.Create(&device.EVT) /* TODO: USE WriteEVT... */
 
 	/* MQTT PUB CMD: ADM, HDR, CFG, EVT */
-	fmt.Printf("\nHandleStartJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	fmt.Printf("\nStartJobRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 
 	device.MQTTPublication_DeviceClient_CMDStartJob()
 
@@ -581,7 +581,7 @@ func (device *Device) StartJob(start StartJob) {
 		device.DESJobLat = start.HDR.HdrGeoLat
 	}
 
-	fmt.Printf("\n(device *Device) StartJob() Check Well Name -> %s\n", start.HDR.HdrWellName)
+	// fmt.Printf("\n(device *Device) StartJob() Check Well Name -> %s\n", start.HDR.HdrWellName)
 	if start.HDR.HdrWellName == "" || start.HDR.HdrWellName == device.CmdArchiveName() {
 		start.HDR.HdrWellName = start.STA.StaJobName
 	}
@@ -668,7 +668,7 @@ func (device *Device) StartJob(start StartJob) {
 	/* CREATE DESJobSearch RECORD */
 	device.Create_DESJobSearch(device.DESRegistration)
 
-	pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
+	// pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
 }
 
 /*
