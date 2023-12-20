@@ -52,7 +52,7 @@ type Device struct {
 -  CONNECT DEVICE ( DeviceClient_Connect() )
 */
 func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err error) {
-	fmt.Printf("\n(device *Device)RegisterDevice( )...\n")
+	fmt.Printf("\n(*Device) RegisterDevice( )...\n")
 
 	t := time.Now().UTC().UnixMilli()
 
@@ -79,7 +79,7 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	device.DESJobLat = DEFAULT_GEO_LAT
 	device.DESJobDevID = device.DESDevID
 
-	pkg.Json("RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
+	pkg.Json("(*Device) RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
 	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
 		return res.Error
 	}
@@ -177,18 +177,18 @@ func (device *Device) GetDeviceDESRegistration(serial string) (err error) {
 /* CONNECT DEVICE DATABASE AND MQTT CLIENTS ADD CONNECTED DEVICE TO DevicesMap */
 func (device *Device) DeviceClient_Connect() (err error) {
 
-	fmt.Printf("\n\n(device *Device) DeviceClient_Connect() -> %s -> connecting... \n", device.DESDevSerial)
+	fmt.Printf("\n\n(*Device) DeviceClient_Connect() -> %s -> connecting... \n", device.DESDevSerial)
 
 	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS
 	- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
 	device.GetDeviceDESU()
 
-	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting CMDARCHIVE... \n", device.DESDevSerial)
+	fmt.Printf("\n(*Device) DeviceClient_Connect() -> %s -> connecting CMDARCHIVE... \n", device.DESDevSerial)
 	if err := device.ConnectCmdDBC(); err != nil {
 		return pkg.LogErr(err)
 	}
 
-	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connecting ACTIVE JOB: %s\n... \n", device.DESDevSerial, device.DESJobName)
+	fmt.Printf("\n(*Device) DeviceClient_Connect() -> %s -> connecting ACTIVE JOB: %s\n... \n", device.DESDevSerial, device.DESJobName)
 	if err := device.ConnectJobDBC(); err != nil {
 		return pkg.LogErr(err)
 	}
@@ -248,10 +248,10 @@ func (device *Device) DeviceClient_Connect() (err error) {
 		}
 
 		delete(DESDeviceClientPings, device.DESDevSerial)
-		fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING STOPPED. \n\n", device.DESDevSerial)
+		fmt.Printf("\n(*Device) DeviceClient_Connect() -> %s -> DES DEVICE CLIENT PING STOPPED. \n\n", device.DESDevSerial)
 	}()
 
-	fmt.Printf("\n(device *Device) DeviceClient_Connect() -> %s -> connected... \n\n", device.DESDevSerial)
+	fmt.Printf("\n(*Device) DeviceClient_Connect() -> %s -> connected... \n\n", device.DESDevSerial)
 	return
 }
 
@@ -539,7 +539,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 - CALLED WHEN THE DEVICE CLIENT RECIEVES A 'JOB STARTED' EVENT FROM THE DEVICE
 */
 func (device *Device) StartJob(start StartJob) {
-	// pkg.Json("(device *Device) StartJobX(start StartJob): ", start)
+	// pkg.Json("(*Device) StartJobX(start StartJob): ", start)
 
 	/* CALL DB WRITE IN GOROUTINE */
 	WriteADM(start.ADM, &device.CmdDBC)
@@ -564,7 +564,7 @@ func (device *Device) StartJob(start StartJob) {
 	/* GET LOCATION DATA */
 	if start.HDR.HdrGeoLng < DEFAULT_GEO_LNG {
 		/* Header WAS NOT RECEIVED */
-		fmt.Printf("\n(device *Device) StartJob() -> INVALID VALID LOCATION\n")
+		fmt.Printf("\n(*Device) StartJob() -> INVALID VALID LOCATION\n")
 		device.DESJobLng = DEFAULT_GEO_LNG
 		device.DESJobLat = DEFAULT_GEO_LAT
 		/*
@@ -575,12 +575,12 @@ func (device *Device) StartJob(start StartJob) {
 		device.DESJobLat = start.HDR.HdrGeoLat
 	}
 
-	// fmt.Printf("\n(device *Device) StartJob() Check Well Name -> %s\n", start.HDR.HdrWellName)
+	// fmt.Printf("\n(*Device) StartJob() Check Well Name -> %s\n", start.HDR.HdrWellName)
 	if start.HDR.HdrWellName == "" || start.HDR.HdrWellName == device.CmdArchiveName() {
 		start.HDR.HdrWellName = start.STA.StaJobName
 	}
 
-	// fmt.Printf("\n(device *Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n%v\n", device.DESJob)
+	// fmt.Printf("\n(*Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n%v\n", device.DESJob)
 
 	/* CREATE A JOB RECORD IN THE DES DATABASE */
 	if err := pkg.WriteDESJob(&device.DESJob); err != nil {
@@ -598,10 +598,10 @@ func (device *Device) StartJob(start StartJob) {
 		/* CONNECT TO THE NEW ACTIVE JOB DATABASE, ON FAILURE, LOG TO CMDARCHIVE */
 		if err := device.ConnectJobDBC(); err != nil {
 			device.JobDBC = device.CmdDBC
-			fmt.Printf("\n(device *Device) StartJob( ): CONNECTION FAILED! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
+			fmt.Printf("\n(*Device) StartJob( ): CONNECTION FAILED! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
 
 		} else {
-			fmt.Printf("\n(device *Device) StartJob( ): CONNECTED TO: %s\n", device.JobDBC.GetDBName())
+			fmt.Printf("\n(*Device) StartJob( ): CONNECTED TO: %s\n", device.JobDBC.GetDBName())
 
 			/* CREATE JOB DB TABLES */
 			if err := device.JobDBC.Migrator().CreateTable(
@@ -830,7 +830,7 @@ func (device *Device) EndJob(sta State) {
 	THESE VALUES ARE USED FOR SEARCH AND DISPLAY OF THE JOB DATA FOR REPORTING
 	*/
 	d.Update_DESJobSearch(d.DESRegistration)
-	// pkg.Json("(device *Device) EndJob( ) ->  d.Update_DESJobSearch(d.DESRegistration): ", d)
+	// pkg.Json("(*Device) EndJob( ) ->  d.Update_DESJobSearch(d.DESRegistration): ", d)
 
 	/* CLOSE DES JOB */
 	device.DESJobRegTime = sta.StaTime
@@ -839,7 +839,7 @@ func (device *Device) EndJob(sta State) {
 	device.DESJobRegApp = sta.StaApp
 	device.DESJobEnd = sta.StaTime
 	pkg.DES.DB.Save(device.DESJob)
-	fmt.Printf("\n(device *Device) EndJob( ) %s ENDED\n", device.DESJobName)
+	fmt.Printf("\n(*Device) EndJob( ) %s ENDED\n", device.DESJobName)
 
 	/* GENERATE DEFAULT REPORT AFTER ACTIVE JOB HAS BEEN CLOSED IN DES.DB*/
 	job := Job{DESRegistration: device.DESRegistration}
@@ -848,7 +848,7 @@ func (device *Device) EndJob(sta State) {
 		pkg.LogErr(err)
 	} else {
 		title := fmt.Sprintf("%s - Default Report", job.DESJobName)
-		fmt.Printf("\n(device *Device) EndJob( ) GENERATING REPORT: %s\n", title)
+		fmt.Printf("\n(*Device) EndJob( ) GENERATING REPORT: %s\n", title)
 		job.GenerateReport(&Report{RepTitle: title, DESRegistration: job.DESRegistration})
 	}
 	/* ENSURE THE REPORTING JOB DATABASE CONNECTION CLOSES AFTER THIS OPERATION */
@@ -862,7 +862,7 @@ func (device *Device) EndJob(sta State) {
 	cmd.DESJobRegApp = sta.StaApp
 	cmd.DESJob.DESJobEnd = 0 // ENSURE THE DEVICE IS DISCOVERABLE
 	pkg.DES.DB.Save(cmd.DESJob)
-	fmt.Printf("\n(device *Device) EndJob( ) CMDARCHIVE UPDATED\n")
+	fmt.Printf("\n(*Device) EndJob( ) CMDARCHIVE UPDATED\n")
 
 	/* ENSURE WE CATCH STRAY SAMPLES IN THE CMDARCHIVE */
 	device.DESJob = cmd.DESJob
@@ -884,12 +884,12 @@ func (device *Device) EndJob(sta State) {
 
 	/* UPDATE DESJobSearch RECORD USING RETRIEVED CMD ARCHIVE RECORDS */
 	device.Update_DESJobSearch(device.DESRegistration)
-	// pkg.Json("(device *Device) EndJob( ) ->  device.Update_DESJobSearch(device.DESRegistration): ", device)
+	// pkg.Json("(*Device) EndJob( ) ->  device.Update_DESJobSearch(device.DESRegistration): ", device)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
 	DevicesMapWrite(device.DESDevSerial, *device)
 
-	fmt.Printf("\n(device *Device) EndJob( ) COMPLETE: %s\n", job.DESJobName)
+	fmt.Printf("\n(*Device) EndJob( ) COMPLETE: %s\n", job.DESJobName)
 }
 
 /*

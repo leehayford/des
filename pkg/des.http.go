@@ -119,7 +119,7 @@ func HandleRefreshAccessToken(c *fiber.Ctx) (err error) {
 }
 
 func HandleLogoutUser(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleLogoutUser( )\n")
+	// fmt.Printf("\nHandleLogoutUser( )\n")
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	us := UserSession{}
@@ -128,8 +128,7 @@ func HandleLogoutUser(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} 
-	Json("HandleLogoutUser(): -> c.BodyParser(&us) -> user session", us)
+	}  // Json("HandleLogoutUser(): -> c.BodyParser(&us) -> user session", us)
 
 	us.LogoutUser()
 

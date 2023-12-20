@@ -461,7 +461,7 @@ func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
 
 /* USED TO OPEN A WEB SOCKET CONNECTION BETWEEN A USER AND A GIVEN DEVICE */
 func HandleDeviceUserClient_Connect(c *websocket.Conn) {
-	fmt.Printf("\nWSDeviceUserClient_Connect( )\n")
+	// fmt.Printf("\nWSDeviceUserClient_Connect( )\n")
 
 	/* CHECK USER PERMISSION */
 	role := c.Locals("role")

@@ -43,7 +43,7 @@ var UserSessionsRWMutex = sync.RWMutex{}
 func UserSessionsMapWrite(u UserSession) (err error) {
 
 	sid := u.SID.String()
-	if sid == "" {
+	if sid == "" || sid == "00000000-0000-0000-0000-000000000000" {
 		err = fmt.Errorf("No session ID.")
 		return
 	}
@@ -58,8 +58,8 @@ func UserSessionsMapRead(sid string) (u UserSession, err error) {
 	u = UserSessions[sid]
 	UserSessionsRWMutex.Unlock()
 
-	if u.SID.String() == "" {
-		err = fmt.Errorf("No session exists with ID %s.", sid)
+	if u.SID.String() == "00000000-0000-0000-0000-000000000000" {
+		err = fmt.Errorf("User session not found. Please log in.")
 	}
 	return
 }
@@ -85,18 +85,6 @@ func (us *UserSession) UpdateMappedAccTok() (err error) {
 	err = UserSessionsMapWrite(u)
 	return
 }
-
-// /* ONLY USED TO REVOKE REFRESH TOKENS */
-// func (us *UserSession) UpdateMappedRefTok() (err error) {
-// 	u, err := UserSessionsMapRead(us.SID.String())
-// 	if err != nil {
-// 		return
-// 	}
-// 	u.REFTok = us.REFTok
-// 	err = UserSessionsMapWrite(u)
-// 	return
-// }
-
 func (us *UserSession) GetMappedAccTok() (err error) {
 	u, err := UserSessionsMapRead(us.SID.String())
 	if err != nil {
@@ -217,9 +205,6 @@ func (us *UserSession) RefreshAccessToken() (err error) {
 	if err != nil {
 		return
 	}  // Json("RefreshAccessToken( ) -> UserSessionsMapRead( ) -> mus: ", mus)
-	if mus.SID.String() == "00000000-0000-0000-0000-000000000000" {
-		return fmt.Errorf("User session not found. Please log in.")
-	}
 
 	/* CHECK REFRESH TOKEN EXPIRE DATE IN MAPPED USER SESSION. IF TIMEOUT, DENY */
 	ref_claims, err := GetClaimsFromTokenString(mus.REFTok)
@@ -259,16 +244,14 @@ func TerminateUserSessions(ur UserResponse) (count int) {
 	count = 0
 	for sid, us := range sess {
 		if us.USR.ID == ur.ID {
-
-			// /* CREATE AN INVALID REFRESH TOKEN*/
-			// us.CreateJWTRefreshToken(JWT_REFRESH_REVOKE_EXP)
-
 			UserSessionsMapRemove(sid)
 			count++
 		}
 	}
+
 	return
 }
+
 /* CREATES A JWT REFRESH TOKEN; USED ON LOGIN ONLY */
 func (us *UserSession) CreateJWTRefreshToken(dur time.Duration) (err error) {
 
@@ -319,12 +302,10 @@ func GetUserByID(userID interface{}) (user User, err error) {
 }
 
 func GetUserList(c *fiber.Ctx) error {
-
-	fmt.Printf("\nGetUsers( ):\n")
+	// fmt.Printf("\nGetUsers( ):\n")
 
 	users := []User{}
-	DES.DB.Find(&users)
-	fmt.Printf("\nusrs: %d\n", len(users))
+	DES.DB.Find(&users) // fmt.Printf("\nusrs: %d\n", len(users))
 
 	userList := []UserResponse{}
 	for _, user := range users {

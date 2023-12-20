@@ -318,7 +318,6 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	/* RUN THE SIMULATION IF LAST KNOWN STATUS WAS LOGGING */
 	if demo.STA.StaLogging == OP_CODE_JOB_STARTED {
 		go demo.Demo_Simulation(demo.STA.StaJobName, demo.CFG.CfgVlvTgt, demo.CFG.CfgOpSample)
-		time.Sleep(time.Second * 1) // WHY?: Just so the console logs show up in the right order when running local dev
 	}
 
 	gps := false
@@ -331,7 +330,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 			default: 
 				if !gps {
 					demo.MQTTPublication_DemoDeviceClient_SIGPing()
-					time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
+					time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT / 2)
 				}
 			}
 		}
@@ -424,7 +423,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 	/* DISCONNECT THE DESMQTTCLient */
 	demo.DESMQTTClient_Disconnect()
 
-	fmt.Printf("\n(device) MQTTDemoDeviceClient_Dicconnect( ) -> %s -> disconnected.\n", demo.ClientID)
+	fmt.Printf("\n(*DemoDeviceClient) MQTTDemoDeviceClient_Dicconnect( ) -> %s -> disconnected.\n", demo.ClientID)
 	return
 }
 
@@ -1069,7 +1068,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 }
 
 func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
-	// fmt.Printf("\n%s (demo) EndDemoJob( )...\n", demo.DESDevSerial)
+	// fmt.Printf("\n%s (*DemoDeviceClient) EndDemoJob( )...\n", demo.DESDevSerial)
 
 	// demo.DESMQTTClient.WG.Wait()
 	// demo.DESMQTTClient.WG.Add(1)
@@ -1080,7 +1079,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 	/* CAPTURE TIME VALUE FOR JOB TERMINATION: HDR, EVT */
 	endTime := time.Now().UTC().UnixMilli()
 
-	fmt.Printf("\n%s (demo) EndDemoJob( ) at:\t%d\n", demo.DESDevSerial, endTime)
+	fmt.Printf("\n%s (*DemoDeviceClient) EndDemoJob( ) at:\t%d\n", demo.DESDevSerial, endTime)
 	// demo.GetHdrFromFlash(demo.CmdArchiveName(), &demo.HDR)
 	hdr := demo.HDR
 	hdr.HdrTime = endTime
@@ -1151,7 +1150,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 
 	// demo.DESMQTTClient.WG.Done()
 
-	fmt.Printf("\n(demo) EndDemoJob( ) -> ENDED: %s\n", demo.STA.StaJobName)
+	fmt.Printf("\n(*DemoDeviceClient) EndDemoJob( ) -> ENDED: %s\n", demo.STA.StaJobName)
 }
 
 func (demo *DemoDeviceClient) SimOfflineStart() {
@@ -1192,7 +1191,7 @@ func (demo *DemoDeviceClient) SimOfflineStart() {
 
 /*DEMO SIM -> PUBLISH TO MQTT */
 func (demo *DemoDeviceClient) Demo_Simulation(job string, mode, rate int32) {
-	// fmt.Printf("\n(demo) Demo_Simulation( ) %s -> Starting simulation...\n", demo.DESDevSerial)
+	// fmt.Printf("\n(*DemoDeviceClient) Demo_Simulation( ) %s -> Starting simulation...\n", demo.DESDevSerial)
 
 	// demo.DESMQTTClient.WG.Wait()
 	smp := demo.SMP
@@ -1248,7 +1247,7 @@ func (demo *DemoDeviceClient) Demo_Simulation(job string, mode, rate int32) {
 		}
 	}
 
-	fmt.Printf("\n(demo) Demo_Simulation( ) -> SIMULATION STOPPED: %s\n", demo.DESDevSerial)
+	fmt.Printf("\n(*DemoDeviceClient) Demo_Simulation( ) -> SIMULATION STOPPED: %s\n", demo.DESDevSerial)
 }
 
 func (demo *DemoDeviceClient) Demo_Simulation_Take_Sample(t0, ti time.Time, mode int32, job string, smp *Sample) {
@@ -1311,7 +1310,7 @@ func (demo *DemoDeviceClient) Set_MTx() {
 	demo.MTxBuild.TSpanDn = time.Duration(time.Second * 150)
 	demo.MTxBuild.VRes = maxPress * 0.0005
 
-	fmt.Printf("\n(demo *DemoDeviceClient) Set_MTx() -> %s:, %f, %f, %f, %f\n", demo.DESDevSerial, demo.MTxCh4.VMax, demo.MTxHiFlow.VMax, demo.MTxLoFlow.VMax, demo.MTxBuild.VMax)
+	fmt.Printf("\n(*DemoDeviceClient) Set_MTx() -> %s:, %f, %f, %f, %f\n", demo.DESDevSerial, demo.MTxCh4.VMax, demo.MTxHiFlow.VMax, demo.MTxLoFlow.VMax, demo.MTxBuild.VMax)
 }
 
 func (demo *DemoDeviceClient) Set_MTxVent(t0, ti time.Time, smp *Sample) {

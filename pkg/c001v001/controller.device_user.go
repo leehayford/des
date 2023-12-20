@@ -54,7 +54,7 @@ func (duc *DeviceUserClient) DeviceUserClient_Connect(c *websocket.Conn) {
 	/* UPDATE USER WITH DEVICE & DES CONNECTION STATUS */
 	go duc.GetPingsOnConnect()
 
-	/* SEND MESSAGES TO CONNECTED USER *** DO NOT RUN IN GO ROUTINE *** */
+	/* *** DO NOT RUN IN GO ROUTINE *** SEND MESSAGES TO CONNECTED USER */
 	duc.SendMessages(c)
 }
 
@@ -71,7 +71,7 @@ func (duc DeviceUserClient) SendMessages(c *websocket.Conn) {
 		case data := <-duc.DataOut:
 			if err := c.WriteJSON(data); err != nil {
 				// pkg.LogErr(err)
-				fmt.Printf("(DeviceUserClient) SendMessages -> data := <-duc.DataOut: %s\n", string(data))
+				// fmt.Printf("(DeviceUserClient) SendMessages -> data := <-duc.DataOut: %s\n", string(data))
 				duc.MQTTDeviceUserClient_Disconnect()
 				duc.Close <- struct{}{}
 			}
@@ -140,20 +140,46 @@ func (duc DeviceUserClient) RunKeepAlive() {
 
 /* UPDATE USER WITH DEVICE & DES CONNECTION STATUS AS OD WS CONNECT */
 func (duc DeviceUserClient) GetPingsOnConnect() {
+	/* WHEN CALLED FROM DeviceUserClient_Connect, 
+	WE WANT TO ENSURE duc.SendMessages HAS BEEN STARTED*/
+	time.Sleep(time.Second * 2)
+
 	/* GET LAST DES CLIENT DEVICE PING FROM MAP */
-	des_js, err := json.Marshal(&WSMessage{Type: "des_ping", Data: DESDeviceClientPingsMapRead(duc.DESDevSerial)})
+	des_ping := DESDeviceClientPingsMapRead(duc.DESDevSerial)
+	// pkg.Json("(DeviceUserClient) GetPingsOnConnect(...) -> des_ping :", des_ping)
+
+	/* CHECK PING TIME */
+	if (des_ping.OK && des_ping.Time + DES_PING_LIMIT < time.Now().UTC().UnixMilli()) {
+		des_ping.OK = false
+		DESDeviceClientPingsMapWrite(duc.DESDevSerial, des_ping)
+	}
+
+	/* CREATE WSMessage */
+	des_ping_js, err := json.Marshal(&WSMessage{Type: "des_ping", Data: des_ping})
 	if err != nil {
 		pkg.LogErr(err)
-	} // pkg.Json("(duc DeviceUserClient) WSDeviceUserClient_Connect(...) -> des_ping :", des_js)
+	}  // pkg.Json("(DeviceUserClient) GetPingsOnConnect(...) -> des_ping_js :", des_ping_js)
+	
+	/* SEND WSMessage AS JSON STRING */
+	duc.DataOut <- string(des_ping_js)
+	
 
 	/* GET LAST DEVICE PING FROM MAP */
-	js, err := json.Marshal(&WSMessage{Type: "ping", Data: DevicePingsMapRead(duc.DESDevSerial)})
+	device_ping := DevicePingsMapRead(duc.DESDevSerial)
+	// pkg.Json("(DeviceUserClient) GetPingsOnConnect(...) -> device_ping :", device_ping)
+
+	/* CHECK PING TIME */
+	if (device_ping.OK && device_ping.Time  + DEVICE_PING_LIMIT < time.Now().UTC().UnixMilli()) {
+		device_ping.OK = false
+		DevicePingsMapWrite(duc.DESDevSerial, device_ping)
+	}
+
+	/* CREATE WSMessage */
+	device_ping_js, err := json.Marshal(&WSMessage{Type: "ping", Data: device_ping})
 	if err != nil {
 		pkg.LogErr(err)
-	} // pkg.Json("(duc DeviceUserClient) WSDeviceUserClient_Connect(...) -> ping :", js)
+	} // pkg.Json("(DeviceUserClient) GetPingsOnConnect(...) -> device_ping_js :", device_ping_js)
 
 	/* SEND WSMessage AS JSON STRING */
-	time.Sleep(time.Second * 2)
-	duc.DataOut <- string(des_js)
-	duc.DataOut <- string(js)
+	duc.DataOut <- string(device_ping_js)
 }

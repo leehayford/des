@@ -45,7 +45,7 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 	desm.SetCleanSession(falseToResub) // FALSE to ensure subscriptions are active on reconnect
 	desm.SetMaxReconnectInterval(time.Second * 10)
 	desm.OnConnect = func(c phao.Client) {
-		fmt.Printf("\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connected...\n", desm.MQTTClientID)
+		// fmt.Printf("\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connected...\n", desm.MQTTClientID)
 	}
 	desm.OnConnectionLost = func(c phao.Client, err error) {
 		fmt.Printf(
@@ -54,11 +54,11 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 		)
 	}
 	desm.DefaultPublishHandler = func(c phao.Client, msg phao.Message) {
-		fmt.Printf(
-			"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s\nDefault Handler:\nTopic: %s:\n\n",
-			desm.MQTTClientID,
-			msg.Topic(),
-		)
+		// fmt.Printf(
+		// 	"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s\nDefault Handler:\nTopic: %s:\n\n",
+		// 	desm.MQTTClientID,
+		// 	msg.Topic(),
+		// )
 	} // fmt.Printf("\n(desm *DESMQTTClient)RegisterDESMQTTClient( ... ) -> desm.ClientID: %s\n", desm.ClientID)
 
 	/*Cerate MQTT Client*/
