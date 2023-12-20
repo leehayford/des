@@ -24,21 +24,25 @@ import (
 
 const DES_APP = "DES v0.0.0"
 
+const ROLE_SUPER = "super"
 const ROLE_ADMIN = "admin"
 const ROLE_OPERATOR = "operator"
 const ROLE_USER = "user"
 const ROLE_DEVICE = "device"
+func UserRole_Super( role interface{} ) bool {
+	return role == ROLE_SUPER 
+}
 func UserRole_Admin( role interface{} ) bool {
-	return role == ROLE_ADMIN 
+	return role == ROLE_SUPER || role ==ROLE_ADMIN 
 }
 func UserRole_Operator( role interface{} ) bool {
-	return role == ROLE_ADMIN || role == ROLE_OPERATOR
+	return role == ROLE_SUPER || role == ROLE_ADMIN || role == ROLE_OPERATOR
 }
 func UserRole_Viewer( role interface{} ) bool {
-	return role == ROLE_ADMIN || role == ROLE_OPERATOR || role == ROLE_USER
+	return role == ROLE_SUPER || role == ROLE_ADMIN || role == ROLE_OPERATOR || role == ROLE_USER
 }
 func UserRole_Device( role interface{} ) bool {
-	return role == ROLE_DEVICE 
+	return role == ROLE_SUPER || role == ROLE_DEVICE 
 }
 
 /* TODO : IMPLEMENT DESRole STRUCT */
