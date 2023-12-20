@@ -849,7 +849,7 @@ func (device *Device) EndJob(sta State) {
 	} else {
 		title := fmt.Sprintf("%s - Default Report", job.DESJobName)
 		fmt.Printf("\n(device *Device) EndJob( ) GENERATING REPORT: %s\n", title)
-		go job.GenerateReport(&Report{RepTitle: title, DESRegistration: job.DESRegistration})
+		job.GenerateReport(&Report{RepTitle: title, DESRegistration: job.DESRegistration})
 	}
 	/* ENSURE THE REPORTING JOB DATABASE CONNECTION CLOSES AFTER THIS OPERATION */
 	defer job.DBClient.Disconnect()

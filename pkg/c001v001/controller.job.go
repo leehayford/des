@@ -88,12 +88,6 @@ func (job *Job) CreateReport(rep *Report) {
 	/* WRITE TO JOB DB */
 	job.DBClient.DB.Create(&rep)
 
-	// db := job.JDB()
-	// db.Connect()
-	// defer db.Disconnect()
-	// db.Create(&rep)
-	// db.Disconnect()
-	// pkg.Json("CreateReport( ): -> rep ", rep)
 	return
 }
 
@@ -109,13 +103,6 @@ func (job *Job) CreateRepSection(rep *Report, start, end int64, name string) (se
 
 	/* WRITE TO JOB DB */
 	job.DBClient.DB.Create(&sec)
-
-	// db := job.JDB()
-	// db.Connect()
-	// defer db.Disconnect()
-	// db.Create(&sec)
-	// db.Disconnect()
-	// pkg.Json("CreateRepSection( ): -> sec ", sec)
 
 	return
 }
@@ -135,25 +122,20 @@ func (job *Job) CreateSecDataset(sec *RepSection, csv, plot bool, yaxis string, 
 	/* WRITE TO JOB DB */
 	job.DBClient.DB.Create(&dat)
 
-	// db := job.JDB()
-	// db.Connect()
-	// defer db.Disconnect()
-	// db.Create(&dat)
-	// db.Disconnect()
-	// pkg.Json("CreateSecDataset( ): -> dat ", dat)
-
 	return
 }
 
 /* CREATES A RECORD IN THIS JOB'S REPORT SECTION ANNOTATIONS TABLE */
 func (job *Job) AutoScaleSection(scls *SecScales, start, end int64) (err error) {
 
+	fmt.Printf("\nAutoScaleSection( )...")
+
 	/* GET MIN / MAX FOR EACH VALUE IN THE SECTION */
 	// db := job.JDB()
 	// db.Connect()
 	// defer db.Disconnect()
-	qry := job.DBClient.
-		Table("samples").
+	qry := job.DBClient.DB.Table("samples").
+		Where(`smp_time >= ? AND smp_time <= ?`, start, end).
 		Select(`
 			MIN(smp_ch4) min_ch4, 
 			MAX(smp_ch4) max_ch4, 
@@ -166,8 +148,7 @@ func (job *Job) AutoScaleSection(scls *SecScales, start, end int64) (err error) 
  
 			MIN(smp_press) min_press,
 			MAX(smp_press) max_press
-			`).
-		Where(`smp_time >= ? AND smp_time <= ?`, start, end)
+		`)
 
 	res := qry.Scan(&scls)
 	// db.Disconnect()
@@ -221,7 +202,7 @@ func (job *Job) CreateSecAnnotation(sec *RepSection, csv, plot bool, evt Event) 
 	ann.AnnEvtID = evt.EvtID
 
 	/* WRITE TO JOB DB */
-	job.DBClient.Create(&ann)
+	job.DBClient.DB.Create(&ann)
 
 	// db := job.JDB()
 	// db.Connect()
@@ -240,7 +221,7 @@ func (job *Job) NewReportEvent(src string, evt *Event) (err error) {
 	evt.Validate()
 
 	/* WRITE TO JOB DB */
-	job.DBClient.Create(&evt)
+	job.DBClient.DB.Create(&evt)
 
 	// db := job.JDB()
 	// db.Connect()
@@ -272,7 +253,7 @@ func (job *Job) GenerateReport(rep *Report) {
 	secEnd := start
 	secName := "Job Start"
 	curCFG := job.Configs[0]
-	pkg.Json("CreateDefaultReport( ): -> curCFG ", curCFG)
+	// pkg.Json("CreateDefaultReport( ): -> curCFG ", curCFG)
 
 	/* CREATE SECTIONS BY CFG */
 	for _, cfg := range job.Configs {
@@ -292,7 +273,7 @@ func (job *Job) GenerateReport(rep *Report) {
 
 		if cfg.CfgAddr == job.DESDevSerial {
 			curCFG = cfg
-			pkg.Json("CreateDefaultReport( ): -> update curCFG ", curCFG)
+			// pkg.Json("CreateDefaultReport( ): -> update curCFG ", curCFG)
 		}
 	}
 
@@ -332,8 +313,7 @@ func (job *Job) CreateBuildUpSection(rep *Report, start, end int64, name string,
 	sec, err := job.CreateRepSection(rep, start, end, name)
 	if err != nil {
 		pkg.LogErr(err)
-	}
-	pkg.Json("CreateBuildUpSection( ): -> CreateRepSection( ) -> sec ", sec)
+	} // pkg.Json("CreateBuildUpSection( ): -> CreateRepSection( ) -> sec ", sec)
 
 	/* ADD DATASETS */
 	scls := &SecScales{}
@@ -408,8 +388,7 @@ func (job *Job) CreateVentSection(rep *Report, start, end int64, name string, cf
 	sec, err := job.CreateRepSection(rep, start, end, name)
 	if err != nil {
 		pkg.LogErr(err)
-	}
-	pkg.Json("CreateVentSection( ): -> CreateRepSection( ) -> sec ", sec)
+	} // pkg.Json("CreateVentSection( ): -> CreateRepSection( ) -> sec ", sec)
 
 	/* ADD DATASETS */
 	scls := &SecScales{}
@@ -478,8 +457,7 @@ func (job *Job) CreateFlowSection(rep *Report, start, end int64, name string, cf
 	sec, err := job.CreateRepSection(rep, start, end, name)
 	if err != nil {
 		pkg.LogErr(err)
-	}
-	pkg.Json("CreateFlowSection( ): -> CreateRepSection( ) -> sec ", sec)
+	} // pkg.Json("CreateFlowSection( ): -> CreateRepSection( ) -> sec ", sec)
 
 	/* ADD DATASETS */
 	scls := &SecScales{}

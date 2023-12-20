@@ -114,89 +114,6 @@ func (us *UserSession) GetMappedRefTok() (err error) {
 	return
 }
 
-func GetClaimsFromTokenString(token string) (claims jwt.MapClaims, err error) {
-
-	/* PARSE TOKEN STRING */
-	tokenByte, err := jwt.Parse(token, func(jwtToken *jwt.Token) (interface{}, error) {
-		if _, jwt_err := jwtToken.Method.(*jwt.SigningMethodHMAC); !jwt_err {
-			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
-		}
-		return []byte(JWT_SECRET), nil
-	})
-	if err != nil {
-		return
-	}
-
-	/* GET THE USER ROLE & PASS ALONG TO THE NEXT HANDLER */
-	claims, ok := tokenByte.Claims.(jwt.MapClaims)
-	if !ok || !tokenByte.Valid {
-		err = fmt.Errorf("invalid token claim")
-		return
-	}
-	return
-}
-
-/* AUTHORIZED ROUTE -> CREATE A NEW ACCESS TOKEN */
-func (us *UserSession) RefreshAccessToken() (err error) {
-	fmt.Printf("\nRefreshAccessToken( )")
-
-	/* GET USER FROM SESSION MAP */
-	mus, err := UserSessionsMapRead(string(us.SID.String()))
-	if err != nil {
-		return
-	}  // Json("RefreshAccessToken( ) -> UserSessionsMapRead( ) -> mus: ", mus)
-	if mus.SID.String() == "00000000-0000-0000-0000-000000000000" {
-		return fmt.Errorf("User session not found. Please log in.")
-	}
-
-	/* CHECK REFRESH TOKEN EXPIRE DATE IN MAPPED USER SESSION. IF TIMEOUT, DENY */
-	ref_claims, err := GetClaimsFromTokenString(mus.REFTok)
-	if err != nil {
-		return err
-	}
-	exp := 0
-	now := int(time.Now().Unix())
-	if fExp, ok := ref_claims["exp"].(float64); ok {
-		exp = int(fExp)
-	} // fmt.Printf("\nRefreshAccessToken( ) -> exp: %d", exp) // fmt.Printf("\nRefreshAccessToken( ) -> now: %d\n", now)
-
-	if exp < now {
-		err = fmt.Errorf("Your refresh token has expired. Please log in.")
-		return
-	}
-
-	err = us.CreateJWTAccessToken()
-	if err != nil {
-		return
-	}
-
-	err = UserSessionsMapWrite(*us)
-
-	return
-}
-
-/*
-	REMOVES ALL SESSIONS FOR GIVEN USER
-
-INCLUDING SESSIONS SHARING A USER ACCOUNT
-*/
-func TerminateUserSessions(ur UserResponse) (count int) {
-
-	sess := UserSessionsMapCopy()
-
-	count = 0
-	for sid, us := range sess {
-		if us.USR.ID == ur.ID {
-
-			// /* CREATE AN INVALID REFRESH TOKEN*/
-			// us.CreateJWTRefreshToken(JWT_REFRESH_REVOKE_EXP)
-
-			UserSessionsMapRemove(sid)
-			count++
-		}
-	}
-	return
-}
 
 /* CREATE A NEW USER WITH DEFAULT ROLES */
 func RegisterUser(runp RegisterUserInput) (user User, err error) {
@@ -269,12 +186,90 @@ func LoginUser(lunp LoginUserInput) (us UserSession, err error) {
 	return
 }
 
-/*
-	CREATES A JWT REFRESH TOKEN; USED:
+func GetClaimsFromTokenString(token string) (claims jwt.MapClaims, err error) {
 
-- ON LOGIN, TO CREATE A VALID TOKEN
--  ??? ON REVOKE, TO CREATE AN INVALID TOKEN ???
+	/* PARSE TOKEN STRING */
+	tokenByte, err := jwt.Parse(token, func(jwtToken *jwt.Token) (interface{}, error) {
+		if _, jwt_err := jwtToken.Method.(*jwt.SigningMethodHMAC); !jwt_err {
+			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
+		}
+		return []byte(JWT_SECRET), nil
+	})
+	if err != nil {
+		return
+	}
+
+	/* GET THE USER ROLE & PASS ALONG TO THE NEXT HANDLER */
+	claims, ok := tokenByte.Claims.(jwt.MapClaims)
+	if !ok || !tokenByte.Valid {
+		err = fmt.Errorf("invalid token claim")
+		return
+	}
+	return
+}
+
+/* CREATES A NEW ACCESS TOKEN IF REFRESH TOKEN HAS NOT EXPIRED */
+func (us *UserSession) RefreshAccessToken() (err error) {
+	// fmt.Printf("\nRefreshAccessToken( )")
+
+	/* GET USER FROM SESSION MAP */
+	mus, err := UserSessionsMapRead(string(us.SID.String()))
+	if err != nil {
+		return
+	}  // Json("RefreshAccessToken( ) -> UserSessionsMapRead( ) -> mus: ", mus)
+	if mus.SID.String() == "00000000-0000-0000-0000-000000000000" {
+		return fmt.Errorf("User session not found. Please log in.")
+	}
+
+	/* CHECK REFRESH TOKEN EXPIRE DATE IN MAPPED USER SESSION. IF TIMEOUT, DENY */
+	ref_claims, err := GetClaimsFromTokenString(mus.REFTok)
+	if err != nil {
+		return err
+	}
+	exp := 0
+	now := int(time.Now().Unix())
+	if fExp, ok := ref_claims["exp"].(float64); ok {
+		exp = int(fExp)
+	} // fmt.Printf("\nRefreshAccessToken( ) -> exp: %d", exp) // fmt.Printf("\nRefreshAccessToken( ) -> now: %d\n", now)
+
+	if exp < now {
+		err = fmt.Errorf("Your refresh token has expired. Please log in.")
+		return
+	}
+
+	err = us.CreateJWTAccessToken()
+	if err != nil {
+		return
+	}
+
+	err = UserSessionsMapWrite(*us)
+
+	return
+}
+
+/*
+	REMOVES ALL SESSIONS FOR GIVEN USER
+
+INCLUDING SESSIONS SHARING A USER ACCOUNT
 */
+func TerminateUserSessions(ur UserResponse) (count int) {
+
+	sess := UserSessionsMapCopy()
+
+	count = 0
+	for sid, us := range sess {
+		if us.USR.ID == ur.ID {
+
+			// /* CREATE AN INVALID REFRESH TOKEN*/
+			// us.CreateJWTRefreshToken(JWT_REFRESH_REVOKE_EXP)
+
+			UserSessionsMapRemove(sid)
+			count++
+		}
+	}
+	return
+}
+/* CREATES A JWT REFRESH TOKEN; USED ON LOGIN ONLY */
 func (us *UserSession) CreateJWTRefreshToken(dur time.Duration) (err error) {
 
 	tokByte := jwt.New(jwt.SigningMethodHS256)
