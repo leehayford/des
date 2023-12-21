@@ -3,6 +3,7 @@ package c001v001
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gofiber/websocket/v2"
@@ -36,9 +37,11 @@ type AuthResponse struct {
 }
 
 /* CONNECTED DEVICE USER CLIENT *** DO NOT RUN IN GO ROUTINE *** */
-func (duc *DeviceUserClient) DeviceUserClient_Connect(c *websocket.Conn) {
+func (duc *DeviceUserClient) DeviceUserClient_Connect(c *websocket.Conn, sid string) {
 
-	duc.WSClientID = fmt.Sprintf("%d-%s", time.Now().UTC().UnixMilli()/10, duc.DESDevSerial)
+	// duc.WSClientID = fmt.Sprintf("%d-%s", time.Now().UTC().UnixMilli()/10, duc.DESDevSerial)
+	sid_node := strings.Split(sid, "-")[4]
+	duc.WSClientID = fmt.Sprintf("%s-%s",sid_node, duc.DESDevSerial)
 	duc.DataOut = make(chan string)
 	duc.Close = make(chan struct{})
 	duc.Kill = make(chan struct{})

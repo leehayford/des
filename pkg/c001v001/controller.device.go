@@ -52,14 +52,14 @@ type Device struct {
 -  CONNECT DEVICE ( DeviceClient_Connect() )
 */
 func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err error) {
-	fmt.Printf("\n(*Device) RegisterDevice( )...\n")
+	fmt.Printf("\n(*Device) RegisterDevice( ) %s...\n", device.DESDevSerial)
 
 	t := time.Now().UTC().UnixMilli()
 
 	/* CREATE A DES DEVICE RECORD */
 	device.DESDev = reg.DESDev
 	device.DESDevRegTime = t
-	device.DESDevRegAddr = src
+	device.DESDevRegAddr = device.DESDevSerial
 	/* TODO: VALIDATE SERIAL # */
 	device.DESDevVersion = "001"
 	device.DESDevClass = "001"
@@ -69,7 +69,7 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 
 	/* CREATE A DES JOB RECORD ( CMDARCHIVE )*/
 	device.DESJobRegTime = t
-	device.DESJobRegAddr = src
+	device.DESJobRegAddr = device.DESDevSerial
 	device.DESJobRegUserID = device.DESDevRegUserID
 	device.DESJobRegApp = device.DESDevRegApp
 	device.DESJobName = device.CmdArchiveName()
@@ -82,12 +82,6 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	pkg.Json("(*Device) RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
 	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
 		return res.Error
-	}
-
-	/* CREATE A DES USER ACCOUNT FOR THIS DEVICE */
-	_, err = pkg.CreateDESUserForDevice(device.DESDevSerial, device.CmdArchiveName())
-	if err != nil {
-		return err
 	}
 
 	/*  CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE */
@@ -111,12 +105,29 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 		pkg.LogErr(err)
 	}
 
+
+	/* CREATE A DES USER ACCOUNT FOR THIS DEVICE */
+	user, err := pkg.CreateDESUserForDevice(device.DESDevSerial, device.CmdArchiveName() )	
+	if err != nil {
+		return err
+	}
+	userID := fmt.Sprintf("%s", user.ID)
+
+	/* CREATE DESRegistration WITH DEVICE User.ID FOR GENERATING DEFAULT RECORDS */
+	dreg := device.DESRegistration
+	dreg.DESDevRegUserID = userID
+	dreg.DESJobRegAddr = device.DESDevSerial
+	dreg.DESJobRegUserID = userID
+	dreg.DESJobRegApp = device.DESDevSerial
+
 	/* WRITE DEFAULT ADM, STA, HDR, CFG, EVT TO CMDARCHIVE */
-	device.ADM.DefaultSettings_Admin(device.DESRegistration)
-	device.STA.DefaultSettings_State(device.DESRegistration)
-	device.HDR.DefaultSettings_Header(device.DESRegistration)
-	device.CFG.DefaultSettings_Config(device.DESRegistration)
+	device.ADM.DefaultSettings_Admin(dreg)
+	device.STA.DefaultSettings_State(dreg)
+	device.HDR.DefaultSettings_Header(dreg)
+	device.CFG.DefaultSettings_Config(dreg)
 	device.SMP = Sample{SmpTime: t, SmpJobName: device.DESJobName}
+
+	/* USE THE ORIGINAL SOURCE ( USER ID ETC. ) FOR THE REGISTRATION EVENT RECORD. */
 	device.EVT = Event{
 		EvtTime:   t,
 		EvtAddr:   src,

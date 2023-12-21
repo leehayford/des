@@ -67,6 +67,7 @@ type DevicesMap map[string]Device
 var Devices = make(DevicesMap)
 var DevicesRWMutex = sync.RWMutex{}
 
+/* TODO: MOVE TO DES... REPLACE WITH C001 SPECIFIC... */
 /* GET THE CURRENT DESRegistration FOR ALL DEVICES ON THIS DES */
 func GetDeviceList() (regs []pkg.DESRegistration, err error) {
 

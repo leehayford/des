@@ -100,6 +100,11 @@ func main() {
 
 			router.Get("/list", pkg.GetUserList) /* TODO: AUTH */
 		})
+		api.Route("/device", func(router fiber.Router) {
+			
+			router.Post("/validate_serial", pkg.DesAuth, pkg.HandleValidateSerialNumber)
+
+		 })
 
 		/* C001V001 DEVICE ROUTES */
 		c001v001.InitializeDeviceRoutes( app, api )

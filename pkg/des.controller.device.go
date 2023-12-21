@@ -30,8 +30,41 @@ package pkg
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
+
+func ValidateSerialNumber(serial string ) (err error) { 
+	
+
+	/* ENSURE SERIAL IS NOT BLANK */
+	if serial == "" {
+		return fmt.Errorf("Serial number is blank.")
+	}
+
+	/* ENSURE SERIAL IS UPPERCASE */
+	serial = strings.ToUpper(serial)
+	
+	/* ENSURE SERIAL HAS NO MORE THAN 10 CHARACTERS */
+	if len(serial) > 10 {
+		return fmt.Errorf("Serial number may contain upto 10 alphanumeric values.")
+	}
+
+	/* ENSURE SERIAL DOESN'T ALREADY EXIST */
+	regs, err :=  GetDESDeviceList()
+	if err != nil {
+		return // WHTEVER THE ERROR WAS...
+	}
+
+	for _, reg := range regs {
+		if serial == reg.DESDevSerial {
+			return fmt.Errorf("Duplicate serial number.")
+		} 
+	} 
+
+	return
+}
+
 
 /* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE */
 // func ValidateDESDevSerial

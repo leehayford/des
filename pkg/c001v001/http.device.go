@@ -464,8 +464,7 @@ func HandleDeviceUserClient_Connect(c *websocket.Conn) {
 	// fmt.Printf("\nWSDeviceUserClient_Connect( )\n")
 
 	/* CHECK USER PERMISSION */
-	role := c.Locals("role")
-	if role != pkg.ROLE_ADMIN && role != pkg.ROLE_OPERATOR && role != pkg.ROLE_USER {
+	if !pkg.UserRole_Viewer(c.Locals("role")) {
 		/* CREATE JSON WSMessage STRUCT */
 		res := AuthResponse{Status: "fail", Message: "You need permission to watch a live feed."}
 		js, err := json.Marshal(&WSMessage{Type: "auth", Data: res})
@@ -476,17 +475,30 @@ func HandleDeviceUserClient_Connect(c *websocket.Conn) {
 		c.Conn.WriteJSON(string(js))
 		return
 	}
+	
+	/* PARSE AND VALIDATE REQUEST DATA - SESSION ID */
+	sid, err := url.QueryUnescape(c.Query("sid"))	
+	if err != nil {
+		js, err := json.Marshal(&WSMessage{Type: "auth", Data: err.Error()})
+		if err != nil {
+			pkg.LogErr(err)
+			return
+		}
+		c.Conn.WriteJSON(string(js))
+		return
+	}	
 
-	/* PARSE AND VALIDATE REQUEST DATA */
+	/* PARSE AND VALIDATE REQUEST DATA - DEVICE */
 	device := Device{}
 	url_str, _ := url.QueryUnescape(c.Query("device"))
 	if err := json.Unmarshal([]byte(url_str), &device); err != nil {
 		pkg.LogErr(err)
 	}
 
+
 	/* CONNECTED DEVICE USER CLIENT *** DO NOT RUN IN GO ROUTINE *** */
 	duc := DeviceUserClient{Device: device}
-	duc.DeviceUserClient_Connect(c)
+	duc.DeviceUserClient_Connect(c, sid)
 }
 
 
@@ -519,13 +531,12 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 			"status":  "fail",
 			"message": err.Error(),
 		})
-	} // pkg.Json("HandleRegisterDevice( ) -> c.BodyParser( reg ) -> reg", reg)
+	} 
+	pkg.Json("HandleRegisterDevice( ) -> c.BodyParser( reg ) -> reg", reg)
 	
-	/* TODO: VALIDATE SERIAL# ( TO UPPER ): 
-			!= ""
-			DOESN'T ALREADY EXIST
-			LENGTH < 10
-	*/
+	if err = pkg.ValidateSerialNumber(reg.DESDevSerial); err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	}
 
 	/* REGISTER A C001V001 DEVICE ON THIS DES */
 	device := &Device{}
