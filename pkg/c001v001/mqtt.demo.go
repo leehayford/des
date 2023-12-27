@@ -107,8 +107,8 @@ func MakeDemoC001V001(serial, uid string) (reg pkg.DESRegistration, err error) {
 	demo.DESDevSerial = serial
 
 	if err = demo.RegisterDevice(pkg.APP_HOST); err != nil { return }
-
-	return
+	reg = demo.DESRegistration
+	return 
 }
 
 /* RETURNS A 10 CHRACTER SERIAL # LIKE 'DEMO000000' */
