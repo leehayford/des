@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -525,26 +526,29 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
-	reg := pkg.DESRegistration{}
-	if err = c.BodyParser(&reg); err != nil {
+	device := Device{}
+	if err = c.BodyParser(&device); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "fail",
 			"message": err.Error(),
 		})
 	} 
-	pkg.Json("HandleRegisterDevice( ) -> c.BodyParser( reg ) -> reg", reg)
-	
-	if err = pkg.ValidateSerialNumber(reg.DESDevSerial); err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
-	}
+	pkg.Json("HandleRegisterDevice( ) -> c.BodyParser( device ) -> device.DESDev", device.DESDev)
+
 
 	/* REGISTER A C001V001 DEVICE ON THIS DES */
-	device := &Device{}
-	if err := device.RegisterDevice(c.IP(), reg); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+	if err := device.RegisterDevice(c.IP()); err != nil {
+
+		if ( strings.Contains(err.Error(), "Serial") ) {
+			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+
+		} else {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"status":  "fail",
+				"message": err.Error(),
+			})
+		}
+
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{

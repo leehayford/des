@@ -51,25 +51,26 @@ type Device struct {
 
 -  CONNECT DEVICE ( DeviceClient_Connect() )
 */
-func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err error) {
+func (device *Device) RegisterDevice(src string) (err error) {
 	fmt.Printf("\n(*Device) RegisterDevice( ) %s...\n", device.DESDevSerial)
+
+	if err = pkg.ValidateSerialNumber(device.DESDevSerial); err != nil { return }
 
 	t := time.Now().UTC().UnixMilli()
 
 	/* CREATE A DES DEVICE RECORD */
-	device.DESDev = reg.DESDev
 	device.DESDevRegTime = t
-	device.DESDevRegAddr = device.DESDevSerial
-	/* TODO: VALIDATE SERIAL # */
-	device.DESDevVersion = "001"
-	device.DESDevClass = "001"
+	device.DESDevRegAddr = src
+	device.DESDevVersion = DEVICE_VERSION
+	device.DESDevClass = DEVICE_CLASS
+	pkg.Json("(*Device) RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESDev) -> device.DESDev", device.DESDev)
 	if res := pkg.DES.DB.Create(&device.DESDev); res.Error != nil {
 		return res.Error
 	}
 
 	/* CREATE A DES JOB RECORD ( CMDARCHIVE )*/
-	device.DESJobRegTime = t
-	device.DESJobRegAddr = device.DESDevSerial
+	device.DESJobRegTime = device.DESDevRegTime
+	device.DESJobRegAddr = device.DESDevRegAddr
 	device.DESJobRegUserID = device.DESDevRegUserID
 	device.DESJobRegApp = device.DESDevRegApp
 	device.DESJobName = device.CmdArchiveName()
@@ -78,10 +79,39 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 	device.DESJobLng = DEFAULT_GEO_LNG
 	device.DESJobLat = DEFAULT_GEO_LAT
 	device.DESJobDevID = device.DESDevID
-
 	pkg.Json("(*Device) RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
 	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
 		return res.Error
+	}
+
+	/* CREATE A DES USER ACCOUNT FOR THIS DEVICE */
+	user, err := pkg.CreateDESUserForDevice(device.DESDevSerial, device.CmdArchiveName() )	
+	if err != nil {
+		return err
+	}
+	userID := fmt.Sprintf("%s", user.ID)
+
+	/* MODIFY JOB REGISTRATION VALUES TO PASS IN TO DEFAULT MODEL GENERATORS */
+	device.DESJobRegAddr = device.DESDevSerial
+	device.DESJobRegUserID = userID
+	device.DESJobRegApp = device.DESDevSerial
+
+	/* GENERATE DEFAULT ADM, STA, HDR, CFG, EVT TO CMDARCHIVE */
+	device.ADM.DefaultSettings_Admin(device.DESRegistration)
+	device.STA.DefaultSettings_State(device.DESRegistration)
+	device.HDR.DefaultSettings_Header(device.DESRegistration)
+	device.CFG.DefaultSettings_Config(device.DESRegistration)
+	device.SMP = Sample{SmpTime: t, SmpJobName: device.DESJobName}
+
+	/* USE THE ORIGINAL SOURCE ( USER ID ETC. ) FOR THE REGISTRATION EVENT RECORD. */
+	device.EVT = Event{
+		EvtTime:   t,
+		EvtAddr:   src,
+		EvtUserID: device.DESDevRegUserID,
+		EvtApp:    device.DESDevRegApp,
+		EvtCode:   OP_CODE_DES_REGISTERED,
+		EvtTitle:  "DEVICE REGISTRATION",
+		EvtMsg:    "DEVICE REGISTERED",
 	}
 
 	/*  CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE */
@@ -105,38 +135,6 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 		pkg.LogErr(err)
 	}
 
-
-	/* CREATE A DES USER ACCOUNT FOR THIS DEVICE */
-	user, err := pkg.CreateDESUserForDevice(device.DESDevSerial, device.CmdArchiveName() )	
-	if err != nil {
-		return err
-	}
-	userID := fmt.Sprintf("%s", user.ID)
-
-	/* CREATE DESRegistration WITH DEVICE User.ID FOR GENERATING DEFAULT RECORDS */
-	dreg := device.DESRegistration
-	dreg.DESDevRegUserID = userID
-	dreg.DESJobRegAddr = device.DESDevSerial
-	dreg.DESJobRegUserID = userID
-	dreg.DESJobRegApp = device.DESDevSerial
-
-	/* WRITE DEFAULT ADM, STA, HDR, CFG, EVT TO CMDARCHIVE */
-	device.ADM.DefaultSettings_Admin(dreg)
-	device.STA.DefaultSettings_State(dreg)
-	device.HDR.DefaultSettings_Header(dreg)
-	device.CFG.DefaultSettings_Config(dreg)
-	device.SMP = Sample{SmpTime: t, SmpJobName: device.DESJobName}
-
-	/* USE THE ORIGINAL SOURCE ( USER ID ETC. ) FOR THE REGISTRATION EVENT RECORD. */
-	device.EVT = Event{
-		EvtTime:   t,
-		EvtAddr:   src,
-		EvtUserID: device.DESDevRegUserID,
-		EvtApp:    device.DESDevRegApp,
-		EvtCode:   OP_CODE_DES_REGISTERED,
-		EvtTitle:  "DEVICE REGISTRATION",
-		EvtMsg:    "DEVICE REGISTERED",
-	}
 
 	for _, typ := range EVENT_TYPES {
 		WriteETYP(typ, &device.JobDBC)
@@ -165,6 +163,15 @@ func (device *Device) RegisterDevice(src string, reg pkg.DESRegistration) (err e
 
 	/* CREATE DESJobSearch RECORD FOR CMDARCHIVE */
 	device.Create_DESJobSearch(device.DESRegistration)
+
+	/* WRITE TO ~/device_files/XXXXXXXXXX_CMDARCHIVE/... */
+	fmt.Printf("\n(*Device) RegisterDevice( ) -> WRITE TO ~/device_files/%s/...\n", device.DESJobName)
+	device.WriteAdmToJSONFile(device.DESJobName, device.ADM)
+	device.WriteStateToJSONFile(device.DESJobName, device.STA)
+	device.WriteHdrToJSONFile(device.DESJobName, device.HDR)
+	device.WriteCfgToJSONFile(device.DESJobName, device.CFG)
+	device.WriteSMPToHEXFile(device.DESJobName, device.SMP)
+	device.WriteEvtToJSONFile(device.DESJobName, device.EVT)
 
 	/* CREATE PERMANENT DES DEVICE CLIENT CONNECTIONS */
 	device.DESMQTTClient = pkg.DESMQTTClient{}

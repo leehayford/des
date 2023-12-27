@@ -70,7 +70,7 @@ func ValidateSerialNumber(serial string ) (err error) {
 
 	for _, reg := range regs {
 		if serial == reg.DESDevSerial {
-			return fmt.Errorf("Duplicate serial number.")
+			return fmt.Errorf("Serial number already exists.")
 		} 
 	} 
 
