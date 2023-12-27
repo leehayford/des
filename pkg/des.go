@@ -22,6 +22,7 @@ import (
 // 	"errors"
 )
 
+const DES_DEVICE_FILES = "device_files"
 const DES_APP = "DES v0.0.0"
 
 const ROLE_SUPER = "super"

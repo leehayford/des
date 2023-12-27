@@ -35,7 +35,6 @@ func main() {
 
 	cleanDB := flag.Bool("clean", false, "Drop and recreate databases")
 	sim := flag.Bool("sim", false, "Run as device simulator only")
-	demoQty := flag.Int("demos", 5, "Create n demo devices if there are none currently") /* DEMO -> NOT FOR PRODUCTION */
 	flag.Parse()
 
 	if *cleanDB {
@@ -65,7 +64,7 @@ func main() {
 		/********************************************************************************************/
 		/* DEMO DEVICES -> NOT FOR PRODUCTION */
 		fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
-		c001v001.DemoDeviceClient_ConnectAll(*demoQty)
+		c001v001.DemoDeviceClient_ConnectAll()
 		defer c001v001.DemoDeviceClient_DisconnectAll()
 		/********************************************************************************************/
 

@@ -146,6 +146,10 @@ func (adb ADMINDatabase) DropAllDatabases() {
 		fmt.Printf("\nDROPPING: %s\n", db)
 		adb.DropDatabase(db)
 	}
+	/* REMOVE ALL ALL DEVICE FILES */
+	if err := os.RemoveAll(DES_DEVICE_FILES); err != nil {
+		LogErr(err)
+	}
 	/* DEMO -> NOT FOR PRODUCTION */
 	if err := os.RemoveAll("demo"); err != nil {
 		LogErr(err)

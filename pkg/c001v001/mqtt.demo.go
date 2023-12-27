@@ -1,7 +1,6 @@
 package c001v001
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -96,53 +95,13 @@ func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 	return
 }
 
-/* REGISTER A DEMO DEVICE ON THIS DES */
-func MakeDemoC001V001(serial, uid string) (reg pkg.DESRegistration, err error) {
-	fmt.Printf("\nMakeDemoC001V001() -> %s... \n", serial)
-
-	/* CREATE A DemoDeviceClient */
-	demo := DemoDeviceClient{}
-	demo.DESDevRegUserID = uid
-	demo.DESDevRegApp = pkg.DES_APP
-	demo.DESDevSerial = serial
-
-	if err = demo.RegisterDevice(pkg.APP_HOST); err != nil { return }
-	reg = demo.DESRegistration
-	return 
-}
-
-/* RETURNS A 10 CHRACTER SERIAL # LIKE 'DEMO000000' */
-func DemoSNMaker(i int) (sn string) {
-	iStr := fmt.Sprintf("%d", i)
-	l := len(iStr)
-	size := 6 - l
-	sn0s := string(bytes.Repeat([]byte{0x30}, size))
-	return fmt.Sprintf("DEMO%s%s", sn0s, iStr)
-}
 
 /* CALLED ON SERVER STARTUP */
-func DemoDeviceClient_ConnectAll(qty int) {
+func DemoDeviceClient_ConnectAll() {
 
 	regs, err := GetDemoDeviceList()
 	if err != nil {
 		pkg.LogErr(err)
-	}
-
-	/* WHERE WE ARE ADDING DEVICES, MAKE THEM */
-	if len(regs) < qty {
-
-		/* GET THE DES SUPER USER ID  */
-		sup, err := pkg.GetSuperUser()
-		if err != nil { return }
-		
-		for i := 0; i < qty; i++ {
-			reg, err := MakeDemoC001V001(DemoSNMaker(i), sup.ID.String())
-			if err != nil {
-				pkg.LogErr(err)
-			} else {
-				regs = append(regs, reg)
-			}
-		}
 	}
 
 	for _, reg := range regs {
