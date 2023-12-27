@@ -166,12 +166,12 @@ func DemoDeviceClient_DisconnectAll() {
 	}
 }
 
-func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
+func (demo *DemoDeviceClient) DemoDeviceClient_Connect() (err error) {
 
 	fmt.Printf("\n\n(*DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connecting... \n", demo.DESDevSerial)
 
 	fmt.Printf("\n(*DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> getting last known status... \n", demo.DESDevSerial)
-	demo.ConnectJobDBC()
+	if err = demo.ConnectJobDBC(); err != nil { return pkg.LogErr(err) }
 	demo.JobDBC.Last(&demo.ADM)
 	demo.JobDBC.Last(&demo.STA)
 	demo.JobDBC.Last(&demo.HDR)
@@ -180,6 +180,14 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	demo.JobDBC.Last(&demo.EVT)
 	demo.JobDBC.Disconnect() // we don't want to maintain this connection
 
+	/* ENSURE DEMO DEVICE HAS CORRECT ID VALUES 
+		DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS 
+		- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
+	if err = demo.GetDeviceDESU(); err != nil { return pkg.LogErr(err) } 
+	demo.STA.StaAddr = demo.DESDevSerial
+	demo.STA.StaUserID = demo.DESU.ID.String()
+	demo.STA.StaApp = demo.DESDevSerial
+	
 	// demo.EVT.WG = &sync.WaitGroup{}
 	demo.Stop = make(chan struct{})
 	demo.Rate = make(chan int32)
@@ -188,13 +196,9 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	demo.GPS = make(chan bool)
 	demo.Live = true
 
-	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS 
-		- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
-	demo.GetDeviceDESU()
-
 	if err := demo.MQTTDemoDeviceClient_Connect(); err != nil {
-		pkg.LogErr(err)
 		demo.Live = false
+		return pkg.LogErr(err) 
 	}
 
 	/* ADD TO DemoDeviceClients MAP */
@@ -222,6 +226,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 	}()
 
 	fmt.Printf("\n(*DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connected... \n\n", demo.DESDevSerial)
+	return
 }
 func (demo *DemoDeviceClient) DemoDeviceClient_Disconnect() {
 	/* TODO: TEST WHEN IMPLEMENTING
