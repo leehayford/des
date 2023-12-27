@@ -48,10 +48,13 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 		// fmt.Printf("\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connected...\n", desm.MQTTClientID)
 	}
 	desm.OnConnectionLost = func(c phao.Client, err error) {
-		fmt.Printf(
-			"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connection lost...\n%s\n", desm.MQTTClientID,
-			err.Error(),
-		)
+		if ( err.Error() != "EOF" ) {
+			fmt.Printf(
+				"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connection lost...\n%s\n", 
+				desm.MQTTClientID,
+				err.Error(),
+			)
+		}
 	}
 	desm.DefaultPublishHandler = func(c phao.Client, msg phao.Message) {
 		// fmt.Printf(

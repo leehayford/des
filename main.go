@@ -81,36 +81,28 @@ func main() {
 		app.Use(logger.New())
 		app.Use(cors.New(cors.Config{
 			/* TODO: LIMIT ALLOWED ORIGINS FOR PRODUCTION DEPLOYMENT */
-			AllowOrigins:     "https://vw1.data2desk.com, http://localhost:8080, http://localhost:4173, http://localhost:5173, http://localhost:58714",
+			AllowOrigins:     "https://vw1.data2desk.com, http://localhost:8080, http://localhost:5173",
 			AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Cache-Control",
 			AllowMethods:     "GET, POST",
 			AllowCredentials: true,
 		}))
 
-		/* AUTH & USER ROUTES 
-			TODO: MOVE TO DES HTTP
-		*/
-		api.Route("/user", func(router fiber.Router) {
+		/* DES ROUTES *************************************************************************************/
+		/*DES AUTH & USER ROUTES */
+		pkg.InitializeDESUserRoutes(app, api)
 
-			router.Post("/register", pkg.HandleRegisterUser)
-			router.Post("/login", pkg.HandleLoginUser)
-			router.Post("/refresh", pkg.DesAuth, pkg.HandleRefreshAccessToken)
-			router.Post("/terminate", pkg.DesAuth, pkg.HandleTerminateUserSessions)
-			router.Post("/logout", pkg.DesAuth, pkg.HandleLogoutUser)
+		/* DES DEVICE ROUTES */
+		pkg.InitializeDESDeviceRoutes(app, api)
+		/****************************************************************************************************/
 
-			router.Get("/list", pkg.GetUserList) /* TODO: AUTH */
-		})
-		api.Route("/device", func(router fiber.Router) {
-			
-			router.Post("/validate_serial", pkg.DesAuth, pkg.HandleValidateSerialNumber)
 
-		 })
-
+		/* C001V001 ROUTES ******************************************************************************/
 		/* C001V001 DEVICE ROUTES */
-		c001v001.InitializeDeviceRoutes( app, api )
+		c001v001.InitializeDeviceRoutes(app, api)
 
 		/* C001V001 JOB / REPORTING ROUTES */
 		c001v001.InitializeJobRoutes(app, api)
+		/****************************************************************************************************/
 
 	}
 

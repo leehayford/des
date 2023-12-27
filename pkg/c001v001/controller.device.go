@@ -307,6 +307,7 @@ func (device *Device) DeviceClient_Disconnect() (err error) {
 	return
 }
 
+/* DISCONNECT AND RECONNECT DES DEVICE DATABASE AND MQTT CLIENTS */
 func (device *Device) DeviceClient_RefreshConnections() (err error) {
 	fmt.Printf("\n\n(*Device) DeviceClient_RefreshConnections() -> %s ... \n", device.DESDevSerial)
 
@@ -765,25 +766,22 @@ func (device *Device) EndJobRequest(src string) (err error) {
 
 	endTime := time.Now().UTC().UnixMilli()
 
+	sta := device.STA
+	sta.StaTime = endTime
+	sta.StaAddr = src
+	sta.StaUserID = device.DESJobRegUserID
+	sta.StaApp = device.DESJobRegApp
+	sta.StaSerial = device.DESDevSerial
+	sta.StaVersion = DEVICE_VERSION
+	sta.StaClass = DEVICE_CLASS
+	sta.StaLogging = OP_CODE_JOB_END_REQ // This means there is a pending request for the device to end the current job
+	sta.StaJobName = device.CmdArchiveName()
+	sta.Validate()
+
 	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedADM()
-	device.STA.StaTime = endTime
-	device.STA.StaAddr = src
-	device.STA.StaUserID = device.DESJobRegUserID
-	device.STA.StaApp = device.DESJobRegApp
-	device.STA.StaSerial = device.DESDevSerial
-	device.STA.StaVersion = DEVICE_VERSION
-	device.STA.StaClass = DEVICE_CLASS
-	device.STA.StaLogging = OP_CODE_JOB_END_REQ // This means there is a pending request for the device to end the current job
-	device.STA.StaJobName = device.CmdArchiveName()
-	device.STA.Validate()
-	// pkg.Json("HandleStartJob(): -> device.STA", device.STA)
-	device.GetMappedHDR()
-	device.GetMappedCFG()
-	device.GetMappedSMP()
-	device.GetDeviceDESU()
-	device.GetMappedDBG()
-	device.GetMappedClients()
+	d := DevicesMapRead(device.DESDevSerial)
+	d.STA = sta
+	device = &d
 
 	device.EVT = Event{
 		EvtTime:   endTime,
@@ -1081,21 +1079,17 @@ func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
 /* PREPARE, LOG, AND SEND A SET ADMIN REQUEST TO THE DEVICE */
 func (device *Device) SetAdminRequest(src string) (err error) {
 
+	adm := device.ADM
+	adm.AdmTime = time.Now().UTC().UnixMilli()
+	adm.AdmAddr = src
+	adm.Validate() 
+
 	/* SYNC DEVICE WITH DevicesMap */
-	device.ADM.AdmTime = time.Now().UTC().UnixMilli()
-	device.ADM.AdmAddr = src
-	device.ADM.Validate() // fmt.Printf("\nHandleSetAdmin( ) -> ADM Validated")
-	device.GetMappedSTA() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped STA gotten")
-	device.GetMappedHDR() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped HDR gotten")
-	device.GetMappedCFG() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped CFG gotten")
-	device.GetMappedEVT() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped EVT gotten")
-	device.GetMappedSMP() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped SMP gotten")
-	device.GetDeviceDESU()
-	device.GetMappedDBG()
-	device.GetMappedClients() // fmt.Printf("\nHandleSetAdmin( ) -> Mapped Clients gotten")
+	d := DevicesMapRead(device.DESDevSerial)
+	d.ADM = adm
+	device = &d
 
 	/* LOG ADM CHANGE REQUEST TO  CMDARCHIVE */
-	adm := device.ADM
 	WriteADM(adm, &device.CmdDBC)
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
@@ -1121,21 +1115,17 @@ CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
 */
 func (device *Device) SetStateRequest(src string) (err error) {
 
+	sta := device.STA
+	sta.StaTime = time.Now().UTC().UnixMilli()
+	sta.StaAddr = src
+	sta.Validate()
+
 	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedADM()
-	device.GetMappedHDR()
-	device.STA.StaTime = time.Now().UTC().UnixMilli()
-	device.STA.StaAddr = src
-	device.STA.Validate()
-	device.GetMappedCFG()
-	device.GetMappedEVT()
-	device.GetMappedSMP()
-	device.GetDeviceDESU()
-	device.GetMappedDBG()
-	device.GetMappedClients()
+	d := DevicesMapRead(device.DESDevSerial)
+	d.STA = sta
+	device = &d
 
 	/* LOG STA CHANGE REQUEST TO CMDARCHIVE */
-	sta := device.STA
 	WriteSTA(sta, &device.CmdDBC)
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
@@ -1153,21 +1143,17 @@ func (device *Device) SetStateRequest(src string) (err error) {
 /* PREPARE, LOG, AND SEND A SET HEADER REQUEST TO THE DEVICE */
 func (device *Device) SetHeaderRequest(src string) (err error) {
 
+	hdr := device.HDR
+	hdr.HdrTime = time.Now().UTC().UnixMilli()
+	hdr.HdrAddr = src
+	hdr.Validate()
+
 	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedADM()
-	device.HDR.HdrTime = time.Now().UTC().UnixMilli()
-	device.HDR.HdrAddr = src
-	device.HDR.Validate()
-	device.GetMappedSTA()
-	device.GetMappedCFG()
-	device.GetMappedEVT()
-	device.GetMappedSMP()
-	device.GetDeviceDESU()
-	device.GetMappedDBG()
-	device.GetMappedClients()
+	d := DevicesMapRead(device.DESDevSerial)
+	d.HDR = hdr
+	device = &d
 
 	/* LOG HDR CHANGE REQUEST TO CMDARCHIVE */
-	hdr := device.HDR
 	WriteHDR(hdr, &device.CmdDBC)
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
@@ -1188,21 +1174,17 @@ func (device *Device) SetHeaderRequest(src string) (err error) {
 /* PREPARE, LOG, AND SEND A SET CONFIG REQUEST TO THE DEVICE */
 func (device *Device) SetConfigRequest(src string) (err error) {
 
+	cfg := device.CFG
+	cfg.CfgTime = time.Now().UTC().UnixMilli()
+	cfg.CfgAddr = src
+	cfg.Validate()
+
 	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedADM()
-	device.GetMappedSTA()
-	device.GetMappedHDR()
-	device.CFG.CfgTime = time.Now().UTC().UnixMilli()
-	device.CFG.CfgAddr = src
-	device.CFG.Validate()
-	device.GetMappedEVT()
-	device.GetMappedSMP()
-	device.GetDeviceDESU()
-	device.GetMappedDBG()
-	device.GetMappedClients()
+	d := DevicesMapRead(device.DESDevSerial)
+	d.CFG = cfg
+	device = &d
 
 	/* LOG CFG CHANGE REQUEST TO CMDARCHIVE */
-	cfg := device.CFG
 	WriteCFG(cfg, &device.CmdDBC)
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
@@ -1223,21 +1205,17 @@ func (device *Device) SetConfigRequest(src string) (err error) {
 /* PREPARE, LOG, AND SEND A SET EVENT REQUEST TO THE DEVICE */
 func (device *Device) CreateEventRequest(src string) (err error) {
 
+	evt := device.EVT
+	evt.EvtTime = time.Now().UTC().UnixMilli()
+	evt.EvtAddr = src
+	evt.Validate() 
+
 	/* SYNC DEVICE WITH DevicesMap */
-	device.GetMappedADM()
-	device.GetMappedSTA() // fmt.Printf("\nCreateEventRequest( ) -> Mapped STA gotten")
-	device.GetMappedHDR() // fmt.Printf("\nCreateEventRequest( ) -> Mapped HDR gotten")
-	device.GetMappedCFG() // fmt.Printf("\nCreateEventRequest( ) -> Mapped CFG gotten")
-	device.GetMappedSMP() // fmt.Printf("\nCreateEventRequest( ) -> Mapped SMP gotten")
-	device.GetDeviceDESU()
-	device.GetMappedDBG()
-	device.GetMappedClients() // fmt.Printf("\nCreateEventRequest( ) -> Mapped Clients gotten")
+	d := DevicesMapRead(device.DESDevSerial)
+	d.EVT = evt
+	device = &d
 
 	/* LOG EVT CHANGE REQUEST TO  CMDARCHIVE */
-	device.EVT.EvtTime = time.Now().UTC().UnixMilli()
-	device.EVT.EvtAddr = src
-	device.EVT.Validate() // fmt.Printf("\nCreateEventRequest( ) -> EVT Validated")
-	evt := device.EVT
 	WriteEVT(evt, &device.CmdDBC)
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
@@ -1255,8 +1233,8 @@ func (device *Device) CreateEventRequest(src string) (err error) {
 	return
 }
 
-/********************************************************************************************************/
-/* DEVELOPMENT DATA STRUCTURE ***TODO: REMOVE AFTER DEVELOPMENT*** */
+
+/* DEVELOPMENT DATA STRUCTURE ***TODO: REMOVE AFTER DEVELOPMENT*** ******************/
 type Debug struct {
 	MQTTDelay int32 `json:"mqtt_delay"`
 }
@@ -1276,6 +1254,7 @@ func (device *Device) SetDebug() (err error) {
 	return
 }
 
+/* DEVELOPMENT ***TODO: REMOVE AFTER DEVELOPMENT*** *************************************/
 func (device *Device) TestMsgLimit() (size int, err error) {
 
 	/* 1468 Byte Kafka*/

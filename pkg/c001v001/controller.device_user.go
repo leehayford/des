@@ -68,14 +68,12 @@ func (duc DeviceUserClient) SendMessages(c *websocket.Conn) {
 		select {
 
 		case <-duc.Close:
+			duc.MQTTDeviceUserClient_Disconnect()
 			duc.Kill <- struct{}{}
 			open = false
 
 		case data := <-duc.DataOut:
-			if err := c.WriteJSON(data); err != nil {
-				// pkg.LogErr(err)
-				// fmt.Printf("(DeviceUserClient) SendMessages -> data := <-duc.DataOut: %s\n", string(data))
-				duc.MQTTDeviceUserClient_Disconnect()
+			if err := c.WriteJSON(data); err != nil { // fmt.Printf("(DeviceUserClient) SendMessages -> data := <-duc.DataOut: %s\n", string(data))
 				duc.Close <- struct{}{}
 			}
 		}
@@ -103,20 +101,16 @@ func (duc DeviceUserClient) ListenForMessages(c *websocket.Conn) {
 	listen := true
 	for listen {
 		_, msg, err := c.ReadMessage()
-		if err != nil {
-			// fmt.Printf("WSDeviceUserClient_Connect -> c.ReadMessage() %s -> ERROR: %s\n", duc.DESDevSerial, err.Error())
-			// pkg.LogErr(err)
+		if err != nil { // fmt.Printf("(DeviceUserClient) ListenForMessages() %s -> ERROR: %s\n", duc.DESDevSerial, err.Error())
 			break
 		}
-		if string(msg) == "close" {
-			/* USER HAS CLOSED THE CONNECTION */
-			fmt.Printf("WSDeviceUserClient_Connect -> go func() -> c.ReadMessage(): %s\n", string(msg))
-			duc.MQTTDeviceUserClient_Disconnect()
+		/* CHECK IF USER HAS CLOSED THE CONNECTION */
+		if string(msg) == "close" { // fmt.Printf("(DeviceUserClient) ListenForMessages() -> msg: %s\n", string(msg))
 			duc.Close <- struct{}{}
 			listen = false
 		}
 	}
-	fmt.Printf("WSDeviceUserClient_Connect -> go func() done\n")
+	// fmt.Printf("(DeviceUserClient) ListenForMessages() -> done\n")
 }
 
 /* KEEP ALIVE GO ROUTINE SEND "live" EVERY 30 SECONDS TO PREVENT WS DISCONNECT */
@@ -135,8 +129,7 @@ func (duc DeviceUserClient) RunKeepAlive() {
 			if err != nil {
 				pkg.LogErr(err)
 			}
-			duc.DataOut <- string(js)
-			// fmt.Printf("WSDeviceUserClient_Connect -> go func() KEEP ALIVE... \n")
+			duc.DataOut <- string(js) // fmt.Printf("WSDeviceUserClient_Connect -> go func() KEEP ALIVE... \n")
 		}
 	}
 }

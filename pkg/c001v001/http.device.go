@@ -16,8 +16,8 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 
 		/* DEVICE-ADMIN-LEVEL OPERATIONS */
 		router.Post("/register", pkg.DesAuth, HandleRegisterDevice)
-		router.Post("/check_des_conn", pkg.DesAuth, HandleCheckDESDeviceClient)
-		router.Post("/disconnect", pkg.DesAuth, HandleDisconnectDevice)
+		router.Post("/des_client_refresh", pkg.DesAuth, HandleDESDeviceClientRefresh)
+		router.Post("/des_client_disconnect", pkg.DesAuth, HandleDESDeviceClientDisconnect)
 
 		/* DEVICE-OPERATOR-LEVEL OPERATIONS */
 		router.Post("/start", pkg.DesAuth, HandleStartJob)
@@ -28,10 +28,6 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 		router.Post("/config", pkg.DesAuth, HandleSetConfig)
 		router.Post("/event", pkg.DesAuth, HandleCreateDeviceEvent)
 
-		router.Post("/debug", pkg.DesAuth, HandleSetDebug)
-		router.Post("/msg_limit", pkg.DesAuth, HandleTestMessageLimit)
-		router.Post("/sim_offline_start", pkg.DesAuth, HandleSimOfflineStart)
-
 		/* DEVICE-VIEWER-LEVEL OPERATIONS */
 		router.Post("/job_events", pkg.DesAuth, HandleGetActiveJobEvents)
 		router.Post("/search", pkg.DesAuth, HandleSearchDevices)
@@ -41,6 +37,10 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 		app.Use("/ws", pkg.HandleWSUpgrade)
 		router.Get("/ws", pkg.DesAuth, websocket.New(HandleDeviceUserClient_Connect))
 
+		/* DEVELOPMENT *** NOT FOR PRODUCTION *** */
+		router.Post("/debug", pkg.DesAuth, HandleSetDebug)
+		router.Post("/msg_limit", pkg.DesAuth, HandleTestMessageLimit)
+		router.Post("/sim_offline_start", pkg.DesAuth, HandleSimOfflineStart)
 	})
 }
 
@@ -554,7 +554,7 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 	})
 }
 
-func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
+func HandleDESDeviceClientDisconnect(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleDisconnectDevice( )\n")
 
 	/* CHECK USER PERMISSION */
@@ -596,7 +596,7 @@ func HandleDisconnectDevice(c *fiber.Ctx) (err error) {
 	})
 }
 
-func HandleCheckDESDeviceClient(c *fiber.Ctx) (err error) {
+func HandleDESDeviceClientRefresh(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleCheckDESDeviceClient( )\n")
 
 	/* CHECK USER PERMISSION */

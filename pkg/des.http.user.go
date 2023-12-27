@@ -2,10 +2,60 @@ package pkg
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
 )
+
+func InitializeDESUserRoutes(app, api *fiber.App) {
+	api.Route("/user", func(router fiber.Router) {
+
+		router.Post("/register", HandleRegisterUser)
+		router.Post("/login", HandleLoginUser)
+		router.Post("/refresh", DesAuth, HandleRefreshAccessToken)
+		router.Post("/terminate", DesAuth, HandleTerminateUserSessions)
+		router.Post("/logout", DesAuth, HandleLogoutUser)
+
+		router.Get("/list", GetUserList) /* TODO: AUTH */
+	})
+}
+
+/* AUTHENTICATE USER AND GET THEIR ROLE */
+func DesAuth(c *fiber.Ctx) (err error) {
+
+	authorization := c.Get("Authorization")
+	// fmt.Printf("AUTHORIZATION: \n%s\n", authorization)
+	// fmt.Printf("ACCESS_TOKEN: \n%s\n", c.Query("access_token"))
+
+	tokenString := ""
+	if strings.HasPrefix(authorization, "Bearer ") {
+		tokenString = strings.TrimPrefix(authorization, "Bearer ")
+	} else if c.Cookies("token") != "" {
+		tokenString = c.Cookies("token")
+	} else if c.Query("access_token") != "" {
+		tokenString = c.Query("access_token")
+	}
+	if tokenString == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "fail",
+			"message": "You are logged out.",
+		})
+	}
+
+	claims, err := GetClaimsFromTokenString(tokenString)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+
+	c.Locals("role", claims["rol"])
+	c.Locals("sub", claims["sub"])
+
+	return c.Next()
+}
 
 func HandleWSUpgrade(c *fiber.Ctx) error {
 	if websocket.IsWebSocketUpgrade(c) {
@@ -168,35 +218,6 @@ func HandleTerminateUserSessions(c *fiber.Ctx) (err error) {
 	})
 }
 
-
-func HandleValidateSerialNumber(c * fiber.Ctx) (err error) {
-
-	/* CHECK USER PERMISSION */
-	if !UserRole_Viewer(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be a registered user to validate serial numbers.",
-		})
-	}
-
-	/* PARSE AND VALIDATE REQUEST DATA */
-	serial := ""
-	if err = c.BodyParser(&serial); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} 
-	Json("HandleValidateSerialNumber(): -> c.BodyParser(&serial) -> serial", serial)
-
-	if err = ValidateSerialNumber(serial); err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Serial number OK.",
-	})
-}
 
 /********************************************************************************************************/
 /* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  *******************************/

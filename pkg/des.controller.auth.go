@@ -15,47 +15,47 @@ License:
 
 package pkg
 
-import (
-	// "fmt"
-	"strings"
+// import (
+// 	// "fmt"
+// 	// "strings"
 
-	"github.com/gofiber/fiber/v2" // go get github.com/gofiber/fiber/v2
-)
+// 	// "github.com/gofiber/fiber/v2" // go get github.com/gofiber/fiber/v2
+// )
 
 /* https://codevoweb.com/how-to-properly-use-jwt-for-authentication-in-golang/ */
 
-/* AUTHENTICATE USER AND GET THEIR ROLE */
-func DesAuth(c *fiber.Ctx) (err error) {
+// /* AUTHENTICATE USER AND GET THEIR ROLE */
+// func DesAuth(c *fiber.Ctx) (err error) {
 
-	authorization := c.Get("Authorization")
-	// fmt.Printf("AUTHORIZATION: \n%s\n", authorization)
-	// fmt.Printf("ACCESS_TOKEN: \n%s\n", c.Query("access_token"))
+// 	authorization := c.Get("Authorization")
+// 	// fmt.Printf("AUTHORIZATION: \n%s\n", authorization)
+// 	// fmt.Printf("ACCESS_TOKEN: \n%s\n", c.Query("access_token"))
 
-	tokenString := ""
-	if strings.HasPrefix(authorization, "Bearer ") {
-		tokenString = strings.TrimPrefix(authorization, "Bearer ")
-	} else if c.Cookies("token") != "" {
-		tokenString = c.Cookies("token")
-	} else if c.Query("access_token") != "" {
-		tokenString = c.Query("access_token")
-	}
-	if tokenString == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You are not logged in",
-		})
-	}
+// 	tokenString := ""
+// 	if strings.HasPrefix(authorization, "Bearer ") {
+// 		tokenString = strings.TrimPrefix(authorization, "Bearer ")
+// 	} else if c.Cookies("token") != "" {
+// 		tokenString = c.Cookies("token")
+// 	} else if c.Query("access_token") != "" {
+// 		tokenString = c.Query("access_token")
+// 	}
+// 	if tokenString == "" {
+// 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+// 			"status":  "fail",
+// 			"message": "You are not logged in",
+// 		})
+// 	}
 
-	claims, err := GetClaimsFromTokenString(tokenString)
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	}
+// 	claims, err := GetClaimsFromTokenString(tokenString)
+// 	if err != nil {
+// 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+// 			"status":  "fail",
+// 			"message": err.Error(),
+// 		})
+// 	}
 
-	c.Locals("role", claims["rol"])
-	c.Locals("sub", claims["sub"])
+// 	c.Locals("role", claims["rol"])
+// 	c.Locals("sub", claims["sub"])
 
-	return c.Next()
-}
+// 	return c.Next()
+// }

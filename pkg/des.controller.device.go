@@ -30,10 +30,17 @@ package pkg
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
 
+/* ENSURE SERIAL IS:  
+		- NOT BLANK
+		- UPPERCASE
+		- UNIQUE
+		- 10 OR LESS ALPHANUMERICA CHARACHTERS
+*/
 func ValidateSerialNumber(serial string ) (err error) { 
 	
 
@@ -50,7 +57,12 @@ func ValidateSerialNumber(serial string ) (err error) {
 		return fmt.Errorf("Serial number may contain upto 10 alphanumeric values.")
 	}
 
-	/* ENSURE SERIAL DOESN'T ALREADY EXIST */
+	/* ENSURE SERIAL HAS ONLY ALPHANUMERIC CHARACTERS */
+	if alphaNum := regexp.MustCompile(`^[A-Za-z0-9]*$`).MatchString(serial); !alphaNum {
+		return fmt.Errorf("Serial number may contain only alphanumeric values.")
+	}
+
+	/* ENSURE SERIAL IS UNIQUE */
 	regs, err :=  GetDESDeviceList()
 	if err != nil {
 		return // WHTEVER THE ERROR WAS...
@@ -66,8 +78,7 @@ func ValidateSerialNumber(serial string ) (err error) {
 }
 
 
-/* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE */
-// func ValidateDESDevSerial
+/* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE ************************************************/
 
 /* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */
 func RegisterDESDevice(src string, dev DESDev) ( reg DESRegistration, err error) {
