@@ -517,10 +517,10 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleRegisterDevice( )\n")
 
 	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Admin(c.Locals("role")) {
+	if !pkg.UserRole_Super(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "fail",
-			"message": "You must be an administrator to register devices",
+			"message": "You must be an super administrator to register devices",
 		})
 	}
 

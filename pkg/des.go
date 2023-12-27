@@ -44,7 +44,15 @@ func UserRole_Viewer( role interface{} ) bool {
 func UserRole_Device( role interface{} ) bool {
 	return role == ROLE_SUPER || role == ROLE_DEVICE 
 }
-
+func GetSuperUser( ) (ures UserResponse, err error) {
+	user := User{}
+	res := DES.DB.First(&user, "role = ?", ROLE_SUPER)
+	if res.Error != nil {
+		err = res.Error
+	}
+	ures = user.FilterUserRecord()
+	return
+}
 /* TODO : IMPLEMENT DESRole STRUCT */
 // type DESRole struct {
 // 	Code int

@@ -171,6 +171,7 @@ func (des DESDatabase) CreateDESTables(exists bool) (err error) {
 			&DESDev{},
 			&DESJob{},
 			&DESJobSearch{},
+			&DESDevError{},
 		)
 	} else {
 		// fmt.Printf("\nCreating DES Tables: %s\n", DES.ConnStr)
@@ -179,15 +180,16 @@ func (des DESDatabase) CreateDESTables(exists bool) (err error) {
 			&DESDev{},
 			&DESJob{},
 			&DESJobSearch{},
+			&DESDevError{},
 		); err != nil {
 			return err
 		}
 
-		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(ADM_PW), bcrypt.DefaultCost)
-		role := string("admin")
+		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(SPR_PW), bcrypt.DefaultCost)
+		role := ROLE_SUPER
 		newUser := User{
-			Name:     ADM_USER,
-			Email:    strings.ToLower(ADM_EMAIL),
+			Name:     SPR_USER,
+			Email:    strings.ToLower(SPR_EMAIL),
 			Password: string(hashedPassword),
 			Role:     role,
 		}

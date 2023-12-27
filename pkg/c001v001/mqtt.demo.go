@@ -105,15 +105,16 @@ func MakeDemoC001V001(serial string) pkg.DESRegistration {
 
 	t := time.Now().UTC().UnixMilli()
 
-	/* CREATE A DES USER ACCOUNT FOR THIS DEVICE */
-	user, _ := pkg.CreateDESUserForDevice(serial, fmt.Sprintf("%s_CMDARCHIVE", serial) )
-	userID := fmt.Sprintf("%s", user.ID)
+	sup, err := pkg.GetSuperUser()
+	if err != nil {
+		pkg.LogErr(err)
+	}
 
 	/* CREATE DEMO DEVICE */
 	des_dev := pkg.DESDev{
 		DESDevRegTime:   t,
 		DESDevRegAddr:   serial,
-		DESDevRegUserID: userID,
+		DESDevRegUserID: sup.ID.String(),
 		DESDevRegApp:    pkg.DES_APP,
 		DESDevSerial:    serial,
 		DESDevVersion:   "001",
@@ -124,7 +125,7 @@ func MakeDemoC001V001(serial string) pkg.DESRegistration {
 	des_job := pkg.DESJob{
 		DESJobRegTime:   t,
 		DESJobRegAddr:   des_dev.DESDevRegAddr,
-		DESJobRegUserID: userID,
+		DESJobRegUserID: sup.ID.String(),
 		DESJobRegApp:    des_dev.DESDevRegApp,
 
 		DESJobName:  fmt.Sprintf("%s_CMDARCHIVE", serial),
@@ -135,6 +136,10 @@ func MakeDemoC001V001(serial string) pkg.DESRegistration {
 		DESJobDevID: des_dev.DESDevID,
 	}
 	pkg.DES.DB.Create(&des_job)
+
+	/* CREATE A DES USER ACCOUNT FOR THIS DEVICE */
+	user, _ := pkg.CreateDESUserForDevice(serial, fmt.Sprintf("%s_CMDARCHIVE", serial) )
+	userID := fmt.Sprintf("%s", user.ID)
 
 	reg := pkg.DESRegistration{
 		DESDev: des_dev,
@@ -330,7 +335,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() {
 			default: 
 				if !gps {
 					demo.MQTTPublication_DemoDeviceClient_SIGPing()
-					time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT / 2)
+					time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
 				}
 			}
 		}
@@ -783,10 +788,16 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGStartJob(start
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
+	
+	json, err := pkg.ModelToJSONString(start)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGStartJob(),
-		Message:  pkg.ModelToJSONString(start),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -800,10 +811,16 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGEndJob(sta Sta
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
+
+	json, err := pkg.ModelToJSONString(sta)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGEndJob(),
-		Message:  pkg.ModelToJSONString(sta),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -817,13 +834,16 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGPing() {
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
+	
+	json, err := pkg.ModelToJSONString(pkg.Ping{Time: time.Now().UTC().UnixMilli(), OK: true})
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGDevicePing(),
-		Message:  pkg.ModelToJSONString(pkg.Ping{
-			Time: time.Now().UTC().UnixMilli(),
-			OK: true,
-		}),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -837,10 +857,16 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGAdmin(adm Admi
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
+
+	json, err := pkg.ModelToJSONString(adm)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGAdmin(),
-		Message:  pkg.ModelToJSONString(adm),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -854,10 +880,16 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGState(sta Stat
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
+
+	json, err := pkg.ModelToJSONString(sta)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGState(),
-		Message:  pkg.ModelToJSONString(sta),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -871,10 +903,16 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGHeader(hdr Hea
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
+
+	json, err := pkg.ModelToJSONString(hdr)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGHeader(),
-		Message:  pkg.ModelToJSONString(hdr),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -888,10 +926,16 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGConfig(cfg Con
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
+
+	json, err := pkg.ModelToJSONString(cfg)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGConfig(),
-		Message:  pkg.ModelToJSONString(cfg),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -905,10 +949,16 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGEvent(evt Even
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
+
+	json, err := pkg.ModelToJSONString(evt)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGEvent(),
-		Message:  pkg.ModelToJSONString(evt),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -945,10 +995,16 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGMsgLimit(msg M
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
+
+	json, err := pkg.ModelToJSONString(msg)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	sig := pkg.MQTTPublication{
 
 		Topic:    demo.MQTTTopic_SIGMsgLimit(),
-		Message:  pkg.ModelToJSONString(msg),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -1466,7 +1522,11 @@ func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
 */
 func WriteModelToFlashJSON(jobName, fileName string, mod interface{}) (err error) {
 
-	js := pkg.ModelToJSONString(mod)
+
+	js, err := pkg.ModelToJSONString(mod)
+	if err != nil {
+		pkg.LogErr(err)
+	}
 
 	dir := fmt.Sprintf("demo/%s", jobName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {

@@ -158,6 +158,10 @@ func (sta *State) SIGValidate(device *Device) (err error) {
 		pkg.LogErr(errors.New("\nInvalid device.STA.StaAddr."))
 		sta.StaAddr = device.DESDevSerial 
 	}
+	if sta.StaAddr != device.DESDevSerial { 
+		pkg.LogErr(errors.New("\nInvalid device.STA.StaApp."))
+		sta.StaApp = device.DESDevSerial 
+	}
 	if sta.StaUserID != device.DESU.ID.String() { 
 		pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
 		sta.StaUserID = device.DESU.ID.String() 

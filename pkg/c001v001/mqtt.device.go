@@ -89,7 +89,10 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGStartJob() pkg.MQTTSubscr
 				pkg.LogErr(err)
 			}
 			/* VALIDATE */
-			if err := start.SIGValidate(device); err == nil { 
+			if err := start.SIGValidate(device); err != nil { 
+				desd := device.DESDev 
+				go desd.MakeDESDevError(err.Error(), start)
+			} else {
 				device.StartJob(start) 
 			} 
 		},
@@ -111,7 +114,10 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEndJob() pkg.MQTTSubscrip
 			}
 
 			/* VALIDATE */
-			if err := sta.SIGValidate(device); err == nil { 
+			if err := sta.SIGValidate(device); err != nil { 
+				desd := device.DESDev 
+				go desd.MakeDESDevError(err.Error(), sta)
+			} else { 
 				device.EndJob(sta)
 			}
 
@@ -162,8 +168,10 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 			}
 
 			/* VALIDATE */
-			if err := adm.SIGValidate(device); err == nil { 
-
+			if err := adm.SIGValidate(device); err != nil { 
+				desd := device.DESDev 
+				go desd.MakeDESDevError(err.Error(), adm)
+			} else {
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteADM(adm, &device.CmdDBC)
 
@@ -198,8 +206,10 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscript
 			}
 
 			/* VALIDATE */
-			if err := sta.SIGValidate(device); err == nil { 
-
+			if err := sta.SIGValidate(device); err != nil { 
+				desd := device.DESDev 
+				go desd.MakeDESDevError(err.Error(), sta)
+			} else {
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteSTA(sta, &device.CmdDBC)
 
@@ -233,8 +243,10 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 			}
 
 			/* VALIDATE */
-			if err := hdr.SIGValidate(device); err == nil { 
-
+			if err := hdr.SIGValidate(device); err != nil { 
+				desd := device.DESDev 
+				go desd.MakeDESDevError(err.Error(), hdr)
+			} else {
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteHDR(hdr, &device.CmdDBC)
 
@@ -274,8 +286,10 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 			}
 
 			/* VALIDATE */
-			if err := cfg.SIGValidate(device); err == nil { 
-
+			if err := cfg.SIGValidate(device); err != nil { 
+				desd := device.DESDev 
+				go desd.MakeDESDevError(err.Error(), cfg)
+			} else {
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteCFG(cfg, &device.CmdDBC)
 
@@ -311,8 +325,10 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 			}
 
 			/* VALIDATE */
-			if err := evt.SIGValidate(device); err == nil { 
-
+			if err := evt.SIGValidate(device); err != nil { 
+				desd := device.DESDev 
+				go desd.MakeDESDevError(err.Error(), evt)
+			} else {
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteEVT(evt, &device.CmdDBC)
 
@@ -377,9 +393,15 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGDiagSample() pkg.MQTTSubs
 SENT BY THE DES TO USER CLIENTS (WS) TO SIGNAL THIS DEVICE CLIENT'S BROKER CONNECTION STATUS
 */
 func (device *Device) MQTTPublication_DeviceClient_DESDeviceClientPing(ping pkg.Ping) {
+	
+	json, err := pkg.ModelToJSONString(ping)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	des := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_DESDeviceClientPing(),
-		Message:  pkg.ModelToJSONString(ping),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -394,9 +416,15 @@ func (device *Device) MQTTPublication_DeviceClient_DESDeviceClientPing(ping pkg.
 SENT BY THE DES TO USER CLIENTS (WS) TO SIGNAL THE DEVICE'S BROKER CONNECTION STATUS
 */
 func (device *Device) MQTTPublication_DeviceClient_DESDevicePing(ping pkg.Ping) {
+
+	json, err := pkg.ModelToJSONString(ping)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	des := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_DESDevicePing(),
-		Message:  pkg.ModelToJSONString(ping),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -419,9 +447,14 @@ func (device *Device) MQTTPublication_DeviceClient_CMDStartJob() {
 		EVT: device.EVT,
 	}
 
+	json, err := pkg.ModelToJSONString(start)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDStartJob(),
-		Message:  pkg.ModelToJSONString(start),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -433,9 +466,14 @@ func (device *Device) MQTTPublication_DeviceClient_CMDStartJob() {
 /* PUBLICATION -> END JOB */
 func (device *Device) MQTTPublication_DeviceClient_CMDEndJob(evt Event) {
 
+	json, err := pkg.ModelToJSONString(evt)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDEndJob(),
-		Message:  pkg.ModelToJSONString(evt),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -449,7 +487,7 @@ func (device *Device) MQTTPublication_DeviceClient_CMDReport() {
 
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDReport(),
-		Message:  "eeeyaaaah...",
+		Message:  "eeeyaaaah...", // I'm gonna need those TPS reports...
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -461,9 +499,14 @@ func (device *Device) MQTTPublication_DeviceClient_CMDReport() {
 /* PUBLICATION -> ADMINISTRATION */
 func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 
+	json, err := pkg.ModelToJSONString(adm)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDAdmin(),
-		Message:  pkg.ModelToJSONString(adm),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -475,9 +518,14 @@ func (device *Device) MQTTPublication_DeviceClient_CMDAdmin(adm Admin) {
 /* PUBLICATION -> STATE */
 func (device *Device) MQTTPublication_DeviceClient_CMDState(sta State) {
 
+	json, err := pkg.ModelToJSONString(sta)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDState(),
-		Message:  pkg.ModelToJSONString(sta),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -489,9 +537,14 @@ func (device *Device) MQTTPublication_DeviceClient_CMDState(sta State) {
 /* PUBLICATION -> HEADER */
 func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) {
 
+	json, err := pkg.ModelToJSONString(hdr)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDHeader(),
-		Message:  pkg.ModelToJSONString(hdr),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -503,9 +556,14 @@ func (device *Device) MQTTPublication_DeviceClient_CMDHeader(hdr Header) {
 /* PUBLICATION -> CONFIGURATION */
 func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) {
 
+	json, err := pkg.ModelToJSONString(cfg)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDConfig(),
-		Message:  pkg.ModelToJSONString(cfg),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -517,9 +575,14 @@ func (device *Device) MQTTPublication_DeviceClient_CMDConfig(cfg Config) {
 /* PUBLICATION -> EVENT */
 func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) {
 
+	json, err := pkg.ModelToJSONString(evt)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDEvent(),
-		Message:  pkg.ModelToJSONString(evt),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,
@@ -531,9 +594,14 @@ func (device *Device) MQTTPublication_DeviceClient_CMDEvent(evt Event) {
 /* PUBLICATION -> MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 func (device *Device) MQTTPublication_DeviceClient_CMDMsgLimit(msg MsgLimit) {
 
+	json, err := pkg.ModelToJSONString(msg)
+	if err != nil {
+		pkg.LogErr(err)
+	}
+
 	cmd := pkg.MQTTPublication{
 		Topic:    device.MQTTTopic_CMDMsgLimit(),
-		Message:  pkg.ModelToJSONString(msg),
+		Message:  json,
 		Retained: false,
 		WaitMS:   0,
 		Qos:      0,

@@ -135,12 +135,13 @@ func ModelToJSONB(mod interface{}) (jsonb []byte) {
 	return
 }
 
-func ModelToJSONString(mod interface{}) (msg string) {
+func ModelToJSONString(mod interface{}) (msg string, err error) {
 
 	js, err := json.Marshal(mod)
 	if err != nil {
 		LogErr(err)
 	}
 	// fmt.Printf("\n%s\n", string(js))
-	return string(js)
+	msg = string(js)
+	return 
 }
