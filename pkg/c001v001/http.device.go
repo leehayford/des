@@ -21,13 +21,13 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 		router.Post("/des_client_disconnect", pkg.DesAuth, HandleDESDeviceClientDisconnect)
 
 		/* DEVICE-OPERATOR-LEVEL OPERATIONS */
-		router.Post("/start", pkg.DesAuth, HandleStartJob)
-		router.Post("/end", pkg.DesAuth, HandleEndJob)
-		router.Post("/admin", pkg.DesAuth, HandleSetAdmin)
-		router.Post("/state", pkg.DesAuth, HandleSetState)
-		router.Post("/header", pkg.DesAuth, HandleSetHeader)
-		router.Post("/config", pkg.DesAuth, HandleSetConfig)
-		router.Post("/event", pkg.DesAuth, HandleCreateDeviceEvent)
+		router.Post("/start", pkg.DesAuth, HandleStartJobRequest)
+		router.Post("/end", pkg.DesAuth, HandleEndJobRequest)
+		router.Post("/admin", pkg.DesAuth, HandleSetAdminRequest)
+		router.Post("/state", pkg.DesAuth, HandleSetStateRequest)
+		router.Post("/header", pkg.DesAuth, HandleSetHeaderRequest)
+		router.Post("/config", pkg.DesAuth, HandleSetConfigRequest)
+		router.Post("/event", pkg.DesAuth, HandleSetEventRequest)
 
 		/* DEVICE-VIEWER-LEVEL OPERATIONS */
 		router.Post("/job_events", pkg.DesAuth, HandleGetActiveJobEvents)
@@ -58,29 +58,18 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to view device list",
-		})
+		txt := "You must be an operator to view device list"
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	regs, err := GetDeviceList()
 	if err != nil {
-		pkg.LogErr(err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("GetDeviceList(...) -> query failed:\n%s\n", err),
-			"data":    fiber.Map{"regs": regs},
-		})
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
 
 	devices := GetDevices(regs)
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"devices": devices},
-	})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"devices": devices})
 }
 
 /* NOT TESTED --> CURRENTLY HANDLED ON FRONT END...*/
@@ -89,40 +78,26 @@ func HandleSearchDevices(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to search devices",
-		})
+		txt := "You must be an operator to search devices"
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	params := pkg.DESSearchParam{}
-	if err = c.BodyParser(&params); err != nil {
-		pkg.LogErr(err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+	if err := c.BodyParser(&params); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
 	} // pkg.Json("HandleSearchDevices( )", params)
 
 	/* SEARCH ACTIVE DEVICES BASED ON params */
 	regs, err := pkg.SearchDESDevices(params)
 	if err != nil {
-		pkg.LogErr(err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("pkg.SearchDESDevices(...) -> query failed:\n%s\n", err),
-			"data":    fiber.Map{"regs": regs},
-		})
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
 
 	devices := GetDevices(regs)
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"devices": devices},
-	})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"devices": devices})
 }
 
 /*
@@ -134,48 +109,36 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	DES JOB REGISTRATION
 	CLASS/VERSION SPECIFIC JOB START ACTIONS
 */
-func HandleStartJob(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleStartJob( )\n")
+func HandleStartJobRequest(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleStartJobRequest( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to start a job",
-		})
+		txt := "You must be an operator to start a job"
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleStartJob(): -> c.BodyParser(&device) -> device", device)
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
+	} // pkg.Json("HandleStartJobRequest(): -> c.BodyParser(&device) -> device", device)
 
 	/* TODO : MOVE TO DES, CREATE CUSTOM Status ?
 	CHECK DEVICE AVAILABILITY */
 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "Device not connected to broker",
-		})
-	} // pkg.Json("HandleStartJob(): -> device.CheckPing( ) -> device", device)
+		txt := "Device not connected to broker."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
+	} // pkg.Json("HandleStartJobRequest(): -> device.CheckPing( ) -> device", device)
 
 	/* SEND START JOB REQUEST */
 	if err = device.StartJobRequest(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleStartJob(): -> device.StartJobRequest(...) -> device", device)
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	} 
+	// pkg.Json("HandleStartJobRequest(): -> device.StartJobRequest(...) -> device", device)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 Job Start Request sent to device.",
-	})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
 /*
@@ -187,39 +150,28 @@ UPON MQTT MESSAGE AT '.../CMD/EVENT, DEVICE CLIENT PERFORMS
 	DES JOB REGISTRATION ( UPDATE CMDARCHIVE START DATE )
 	CLASS/VERSION SPECIFIC JOB END ACTIONS
 */
-func HandleEndJob(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleEndtJob( )\n")
+func HandleEndJobRequest(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleEndJobRequest( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to end a job",
-		})
+		txt := "You must be an operator to end a job"
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("(dev *Device) HandleEndJob(): -> c.BodyParser(&device) -> dev", device)
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
+	} // pkg.Json("HandleEndJobRequest(): -> c.BodyParser(&device) -> dev", device)
 
 	/* SEND END JOB REQUEST */
 	if err = device.EndJobRequest(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleStartJob(): -> device.EndJobRequest(...) -> device", device)
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	} // pkg.Json("HandleEndJobRequest(): -> device.EndJobRequest(...) -> device", device)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 Job End Reqest sent to device.",
-	})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
 /*
@@ -227,39 +179,28 @@ func HandleEndJob(c *fiber.Ctx) (err error) {
 
 BOTH DURING A JOB OR WHEN SENT TO CMDARCHIVE, TO ALTER THE DEVICE DEFAULTS
 */
-func HandleSetAdmin(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleSetAdmin( )\n")
+func HandleSetAdminRequest(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleSetAdminRequest( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to alter device administration data.",
-		})
+		txt := "You must be an operator to alter device administration data."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleSetAdmin(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
+	} // pkg.Json("HandleSetAdminRequest(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
 
 	/* SEND SET ADMIN REQUEST */
 	if err = device.SetAdminRequest(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleSetAdmin(): -> device.SetAdminRequest(...) -> device.ADM", device.ADM)
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	} // pkg.Json("HandleSetAdminRequest(): -> device.SetAdminRequest(...) -> device.ADM", device.ADM)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 SET ADMIN Reqest sent to device.",
-	})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
 /*
@@ -270,39 +211,28 @@ THE STATE IS A READ ONLY STRUCTURE AT THIS TIME
 FUTURE VERSIONS WILL ALLOW DEVICE ADMINISTRATORS TO ALTER SOME STATE VALUES REMOTELY
 CURRENTLY THIS HANDLER IS USED ONLY TO REQUEST THE CURRENT DEVICE STATE
 */
-func HandleSetState(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleSetState( )\n")
+func HandleSetStateRequest(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleSetStateRequest( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to see device hardware ID data.",
-		})
+		txt := "You must be an operator to check device state."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleSetState(): -> c.BodyParser(&device) -> device.STA", device.STA)
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
+	} // pkg.Json("HandleSetStateRequest(): -> c.BodyParser(&device) -> device.STA", device.STA)
 
 	/* SEND GET STATE REQUEST */
 	if err = device.SetStateRequest(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleSetState(): -> device.SetStateRequest(...) -> device", device)
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	} // pkg.Json("HandleSetStateRequest(): -> device.SetStateRequest(...) -> device", device)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 GET STATE Reqest sent to device.",
-	})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
 /*
@@ -310,39 +240,28 @@ func HandleSetState(c *fiber.Ctx) (err error) {
 
 BOTH DURING A JOB OR WHEN SENT TO CMDARCHIVE, TO ALTER THE DEVICE DEFAULTS
 */
-func HandleSetHeader(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleSetHeader( )\n")
+func HandleSetHeaderRequest(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleSetHeaderRequest( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to alter job header data.",
-		})
+		txt := "You must be an operator to alter job header data."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleSetHeader(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
+	} // pkg.Json("HandleSetHeaderRequest(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
 
 	/* SEND SET HEADER REQUEST */
 	if err = device.SetHeaderRequest(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleSetHeader(): -> device.SetHeaderRequest(...) -> device.HDR", device.HDR)
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	} // pkg.Json("HandleSetHeaderRequest(): -> device.SetHeaderRequest(...) -> device.HDR", device.HDR)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 SET HEADER Reqest sent to device.",
-	})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
 /*
@@ -350,39 +269,28 @@ func HandleSetHeader(c *fiber.Ctx) (err error) {
 
 BOTH DURING A JOB OR WHEN SENT TO CMDARCHIVE, TO ALTER THE DEVICE DEFAULTS
 */
-func HandleSetConfig(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleSetConfig( )\n")
+func HandleSetConfigRequest(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleSetConfigRequest( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to alter job configuration data.",
-		})
+		txt := "You must be an operator to alter job configuration data."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleSetConfig(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
+	} // pkg.Json("HandleSetConfigRequest(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
 
 	/* SEND SET CONFIG REQUEST */
 	if err = device.SetConfigRequest(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleSetConfig(): -> device.SetConfigRequest(...) -> device.CFG", device.CFG)
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	} // pkg.Json("HandleSetConfigRequest(): -> device.SetConfigRequest(...) -> device.CFG", device.CFG)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 SET CONFIG Reqest sent to device.",
-	})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
 /*
@@ -390,74 +298,52 @@ func HandleSetConfig(c *fiber.Ctx) (err error) {
 
 BOTH DURING A JOB AND TO MAKE NOTE OF NON-JOB SPECIFIC ... STUFF ( MAINTENANCE ETC. )
 */
-func HandleCreateDeviceEvent(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleCreateDeviceEvent( )\n")
+func HandleSetEventRequest(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleSetEventRequest( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator to create Events.",
-		})
+		txt := "You must be an operator to create Events."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleCreateDeviceEvent( ): -> c.BodyParser(&device) -> device.EVT", device.EVT)
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
+	} // pkg.Json("HandleSetEventRequest( ): -> c.BodyParser(&device) -> device.EVT", device.EVT)
 
 	/* SEND CREATE EVENT REQUEST */
-	if err = device.CreateEventRequest(c.IP()); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} // pkg.Json("HandleCreateDeviceEvent( ): -> device.CreateEventRequest(...) -> device.EVT", device.EVT)
+	if err = device.SetEventRequest(c.IP()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	} // pkg.Json("HandleSetEventRequest( ): -> device.CreateEventRequest(...) -> device.EVT", device.EVT)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"data":    fiber.Map{"device": &device},
-		"message": "C001V001 CREATE EVENT REQUEST sent to device.",
-	})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
 func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
-	fmt.Printf("\nHandleGetActiveJobEvents( )\n")
+	// fmt.Printf("\nHandleGetActiveJobEvents( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be a registered user to view job evens.",
-		})
+		txt := "You must be a registered user to view job evens."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
 	} // pkg.Json("HandleGetActiveJobEvents(): -> c.BodyParser(&device) -> device", device)
 
 	evts, err := device.GetActiveJobEvents()
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	} // pkg.Json("HandleGetActiveJobEvents(): -> device.GetActiveJobEvents() -> evts", evts)
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"events": &evts},
-	})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"events": &evts})
 }
 
 /* USED TO OPEN A WEB SOCKET CONNECTION BETWEEN A USER AND A GIVEN DEVICE */
@@ -476,9 +362,9 @@ func HandleDeviceUserClient_Connect(c *websocket.Conn) {
 		c.Conn.WriteJSON(string(js))
 		return
 	}
-	
+
 	/* PARSE AND VALIDATE REQUEST DATA - SESSION ID */
-	sid, err := url.QueryUnescape(c.Query("sid"))	
+	sid, err := url.QueryUnescape(c.Query("sid"))
 	if err != nil {
 		js, err := json.Marshal(&WSMessage{Type: "auth", Data: err.Error()})
 		if err != nil {
@@ -487,7 +373,7 @@ func HandleDeviceUserClient_Connect(c *websocket.Conn) {
 		}
 		c.Conn.WriteJSON(string(js))
 		return
-	}	
+	}
 
 	/* PARSE AND VALIDATE REQUEST DATA - DEVICE */
 	device := Device{}
@@ -496,12 +382,10 @@ func HandleDeviceUserClient_Connect(c *websocket.Conn) {
 		pkg.LogErr(err)
 	}
 
-
 	/* CONNECTED DEVICE USER CLIENT *** DO NOT RUN IN GO ROUTINE *** */
 	duc := DeviceUserClient{Device: device}
 	duc.DeviceUserClient_Connect(c, sid)
 }
-
 
 /**************************************************************************************************************/
 /* DES ADMINISTRATION ************************************************************************************/
@@ -519,43 +403,31 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Super(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an super administrator to register devices",
-		})
+		txt := "You must be an super administrator to register devices"
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
-	} 
-	pkg.Json("HandleRegisterDevice( ) -> c.BodyParser( device ) -> device.DESDev", device.DESDev)
-
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
+	} // pkg.Json("HandleRegisterDevice( ) -> c.BodyParser( device ) -> device.DESDev", device.DESDev)
 
 	/* REGISTER A C001V001 DEVICE ON THIS DES */
 	if err := device.RegisterDevice(c.IP()); err != nil {
 
-		if ( strings.Contains(err.Error(), "Serial") ) {
+		if strings.Contains(err.Error(), "Serial") {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 
 		} else {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status":  "fail",
-				"message": err.Error(),
-			})
+			txt := fmt.Sprintf("Failed to register device: %s", err.Error())
+			return c.Status(fiber.StatusInternalServerError).SendString(txt)
 		}
 
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"message": fmt.Sprintf("%s Registered.", device.DESDevSerial),
-		"data":    fiber.Map{"device": &device},
-	})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
 func HandleDESDeviceClientDisconnect(c *fiber.Ctx) (err error) {
@@ -645,7 +517,6 @@ func HandleDESDeviceClientRefresh(c *fiber.Ctx) (err error) {
 		"data":    fiber.Map{"device": &d},
 	})
 }
-
 
 /**************************************************************************************************************/
 /* DEBUGGING STUFF :  REMOVE FOR PRODUCTION *******************************************************/

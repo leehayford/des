@@ -15,6 +15,7 @@ License:
 package pkg
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -96,7 +97,10 @@ func SearchDESJobsByToken(token string) (regs []DESRegistration, err error) {
 		Where("des_job_searches.des_job_token LIKE ?", token)
 
 	res := qry.Scan(&regs)
-	err = res.Error
+	if res.Error != nil {
+		err = fmt.Errorf("Failed to retrieve jobs from database: %s", res.Error.Error())
+		return
+	}
 	return
 }
 
@@ -112,7 +116,10 @@ func SearchDESJobsByRegion(lngMin, lngMax, latMin, latMax float32) (regs []DESRe
 		Where("( des_jobs.des_job_lng BETWEEN ? AND ? ) AND ( des_jobs.des_job_lat BETWEEN ? AND ? ) ", lngMin, lngMax, latMin, latMax)
 
 	res := qry.Scan(&regs)
-	err = res.Error
+	if res.Error != nil {
+		err = fmt.Errorf("Failed to retrieve jobs from database: %s", res.Error.Error())
+		return
+	}
 	return
 }
 
@@ -133,7 +140,10 @@ func SearchDESJobs(p DESSearchParam) (regs []DESRegistration, err error) {
 			p.Token, p.LngMin, p.LngMax, p.LatMin, p.LatMax)
 
 	res := qry.Scan(&regs)
-	err = res.Error
+	if res.Error != nil {
+		err = fmt.Errorf("Failed to retrieve jobs from database: %s", res.Error.Error())
+		return
+	}
 	return
 }
 
@@ -163,7 +173,10 @@ func SearchDESDevices(p DESSearchParam) (regs []DESRegistration, err error) {
 
 
 	res := qry.Scan(&regs)
-	err = res.Error
+	if res.Error != nil {
+		err = fmt.Errorf("Failed to retrieve devices from database: %s", res.Error.Error())
+		return
+	}
 	return
 }
 

@@ -2,6 +2,7 @@ package c001v001
 
 import (
 	"errors"
+	"fmt"
 	"github.com/leehayford/des/pkg"
 )
 
@@ -190,7 +191,7 @@ CONFIG - VALIDATE MQTT SIG FROM DEVICE
 func (cfg *Config) SIGValidate(device *Device) (err error) {
 	
 	if err = pkg.ValidateUnixMilli(cfg.CfgTime); err != nil {
-		return pkg.LogErr(err)
+		return fmt.Errorf("Invlid CfgTime: %s", err.Error())
 	}
 	if cfg.CfgAddr != device.DESDevSerial { 
 		pkg.LogErr(errors.New("\nInvalid device.CFG.CfgAddr."))

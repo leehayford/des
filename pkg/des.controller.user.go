@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gofiber/fiber/v2" // go get github.com/gofiber/fiber/v2
 	"github.com/golang-jwt/jwt"   // go get github.com/golang-jwt/jwt
 	"github.com/google/uuid"      // go get github.com/google/uuid
 	"golang.org/x/crypto/bcrypt"  // go get golang.org/x/crypto/bcrypt
@@ -44,7 +43,7 @@ func UserSessionsMapWrite(u UserSession) (err error) {
 
 	sid := u.SID.String()
 	if sid == "" || sid == "00000000-0000-0000-0000-000000000000" {
-		err = fmt.Errorf("No session ID.")
+		err = fmt.Errorf("Invalid user session ID.")
 		return
 	}
 
@@ -102,12 +101,12 @@ func (us *UserSession) GetMappedRefTok() (err error) {
 	return
 }
 
-
 /* CREATE A NEW USER WITH DEFAULT ROLES */
 func RegisterUser(runp RegisterUserInput) (user User, err error) {
 
 	pwHash, err := bcrypt.GenerateFromPassword([]byte(runp.Password), bcrypt.DefaultCost)
 	if err != nil {
+		err = fmt.Errorf("Failed to hash password: %s", err.Error())
 		return
 	}
 
@@ -124,7 +123,7 @@ func RegisterUser(runp RegisterUserInput) (user User, err error) {
 		if strings.Contains(res.Error.Error(), "duplicate key value violates unique") {
 			err = fmt.Errorf("User with that email already exists")
 		} else {
-			err = res.Error
+			err = fmt.Errorf("Failed to create user in database: %s", res.Error.Error())
 		}
 	}
 
@@ -140,7 +139,7 @@ func LoginUser(lunp LoginUserInput) (us UserSession, err error) {
 	if res.Error != nil {
 		err = fmt.Errorf("Invalid email or password")
 		return
-	}
+	} // Json("LoginUser() -> user:", user)
 
 	/* CHECK PASSWORD */
 	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(lunp.Password)); err != nil {
@@ -152,19 +151,19 @@ func LoginUser(lunp LoginUserInput) (us UserSession, err error) {
 	us.SID = uuid.New()
 
 	/*  FILTER USER DATA */
-	us.USR = user.FilterUserRecord()
+	us.USR = user.FilterUserRecord() // Json("LoginUser() -> user session:", us)
 
 	/* CREATE REFRESH TOKEN*/
 	err = us.CreateJWTRefreshToken(JWT_REFRESH_EXPIRED_IN)
 	if err != nil {
-		err = fmt.Errorf("Refresh token generation failed: %v", err)
+		err = fmt.Errorf("Refresh token generation failed: %s", err.Error())
 		return
 	}
 
 	/* CREATE ACCESS TOKEN */
 	err = us.CreateJWTAccessToken()
 	if err != nil {
-		err = fmt.Errorf("Access token generation failed: %v", err)
+		err = fmt.Errorf("Access token generation failed: %s", err.Error())
 		return
 	}
 
@@ -174,69 +173,7 @@ func LoginUser(lunp LoginUserInput) (us UserSession, err error) {
 	return
 }
 
-func GetClaimsFromTokenString(token string) (claims jwt.MapClaims, err error) {
-
-	/* PARSE TOKEN STRING */
-	tokenByte, err := jwt.Parse(token, func(jwtToken *jwt.Token) (interface{}, error) {
-		if _, jwt_err := jwtToken.Method.(*jwt.SigningMethodHMAC); !jwt_err {
-			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
-		}
-		return []byte(JWT_SECRET), nil
-	})
-	if err != nil {
-		return
-	}
-
-	/* GET THE USER ROLE & PASS ALONG TO THE NEXT HANDLER */
-	claims, ok := tokenByte.Claims.(jwt.MapClaims)
-	if !ok || !tokenByte.Valid {
-		err = fmt.Errorf("invalid token claim")
-		return
-	}
-	return
-}
-
-/* CREATES A NEW ACCESS TOKEN IF REFRESH TOKEN HAS NOT EXPIRED */
-func (us *UserSession) RefreshAccessToken() (err error) {
-	// fmt.Printf("\nRefreshAccessToken( )")
-
-	/* GET USER FROM SESSION MAP */
-	mus, err := UserSessionsMapRead(string(us.SID.String()))
-	if err != nil {
-		return
-	}  // Json("RefreshAccessToken( ) -> UserSessionsMapRead( ) -> mus: ", mus)
-
-	/* CHECK REFRESH TOKEN EXPIRE DATE IN MAPPED USER SESSION. IF TIMEOUT, DENY */
-	ref_claims, err := GetClaimsFromTokenString(mus.REFTok)
-	if err != nil {
-		return err
-	}
-	exp := 0
-	now := int(time.Now().Unix())
-	if fExp, ok := ref_claims["exp"].(float64); ok {
-		exp = int(fExp)
-	} // fmt.Printf("\nRefreshAccessToken( ) -> exp: %d", exp) // fmt.Printf("\nRefreshAccessToken( ) -> now: %d\n", now)
-
-	if exp < now {
-		err = fmt.Errorf("Your refresh token has expired. Please log in.")
-		return
-	}
-
-	err = us.CreateJWTAccessToken()
-	if err != nil {
-		return
-	}
-
-	err = UserSessionsMapWrite(*us)
-
-	return
-}
-
-/*
-	REMOVES ALL SESSIONS FOR GIVEN USER
-
-INCLUDING SESSIONS SHARING A USER ACCOUNT
-*/
+/* REMOVES ALL SESSIONS FOR GIVEN USER FROM UserSessionsMap */
 func TerminateUserSessions(ur UserResponse) (count int) {
 
 	sess := UserSessionsMapCopy()
@@ -252,6 +189,66 @@ func TerminateUserSessions(ur UserResponse) (count int) {
 	return
 }
 
+/* RETURNS ALL TOKEN CLAIMS */
+func GetClaimsFromTokenString(token string) (claims jwt.MapClaims, err error) {
+
+	/* PARSE TOKEN STRING */
+	tokenByte, err := jwt.Parse(token, func(jwtToken *jwt.Token) (interface{}, error) {
+		if _, jwt_err := jwtToken.Method.(*jwt.SigningMethodHMAC); !jwt_err {
+			return nil, fmt.Errorf("Unexpected signing method: %s", jwtToken.Header["alg"])
+		}
+		return []byte(JWT_SECRET), nil
+	})
+	if err != nil {
+		return
+	}
+
+	/* GET THE USER ROLE & PASS ALONG TO THE NEXT HANDLER */
+	claims, ok := tokenByte.Claims.(jwt.MapClaims)
+	if !ok || !tokenByte.Valid {
+		err = fmt.Errorf("Invalid token claim.")
+		return
+	}
+	return
+}
+
+/* REMOVES THE SESSION FOR GIVEN USER FROM UserSessionsMap */
+func (us *UserSession) LogoutUser() {
+	UserSessionsMapRemove(us.SID.String())
+}
+
+/* CREATES A NEW ACCESS TOKEN IF REFRESH TOKEN HAS NOT EXPIRED */
+func (us *UserSession) RefreshAccessToken() (err error) {
+	// fmt.Printf("\nRefreshAccessToken( )")
+
+	/* GET USER FROM SESSION MAP */
+	mus, err := UserSessionsMapRead(string(us.SID.String()))
+	if err != nil {
+		return
+	} // Json("RefreshAccessToken( ) -> UserSessionsMapRead( ) -> mus: ", mus)
+
+	/* CHECK REFRESH TOKEN EXPIRE DATE IN MAPPED USER SESSION. IF TIMEOUT, DENY */
+	ref_claims, err := GetClaimsFromTokenString(mus.REFTok)
+	if err != nil {
+		return err
+	}
+	exp := 0
+	now := int(time.Now().Unix())
+	if fExp, ok := ref_claims["exp"].(float64); ok {
+		exp = int(fExp)
+	} // fmt.Printf("\nRefreshAccessToken( ) -> exp: %d", exp) // fmt.Printf("\nRefreshAccessToken( ) -> now: %d\n", now)
+
+	if exp < now {
+		return fmt.Errorf("Your refresh token has expired. Please log in.")
+	}
+
+	if err = us.CreateJWTAccessToken(); err != nil {
+		return
+	}
+
+	return UserSessionsMapWrite(*us)
+}
+
 /* CREATES A JWT REFRESH TOKEN; USED ON LOGIN ONLY */
 func (us *UserSession) CreateJWTRefreshToken(dur time.Duration) (err error) {
 
@@ -261,9 +258,13 @@ func (us *UserSession) CreateJWTRefreshToken(dur time.Duration) (err error) {
 	tokClaims["exp"] = time.Now().UTC().Add(dur).Unix()
 
 	us.REFTok, err = tokByte.SignedString([]byte(JWT_SECRET))
+	if err != nil {
+		err = fmt.Errorf("Failed to sign refresh token: %s", err.Error())
+	}
 	return
 }
 
+/* CREATES A JWT ACCESS TOKEN; USED ON LOGIN AND SUBSEQUENT REFRESHES */
 func (us *UserSession) CreateJWTAccessToken() (err error) {
 
 	now := time.Now().UTC()
@@ -285,11 +286,10 @@ func (us *UserSession) CreateJWTAccessToken() (err error) {
 	tokenByte := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	us.ACCTok, err = tokenByte.SignedString([]byte(JWT_SECRET))
+	if err != nil {
+		err = fmt.Errorf("Failed to sign access token: %s", err.Error())
+	}
 	return
-}
-
-func (us *UserSession) LogoutUser() {
-	UserSessionsMapRemove(us.SID.String())
 }
 
 func GetUserByID(userID interface{}) (user User, err error) {
@@ -301,22 +301,22 @@ func GetUserByID(userID interface{}) (user User, err error) {
 	return
 }
 
-func GetUserList(c *fiber.Ctx) error {
-	// fmt.Printf("\nGetUsers( ):\n")
+func GetUserList() (users []UserResponse, err error) {
 
-	users := []User{}
-	DES.DB.Find(&users) // fmt.Printf("\nusrs: %d\n", len(users))
+	qry := DES.DB.Table("users").Select("*")
 
-	userList := []UserResponse{}
-	for _, user := range users {
-		userList = append(userList, user.FilterUserRecord())
+	us := []User{}
+	res := qry.Scan(&us)
+	if res.Error != nil {
+		err = fmt.Errorf("Failed to retrieve users from database: %s", res.Error.Error())
+		return
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "These are all tolerable people!",
-		"data":    fiber.Map{"users": userList},
-	})
+	for _, user := range us {
+		users = append(users, user.FilterUserRecord())
+	}
+
+	return
 }
 
 func CreateDESUserForDevice(serial, pw string) (user UserResponse, err error) {

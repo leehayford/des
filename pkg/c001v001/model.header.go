@@ -96,7 +96,7 @@ HEADER - VALIDATE MQTT SIG FROM DEVICE
 func (hdr *Header) SIGValidate(device *Device) (err error) {
 	
 	if err = pkg.ValidateUnixMilli(hdr.HdrTime); err != nil {
-		return pkg.LogErr(err)
+		return fmt.Errorf("Invlid HdrTime: %s", err.Error())
 	}
 	
 	if hdr.HdrAddr != device.DESDevSerial { 

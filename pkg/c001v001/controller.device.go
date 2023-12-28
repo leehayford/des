@@ -52,9 +52,11 @@ type Device struct {
 -  CONNECT DEVICE ( DeviceClient_Connect() )
 */
 func (device *Device) RegisterDevice(src string) (err error) {
-	fmt.Printf("\n(*Device) RegisterDevice( ) %s...\n", device.DESDevSerial)
+	// fmt.Printf("\n(*Device) RegisterDevice( ) %s...\n", device.DESDevSerial)
 
-	if err = pkg.ValidateSerialNumber(device.DESDevSerial); err != nil { return }
+	if err = pkg.ValidateSerialNumber(device.DESDevSerial); err != nil {
+		return
+	}
 
 	t := time.Now().UTC().UnixMilli()
 
@@ -63,7 +65,7 @@ func (device *Device) RegisterDevice(src string) (err error) {
 	device.DESDevRegAddr = src
 	device.DESDevVersion = DEVICE_VERSION
 	device.DESDevClass = DEVICE_CLASS
-	pkg.Json("(*Device) RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESDev) -> device.DESDev", device.DESDev)
+	// pkg.Json("(*Device) RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESDev) -> device.DESDev", device.DESDev)
 	if res := pkg.DES.DB.Create(&device.DESDev); res.Error != nil {
 		return res.Error
 	}
@@ -79,13 +81,13 @@ func (device *Device) RegisterDevice(src string) (err error) {
 	device.DESJobLng = DEFAULT_GEO_LNG
 	device.DESJobLat = DEFAULT_GEO_LAT
 	device.DESJobDevID = device.DESDevID
-	pkg.Json("(*Device) RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
+	// pkg.Json("(*Device) RegisterDevice( ) -> pkg.DES.DB.Create(&device.DESJob) -> device.DESJob", device.DESJob)
 	if res := pkg.DES.DB.Create(&device.DESJob); res.Error != nil {
 		return res.Error
 	}
 
 	/* CREATE A DES USER ACCOUNT FOR THIS DEVICE */
-	user, err := pkg.CreateDESUserForDevice(device.DESDevSerial, device.CmdArchiveName() )	
+	user, err := pkg.CreateDESUserForDevice(device.DESDevSerial, device.CmdArchiveName())
 	if err != nil {
 		return err
 	}
@@ -102,11 +104,9 @@ func (device *Device) RegisterDevice(src string) (err error) {
 	device.HDR.DefaultSettings_Header(device.DESRegistration)
 	device.CFG.DefaultSettings_Config(device.DESRegistration)
 	device.SMP = Sample{SmpTime: t, SmpJobName: device.DESJobName}
-
-	/* USE THE ORIGINAL SOURCE ( USER ID ETC. ) FOR THE REGISTRATION EVENT RECORD. */
 	device.EVT = Event{
-		EvtTime:   t,
-		EvtAddr:   src,
+		EvtTime:   device.DESDevRegTime,
+		EvtAddr:   device.DESDevSerial,
 		EvtUserID: device.DESDevRegUserID,
 		EvtApp:    device.DESDevRegApp,
 		EvtCode:   OP_CODE_DES_REGISTERED,
@@ -134,7 +134,6 @@ func (device *Device) RegisterDevice(src string) (err error) {
 	); err != nil {
 		pkg.LogErr(err)
 	}
-
 
 	for _, typ := range EVENT_TYPES {
 		WriteETYP(typ, &device.JobDBC)
@@ -165,7 +164,7 @@ func (device *Device) RegisterDevice(src string) (err error) {
 	device.Create_DESJobSearch(device.DESRegistration)
 
 	/* WRITE TO ~/device_files/XXXXXXXXXX_CMDARCHIVE/... */
-	fmt.Printf("\n(*Device) RegisterDevice( ) -> WRITE TO ~/device_files/%s/...\n", device.DESJobName)
+	// fmt.Printf("\n(*Device) RegisterDevice( ) -> WRITE TO ~/device_files/%s/...\n", device.DESJobName)
 	device.WriteAdmToJSONFile(device.DESJobName, device.ADM)
 	device.WriteStateToJSONFile(device.DESJobName, device.STA)
 	device.WriteHdrToJSONFile(device.DESJobName, device.HDR)
@@ -199,14 +198,16 @@ func (device *Device) DeviceClient_Connect() (err error) {
 
 	/* DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS
 	- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
-	device.GetDeviceDESU()
+	if err = device.GetDeviceDESU(); err != nil {
+		return pkg.LogErr(err)
+	}
 
 	fmt.Printf("\n(*Device) DeviceClient_Connect() -> %s -> connecting CMDARCHIVE... \n", device.DESDevSerial)
 	if err := device.ConnectCmdDBC(); err != nil {
 		return pkg.LogErr(err)
 	}
 
-	fmt.Printf("\n(*Device) DeviceClient_Connect() -> %s -> connecting ACTIVE JOB: %s\n... \n", device.DESDevSerial, device.DESJobName)
+	fmt.Printf("\n(*Device) DeviceClient_Connect() -> %s -> connecting ACTIVE JOB: %s... \n", device.DESDevSerial, device.DESJobName)
 	if err := device.ConnectJobDBC(); err != nil {
 		return pkg.LogErr(err)
 	}
@@ -402,8 +403,7 @@ func (device *Device) GetDeviceDESU() (err error) {
 	u := pkg.User{}
 	res := qry.Scan(&u)
 	if res.Error != nil {
-		pkg.LogErr(res.Error)
-		err = res.Error
+		return fmt.Errorf("Failed to retrieve device user data: %s", res.Error.Error())
 	}
 	device.DESU = u.FilterUserRecord()
 	// pkg.Json("GetDeviceDESU( ): ", device.DESU)
@@ -416,8 +416,16 @@ func (device *Device) GetActiveJobEvents() (evts *[]Event, err error) {
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
 
-	res := device.JobDBC.Select("*").Table("events").Where("evt_addr = ?", device.DESDevSerial).Order("evt_time DESC").Scan(&evts)
-	err = res.Error
+	qry := device.JobDBC.
+	Select("*").
+	Table("events").
+	Where("evt_addr = ?", device.DESDevSerial).
+	Order("evt_time DESC")
+	
+	res := qry.Scan(&evts)
+	if res.Error != nil {
+		err = fmt.Errorf("Failed to retrieve active job events: %s", res.Error.Error())
+	}
 	return
 }
 
@@ -461,7 +469,7 @@ func (start *StartJob) SIGValidate(device *Device) (err error) {
 	return
 }
 
-/*
+/* TODO : DB WRITE ERRORS
 	HTTP REQUEST LOGIC - START JOB REQUEST
 
 - PREPARE, LOG, AND SEND: StartJob STRUCT to MQTT .../cmd/start
@@ -763,7 +771,7 @@ func (device *Device) OfflineJobStart(smp Sample) {
 
 /* END JOB ************************************************************************************************/
 
-/*
+/* TODO : DB WRITE ERRORS
 	HTTP REQUEST LOGIC - END JOB REQUEST
 
 - PREPARE, LOG State AND Event STRUCTS
@@ -1069,27 +1077,27 @@ func (device *Device) Create_DESJobSearch(reg pkg.DESRegistration) {
 
 JSON MARSHALS DEVICE OBJECT AND WRITES TO DES MAIN DB 'des_job_searches.des_job_json'
 */
-func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) {
+func (device *Device) Update_DESJobSearch(reg pkg.DESRegistration) (err error) {
 	fmt.Printf("\n Update_DESJobSearch( ): -> %s: reg.DESJobID: %d\n", reg.DESDevSerial, reg.DESJobID)
 	s := pkg.DESJobSearch{}
 
 	res := pkg.DES.DB.Where("des_job_key = ?", reg.DESJobID).First(&s)
 	if res.Error != nil {
-		pkg.LogErr(res.Error)
-		return
+		return fmt.Errorf("Failed to update DES job search table: %s", res.Error.Error())
 	} // pkg.Json("Update_DESJobSearch( ): -> s", s)
 
 	s.DESJobToken = device.HDR.SearchToken()
-	
+
 	json, err := pkg.ModelToJSONString(device)
 	if err != nil {
-		pkg.LogErr(err)
+		return fmt.Errorf("Failed to update DES job search table: %s", err.Error())
 	}
 
 	s.DESJobJson = json
 	if res := pkg.DES.DB.Save(&s); res.Error != nil {
-		pkg.LogErr(res.Error)
+		return fmt.Errorf("Failed to update DES job search table: %s", res.Error.Error())
 	}
+	return
 }
 
 /* SET / GET JOB PARAMS *********************************************************************************/
@@ -1100,7 +1108,7 @@ func (device *Device) SetAdminRequest(src string) (err error) {
 	adm := device.ADM
 	adm.AdmTime = time.Now().UTC().UnixMilli()
 	adm.AdmAddr = src
-	adm.Validate() 
+	adm.Validate()
 
 	/* SYNC DEVICE WITH DevicesMap */
 	d := DevicesMapRead(device.DESDevSerial)
@@ -1108,15 +1116,19 @@ func (device *Device) SetAdminRequest(src string) (err error) {
 	device = &d
 
 	/* LOG ADM CHANGE REQUEST TO  CMDARCHIVE */
-	WriteADM(adm, &device.CmdDBC)
+	if err = WriteADM(adm, &device.CmdDBC); err != nil {
+		return fmt.Errorf("SetAdminRequest CMD DB write failed: %s", err.Error())
+	}
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
 	if device.DESJobName != device.CmdArchiveName() {
-		WriteADM(adm, &device.JobDBC)
+		if err = WriteADM(adm, &device.JobDBC); err != nil {
+			return fmt.Errorf("SetAdminRequest Job DB write failed: %s", err.Error())
+		}
 	}
 
 	/* MQTT PUB CMD: ADM */
-	fmt.Printf("\nHandleSetAdmin( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	fmt.Printf("\nSetAdminRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDAdmin(adm)
 
 	/* UPDATE DevicesMap */
@@ -1144,11 +1156,15 @@ func (device *Device) SetStateRequest(src string) (err error) {
 	device = &d
 
 	/* LOG STA CHANGE REQUEST TO CMDARCHIVE */
-	WriteSTA(sta, &device.CmdDBC)
+	if err =WriteSTA(sta, &device.CmdDBC); err != nil {
+		return fmt.Errorf("SetStateRequest CMD DB write failed: %s", err.Error())
+	}
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
 	if device.DESJobName != device.CmdArchiveName() {
-		WriteSTA(sta, &device.JobDBC)
+		if err = WriteSTA(sta, &device.JobDBC); err != nil {
+			return fmt.Errorf("SetStateRequest Job DB write failed: %s", err.Error())
+		}
 	}
 
 	/* MQTT PUB CMD: STATE */
@@ -1172,15 +1188,19 @@ func (device *Device) SetHeaderRequest(src string) (err error) {
 	device = &d
 
 	/* LOG HDR CHANGE REQUEST TO CMDARCHIVE */
-	WriteHDR(hdr, &device.CmdDBC)
+	if err = WriteHDR(hdr, &device.CmdDBC); err != nil {
+		return fmt.Errorf("SetHeaderRequest CMD DB write failed: %s", err.Error())
+	}
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
 	if device.DESJobName != device.CmdArchiveName() {
-		WriteHDR(hdr, &device.JobDBC)
+		if err = WriteHDR(hdr, &device.JobDBC); err != nil {
+			return fmt.Errorf("SetHeaderRequest Job DB write failed: %s", err.Error())
+		}
 	}
 
 	/* MQTT PUB CMD: HDR */
-	fmt.Printf("\nHandleSetHeader( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	fmt.Printf("\nSetHeaderRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDHeader(hdr)
 
 	/* UPDATE DevicesMap */
@@ -1203,15 +1223,19 @@ func (device *Device) SetConfigRequest(src string) (err error) {
 	device = &d
 
 	/* LOG CFG CHANGE REQUEST TO CMDARCHIVE */
-	WriteCFG(cfg, &device.CmdDBC)
+	if err = WriteCFG(cfg, &device.CmdDBC); err != nil {
+		return fmt.Errorf("SetConfigRequest CMD DB write failed: %s", err.Error())
+	}
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
 	if device.DESJobName != device.CmdArchiveName() {
-		WriteCFG(cfg, &device.JobDBC)
+		if err = WriteCFG(cfg, &device.JobDBC); err != nil {
+			return fmt.Errorf("SetConfigRequest Job DB write failed: %s", err.Error())
+		}
 	}
 
 	/* MQTT PUB CMD: CFG */
-	fmt.Printf("\nHandleSetConfig( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	fmt.Printf("\nSetConfigRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDConfig(cfg)
 
 	/* UPDATE DevicesMap */
@@ -1221,12 +1245,12 @@ func (device *Device) SetConfigRequest(src string) (err error) {
 }
 
 /* PREPARE, LOG, AND SEND A SET EVENT REQUEST TO THE DEVICE */
-func (device *Device) CreateEventRequest(src string) (err error) {
+func (device *Device) SetEventRequest(src string) (err error) {
 
 	evt := device.EVT
 	evt.EvtTime = time.Now().UTC().UnixMilli()
 	evt.EvtAddr = src
-	evt.Validate() 
+	evt.Validate()
 
 	/* SYNC DEVICE WITH DevicesMap */
 	d := DevicesMapRead(device.DESDevSerial)
@@ -1234,15 +1258,19 @@ func (device *Device) CreateEventRequest(src string) (err error) {
 	device = &d
 
 	/* LOG EVT CHANGE REQUEST TO  CMDARCHIVE */
-	WriteEVT(evt, &device.CmdDBC)
+	if err = WriteEVT(evt, &device.CmdDBC); err != nil {
+		return fmt.Errorf("SetEventRequest CMD DB write failed: %s", err.Error())
+	}
 
 	/* CHECK TO SEE IF WE SHOULD LOG TO ACTIVE JOB */
 	if device.DESJobName != device.CmdArchiveName() {
-		WriteEVT(evt, &device.JobDBC)
+		if err = WriteEVT(evt, &device.JobDBC); err != nil {
+			return fmt.Errorf("SetEventRequest Job DB write failed: %s", err.Error())
+		}
 	}
 
 	/* MQTT PUB CMD: EVT */
-	fmt.Printf("\nHandleSetEvent( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	fmt.Printf("\nSetEventRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDEvent(evt)
 
 	/* UPDATE DevicesMap */
@@ -1250,7 +1278,6 @@ func (device *Device) CreateEventRequest(src string) (err error) {
 
 	return
 }
-
 
 /* DEVELOPMENT DATA STRUCTURE ***TODO: REMOVE AFTER DEVELOPMENT*** ******************/
 type Debug struct {

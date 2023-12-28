@@ -84,44 +84,30 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be a registered user to view job data.",
-		})
+		return c.Status(fiber.StatusForbidden).
+		SendString("You must be a registered user to view job data.")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	job := Job{}
 	if err = c.BodyParser(&job); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleGetJobData(): -> c.BodyParser(&job) -> job", job)
 
 	/* OPEN A JOB DATABASE CONNECTION FOR THIS REQUEST */
 	if err = job.ConnectDBC(); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
+	
 	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
 	defer job.DBClient.Disconnect()
 
 	/* QUERY JOB DATABASE */
 	if err = job.GetJobData(); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"job": job},
-	})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"job": job})
 }
 
 /*
@@ -133,28 +119,20 @@ func HandleNewReport(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an operator user to create a report",
-		})
+		return c.Status(fiber.StatusForbidden).
+		SendString("You must be an operator user to create a report")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	rep := Report{}
 	if err = c.BodyParser(&rep); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleCreateReport(): -> c.BodyParser(&rep) -> rep", rep)
 
 	/* OPEN A JOB DATABASE CONNECTION FOR THIS REQUEST */
 	job := Job{DESRegistration: rep.DESRegistration}
 	if err = job.ConnectDBC(); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
 	defer job.DBClient.Disconnect()

@@ -1,6 +1,7 @@
 package c001v001
 
 import (
+	"fmt"
 	"errors"
 
 	"github.com/leehayford/des/pkg"
@@ -104,7 +105,7 @@ EVENT - VALIDATE MQTT SIG FROM DEVICE
 func (evt *Event) SIGValidate(device *Device) (err error) {
 
 	if err = pkg.ValidateUnixMilli(evt.EvtTime); err != nil {
-		return pkg.LogErr(err)
+		return fmt.Errorf("Invlid AdmTime: %s", err.Error())
 	}
 	if evt.EvtAddr != device.DESDevSerial { 
 		pkg.LogErr(errors.New("\nInvalid device.EVT.EvtAddr."))

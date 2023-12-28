@@ -152,7 +152,7 @@ STATE - VALIDATE MQTT SIG FROM DEVICE
 func (sta *State) SIGValidate(device *Device) (err error) {
 	
 	if err = pkg.ValidateUnixMilli(sta.StaTime); err != nil {
-		return pkg.LogErr(err)
+		return fmt.Errorf("Invlid StaTime: %s", err.Error())
 	}
 	if sta.StaAddr != device.DESDevSerial { 
 		pkg.LogErr(errors.New("\nInvalid device.STA.StaAddr."))

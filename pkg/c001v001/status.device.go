@@ -84,8 +84,10 @@ func GetDeviceList() (regs []pkg.DESRegistration, err error) {
 		Order("j.max_time DESC")
 
 	res := qry.Scan(&regs)
-	// pkg.Json("GetDeviceList(): DESRegistrations", regs)
-	err = res.Error
+	if res.Error != nil {
+		err = fmt.Errorf("Failed to retrieve devices from database: %s", res.Error.Error())
+		return
+	} // pkg.Json("GetDeviceList(): DESRegistrations", regs)
 	return
 }
 

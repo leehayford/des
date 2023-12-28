@@ -2,6 +2,8 @@ package c001v001
 
 import (
 	"errors"
+	"fmt"
+
 	"github.com/leehayford/des/pkg"
 )
 
@@ -245,7 +247,7 @@ ADMIN - VALIDATE MQTT SIG FROM DEVICE
 func (adm *Admin) SIGValidate(device *Device) (err error) {
 	
 	if err = pkg.ValidateUnixMilli(adm.AdmTime); err != nil {
-		return pkg.LogErr(err)
+		return fmt.Errorf("Invlid AdmTime: %s", err.Error())
 	}
 	if adm.AdmAddr != device.DESDevSerial { 
 		pkg.LogErr(errors.New("\nInvalid device.ADM.AdmAddr."))
