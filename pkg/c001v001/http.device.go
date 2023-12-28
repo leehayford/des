@@ -135,7 +135,7 @@ func HandleStartJobRequest(c *fiber.Ctx) (err error) {
 	/* SEND START JOB REQUEST */
 	if err = device.StartJobRequest(c.IP()); err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	} 
+	}
 	// pkg.Json("HandleStartJobRequest(): -> device.StartJobRequest(...) -> device", device)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
@@ -353,8 +353,8 @@ func HandleDeviceUserClient_Connect(c *websocket.Conn) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(c.Locals("role")) {
 		/* CREATE JSON WSMessage STRUCT */
-		res := AuthResponse{Status: "fail", Message: "You need permission to watch a live feed."}
-		js, err := json.Marshal(&WSMessage{Type: "auth", Data: res})
+		txt := "You need permission to watch a live feed."
+		js, err := json.Marshal(&pkg.WSMessage{Type: "auth", Data: txt})
 		if err != nil {
 			pkg.LogErr(err)
 			return
@@ -366,7 +366,18 @@ func HandleDeviceUserClient_Connect(c *websocket.Conn) {
 	/* PARSE AND VALIDATE REQUEST DATA - SESSION ID */
 	sid, err := url.QueryUnescape(c.Query("sid"))
 	if err != nil {
-		js, err := json.Marshal(&WSMessage{Type: "auth", Data: err.Error()})
+		js, err := json.Marshal(&pkg.WSMessage{Type: "auth", Data: err.Error()})
+		if err != nil {
+			pkg.LogErr(err)
+			return
+		}
+		c.Conn.WriteJSON(string(js))
+		return
+	}
+	
+	if !pkg.ValidateUUIDString(sid) {
+		txt := "Invalid user session ID."
+		js, err := json.Marshal(&pkg.WSMessage{Type: "auth", Data: txt})
 		if err != nil {
 			pkg.LogErr(err)
 			return
@@ -435,41 +446,26 @@ func HandleDESDeviceClientDisconnect(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Admin(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an administrator to view disconnect devices.",
-		})
+		txt := "You must be an administrator to view disconnect devices."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
 	} // pkg.Json("HandleDisconnectDevice(): -> c.BodyParser(&device) -> device", device)
 
 	d := DevicesMapRead(device.DESDevSerial)
 
 	/* CLOSE DEVICE CLIENT CONNECTIONS */
 	if err = d.DeviceClient_Disconnect(); err != nil {
-		msg := fmt.Sprintf(
-			"Failed to close existing device connectsions for %s\n%s\n",
-			device.DESDevSerial,
-			err.Error(),
-		)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": msg,
-		})
+		txt := fmt.Sprintf("Failed to close existing device connectsions for %s:\n%s", device.DESDevSerial, err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": fmt.Sprintf("%s DES client disconnected.", device.DESDevSerial),
-		"data":    fiber.Map{"device": &device},
-	})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &device})
 }
 
 func HandleDESDeviceClientRefresh(c *fiber.Ctx) (err error) {
@@ -477,45 +473,33 @@ func HandleDESDeviceClientRefresh(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Admin(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be an administrator to connect devices.",
-		})
+		txt := "You must be an administrator to connect devices."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = c.BodyParser(&device); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": err.Error(),
-		})
+	if err := c.BodyParser(&device); err != nil {
+		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
 	} //pkg.Json("HandleCheckDESDeviceClient(): -> c.BodyParser(&device) -> device", device)
 
 	/* GET / VALIDATE DESRegistration */
 	ser := device.DESDevSerial
 	if err = device.GetDeviceDESRegistration(ser); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("DES Registration for %s was not found.\n%s\nDB ERROR", ser, err.Error()),
-		})
+		txt := fmt.Sprintf("DES Registration for %s was not found.\n%s\nDB ERROR", ser, err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
 	} // pkg.Json("HandleCheckDESDeviceClient(): -> device.GetDeviceDESRegistration -> device", device)
 
 	d := DevicesMapRead(device.DESDevSerial)
 
 	/* CLOSE ANY EXISTING CONNECTIONS AND RECONNECT THE DES DEVICE CLIENTS */
 	if err = d.DeviceClient_RefreshConnections(); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("Connections for %s could not be refreshed; ERROR:\n%s\n", ser, err.Error()),
-		})
+		txt := fmt.Sprintf("Connections for %s could not be refreshed; ERROR:\n%s\n", ser, err.Error())
+		return c.Status(fiber.StatusInternalServerError).SendString(txt)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": fmt.Sprintf("%s DES device client connected.", d.DESDevSerial),
-		"data":    fiber.Map{"device": &d},
-	})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &d})
 }
 
 /**************************************************************************************************************/

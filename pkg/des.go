@@ -17,6 +17,8 @@ package pkg
 import (
 	"fmt"
 	"strings"
+
+	"github.com/google/uuid"      // go get github.com/google/uuid
 )
 
 const DES_APP = "DES v0.0.0"
@@ -60,10 +62,24 @@ func GetSuperUser( ) (ures UserResponse, err error) {
 // var ROLE_EDITOR = DESRole{ Code: 2, Name: "editor", }
 // var ROLE_USER = DESRole{ Code: 3, Name: "user", }
 
+func ValidateUUIDString(u string) (ok bool) {
+	if u == "" || u == "00000000-0000-0000-0000-000000000000" {
+		return false
+	}
+	_, err := uuid.Parse(u)
+	return err == nil
+}
+
+type WSMessage struct {
+	Type string      `json:"type"`
+	Data interface{} `json:"data"`
+}
+
 type Ping struct {
 	Time int64 `json:"time"`
 	OK   bool  `json:"ok"`
 }
+
 func (p *Ping) LatencyCheck() (ms int64, err error) {
 	/* TODO : CHECK LATENCEY BETWEEN DEVICE PING TIME AND SERVER TIME */
 	return

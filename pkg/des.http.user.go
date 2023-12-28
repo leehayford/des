@@ -1,7 +1,9 @@
 package pkg
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,7 +19,10 @@ func InitializeDESUserRoutes(app, api *fiber.App) {
 		router.Post("/terminate", DesAuth, HandleTerminateUserSessions)
 		router.Post("/logout", DesAuth, HandleLogoutUser)
 
-		router.Get("/list", HandleGetUserList) 
+		router.Get("/list", HandleGetUserList)
+
+		app.Use("/ws", HandleWSUpgrade)
+		router.Get("/ws", DesAuth, websocket.New(HandleUserSessionWS_Connect))
 	})
 }
 
@@ -131,6 +136,61 @@ func HandleRefreshAccessToken(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"user_session": us})
 }
 
+func HandleUserSessionWS_Connect(c *websocket.Conn) {
+	// fmt.Printf("\nHandleUserWSConnect( )\n")
+
+	/* CHECK USER PERMISSION */
+	if !UserRole_Viewer(c.Locals("role")) {
+		/* CREATE JSON WSMessage STRUCT */
+		txt := "You must be an operator to connect."
+		js, err := json.Marshal(&WSMessage{Type: "auth", Data: txt})
+		if err != nil {
+			LogErr(err)
+			return
+		}
+		c.Conn.WriteJSON(string(js))
+		return
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA - SESSION ID */
+	sid, err := url.QueryUnescape(c.Query("sid"))
+	if err != nil {
+		js, err := json.Marshal(&WSMessage{Type: "auth", Data: err.Error()})
+		if err != nil {
+			LogErr(err)
+			return
+		}
+		c.Conn.WriteJSON(string(js))
+		return
+	}
+
+	if !ValidateUUIDString(sid) {
+		txt := "Invalid user session ID."
+		js, err := json.Marshal(&WSMessage{Type: "auth", Data: txt})
+		if err != nil {
+			LogErr(err)
+			return
+		}
+		c.Conn.WriteJSON(string(js))
+		return
+	}
+
+	/* GET UserSession FROM UserSessionsMap */
+	us, err := UserSessionsMapRead(sid)
+	if err != nil {
+		js, err := json.Marshal(&WSMessage{Type: "auth", Data: err.Error()})
+		if err != nil {
+			LogErr(err)
+			return
+		}
+		c.Conn.WriteJSON(string(js))
+		return
+	}
+
+	/* CONNECT USER SESSION *** DO NOT RUN IN GO ROUTINE *** */
+	us.UserSessionWS_Connect(c)
+}
+
 func HandleLogoutUser(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleLogoutUser( )\n")
 
@@ -139,9 +199,13 @@ func HandleLogoutUser(c *fiber.Ctx) (err error) {
 	if err := c.BodyParser(&us); err != nil {
 		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
 		return c.Status(fiber.StatusBadRequest).SendString(txt)
-	} // Json("HandleLogoutUser(): -> c.BodyParser(&us) -> user session", us)
+	}  // Json("HandleLogoutUser(): -> c.BodyParser(&us) -> user session", us)
 
-	us.LogoutUser()
+	usx, err := UserSessionsMapRead( us.SID.String())
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	}
+	usx.LogoutUser()
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "You have logged out."})
 }
@@ -178,4 +242,3 @@ func HandleGetUserList(c *fiber.Ctx) (err error) {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"users": userList})
 }
-

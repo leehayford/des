@@ -262,7 +262,6 @@ func (device *Device) DeviceClient_Connect() (err error) {
 			}
 		}
 		if device.DESPingStop != nil {
-			close(device.DESPingStop)
 			device.DESPingStop = nil
 		}
 

@@ -15,63 +15,70 @@ License:
 package pkg
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/golang-jwt/jwt"   // go get github.com/golang-jwt/jwt
-	"github.com/google/uuid"      // go get github.com/google/uuid
-	"golang.org/x/crypto/bcrypt"  // go get golang.org/x/crypto/bcrypt
+	"github.com/golang-jwt/jwt"  // go get github.com/golang-jwt/jwt
+	"github.com/google/uuid"     // go get github.com/google/uuid
+	"golang.org/x/crypto/bcrypt" // go get golang.org/x/crypto/bcrypt
+
+	"github.com/gofiber/websocket/v2"
 )
 
 /* https://codevoweb.com/how-to-properly-use-jwt-for-authentication-in-golang/ */
 
 type UserSession struct {
-	SID    uuid.UUID    `json:"sid"`
-	REFTok string       `json:"ref_token"`
-	ACCTok string       `json:"acc_token"`
-	USR    UserResponse `json:"user"`
+	SID         uuid.UUID     `json:"sid"`
+	REFTok      string        `json:"ref_token"`
+	ACCTok      string        `json:"acc_token"`
+	USR         UserResponse  `json:"user"`
+	DataOut     chan string   `json:"-"`
+	Close       chan struct{} `json:"-"`
+	CloseSend   chan struct{} `json:"-"`
+	CloseKeep   chan struct{} `json:"-"`
 }
 
 type UserSessionMap map[string]UserSession
 
-var UserSessions = make(UserSessionMap)
-var UserSessionsRWMutex = sync.RWMutex{}
+var UserSessionsMap = make(UserSessionMap)
+var UserSessionsMapRWMutex = sync.RWMutex{}
 
 func UserSessionsMapWrite(u UserSession) (err error) {
 
 	sid := u.SID.String()
-	if sid == "" || sid == "00000000-0000-0000-0000-000000000000" {
+	if !ValidateUUIDString(sid) {
 		err = fmt.Errorf("Invalid user session ID.")
 		return
 	}
 
-	UserSessionsRWMutex.Lock()
-	UserSessions[sid] = u
-	UserSessionsRWMutex.Unlock()
+	UserSessionsMapRWMutex.Lock()
+	UserSessionsMap[sid] = u
+	UserSessionsMapRWMutex.Unlock()
 	return
 }
 func UserSessionsMapRead(sid string) (u UserSession, err error) {
-	UserSessionsRWMutex.Lock()
-	u = UserSessions[sid]
-	UserSessionsRWMutex.Unlock()
+	UserSessionsMapRWMutex.Lock()
+	u = UserSessionsMap[sid]
+	UserSessionsMapRWMutex.Unlock()
 
-	if u.SID.String() == "00000000-0000-0000-0000-000000000000" {
+	if !ValidateUUIDString(u.SID.String()) {
 		err = fmt.Errorf("User session not found. Please log in.")
 	}
 	return
 }
 func UserSessionsMapCopy() (usm UserSessionMap) {
-	UserSessionsRWMutex.Lock()
-	usm = UserSessions
-	UserSessionsRWMutex.Unlock()
+	UserSessionsMapRWMutex.Lock()
+	usm = UserSessionsMap
+	UserSessionsMapRWMutex.Unlock()
 	return
 }
 func UserSessionsMapRemove(usid string) {
-	UserSessionsRWMutex.Lock()
-	delete(UserSessions, usid)
-	UserSessionsRWMutex.Unlock()
+	UserSessionsMapRWMutex.Lock()
+	delete(UserSessionsMap, usid)
+	UserSessionsMapRWMutex.Unlock()
 }
 
 /* USED TO REFRESH ACCESS TOKENS */
@@ -214,6 +221,7 @@ func GetClaimsFromTokenString(token string) (claims jwt.MapClaims, err error) {
 
 /* REMOVES THE SESSION FOR GIVEN USER FROM UserSessionsMap */
 func (us *UserSession) LogoutUser() {
+
 	UserSessionsMapRemove(us.SID.String())
 }
 
@@ -333,4 +341,107 @@ func CreateDESUserForDevice(serial, pw string) (user UserResponse, err error) {
 	user = u.FilterUserRecord()
 
 	return
+}
+
+/* UserSession WEBSOCKET CONNECTION *** DO NOT RUN IN GO ROUTINE *** */
+func (us *UserSession) UserSessionWS_Connect(c *websocket.Conn) {
+
+	t := time.Now().Unix()
+
+	us.DataOut = make(chan string)
+	us.Close = make(chan struct{})
+	us.CloseSend = make(chan struct{})
+	us.CloseKeep = make(chan struct{})
+
+	/* LISTEN FOR MESSAGES FROM CONNECTED USER */
+	go us.ListenForMessages(c)
+
+	/* KEEP ALIVE GO ROUTINE SEND "live" EVERY 30 SECONDS TO PREVENT DISCONNECT */
+	go us.RunKeepAlive(t)
+
+	/* *** DO NOT RUN IN GO ROUTINE *** SEND MESSAGES TO CONNECTED USER */
+	go us.SendMessages(c)
+
+	UserSessionsMapWrite(*us)
+
+	fmt.Printf("\n(UserSession) UserSessionWS_Connect() -> %s : %d -> OPEN.\n", us.USR.Name, t)
+	open := true
+	for open {
+		select {
+		case <-us.Close:
+			if us.CloseKeep != nil {
+				us.CloseKeep = nil
+			}
+			if us.CloseSend != nil {
+				us.CloseSend = nil
+			}
+			if us.DataOut != nil {
+				us.DataOut = nil
+			}
+			open = false
+		}
+	}
+	fmt.Printf("\n(UserSession) UserSessionWS_Connect() -> %s : %d -> CLOSED.\n", us.USR.Name, t)
+}
+
+/* LISTEN FOR MESSAGES FROM CONNECTED USER */
+func (us *UserSession) ListenForMessages(c *websocket.Conn) {
+	listen := true
+	for listen {
+		_, msg, err := c.ReadMessage()
+		if err != nil {
+			// fmt.Printf("(UserSession) ListenForMessages() %s -> ERROR: %s\n", us.USR.Email, err.Error())
+			if strings.Contains(err.Error(), "close") {
+				msg = []byte("close")
+			}
+		}
+		/* CHECK IF USER HAS CLOSED THE CONNECTION */
+		if string(msg) == "close" {
+			us.CloseKeep <- struct{}{}
+			us.CloseSend <- struct{}{}
+			listen = false
+		}
+	}
+	// fmt.Printf("(UserSession) ListenForMessages() -> done\n")
+	us.Close <- struct{}{}
+}
+
+/* SEND MESSAGES TO CONNECTED USER */
+func (us *UserSession) SendMessages(c *websocket.Conn) {
+	send := true
+	for send {
+		select {
+
+		case <-us.CloseSend:
+			send = false
+
+		case data := <-us.DataOut:
+			if err := c.WriteJSON(data); err != nil {
+				// fmt.Printf("(UserSession) SendMessages -> data := <-us.DataOut: %s\n", string(data))
+			}
+		}
+	}
+	// fmt.Printf("(UserSession) SendMessages  -> done\n")
+}
+
+/* KEEP ALIVE GO ROUTINE SEND "live" EVERY 30 SECONDS TO PREVENT WS DISCONNECT */
+func (us *UserSession) RunKeepAlive(start int64) {
+	msg := fmt.Sprintf("%s : %d", us.USR.Name, start)
+	live := true
+	for live {
+		select {
+
+		case <-us.CloseKeep:
+			live = false
+
+		default:
+			js, err := json.Marshal(&WSMessage{Type: "live", Data: msg})
+			if err != nil {
+				LogErr(err)
+			}
+			us.DataOut <- string(js)
+			time.Sleep(time.Second * 10)
+		}
+	}
+	// fmt.Printf("(UserSession) RunKeepAlive() -> done\n")
 }

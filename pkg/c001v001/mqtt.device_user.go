@@ -94,7 +94,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_StartJob(topic st
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "start", Data: start})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "start", Data: start})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGStartJob(...) -> start :", start)
@@ -120,7 +120,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEndJob() pkg.M
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "end_sig", Data: sta})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "end_sig", Data: sta})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGEndJob(...) -> sta :", sta)
@@ -146,7 +146,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_CMDEndJob() pkg.M
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "end_cmd", Data: evt})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "end_cmd", Data: evt})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_CMDEndJob(...) -> evt :", evt)
@@ -174,7 +174,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESDeviceClientPi
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "des_ping", Data: ping})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "des_ping", Data: ping})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_DESDeviceClientPing(...) -> ping :", ping)
@@ -201,7 +201,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESDevicePing( /*
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "ping", Data: ping})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "ping", Data: ping})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_DESDevicePing(...) -> ping :", js)
@@ -228,7 +228,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin( /* TODO
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "admin", Data: adm})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "admin", Data: adm})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGAdmin(...) -> adm :", adm)
@@ -255,7 +255,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGState( /* TODO
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "state", Data: sta})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "state", Data: sta})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGState(...) -> sta :", sta)
@@ -282,7 +282,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader( /* TOD
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "header", Data: hdr})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "header", Data: hdr})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGHeader(...) -> hdr :", hdr)
@@ -309,7 +309,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig( /* TOD
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "config", Data: cfg})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "config", Data: cfg})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGConfig(...) -> cfg :", cfg)
@@ -336,7 +336,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent( /* TODO
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "event", Data: evt})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "event", Data: evt})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGEvent(...) -> evt :", evt)
@@ -371,7 +371,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample( /* TOD
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "sample", Data: smp})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "sample", Data: smp})
 			if err != nil {
 				pkg.LogErr(err)
 			} else {
@@ -413,7 +413,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGMsgLimit() pkg
 			}
 
 			/* CREATE JSON WSMessage STRUCT */
-			js, err := json.Marshal(&WSMessage{Type: "msg_limit", Data: kafka})
+			js, err := json.Marshal(&pkg.WSMessage{Type: "msg_limit", Data: kafka})
 			if err != nil {
 				pkg.LogErr(err)
 			} // pkg.Json("MQTTSubscription_DemoDeviceClient_SIGMsgLimit(...) -> kafka :", kafka)
