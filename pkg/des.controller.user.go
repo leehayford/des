@@ -30,6 +30,8 @@ import (
 
 /* https://codevoweb.com/how-to-properly-use-jwt-for-authentication-in-golang/ */
 
+const USER_SESSION_WS_KEEP_ALIVE_SEC = 30
+
 type UserSession struct {
 	SID         uuid.UUID     `json:"sid"`
 	REFTok      string        `json:"ref_token"`
@@ -65,7 +67,7 @@ func UserSessionsMapRead(sid string) (u UserSession, err error) {
 	UserSessionsMapRWMutex.Unlock()
 
 	if !ValidateUUIDString(u.SID.String()) {
-		err = fmt.Errorf("User session not found. Please log in.")
+		err = fmt.Errorf("User session not found; please log in.")
 	}
 	return
 }
@@ -247,7 +249,7 @@ func (us *UserSession) RefreshAccessToken() (err error) {
 	} // fmt.Printf("\nRefreshAccessToken( ) -> exp: %d", exp) // fmt.Printf("\nRefreshAccessToken( ) -> now: %d\n", now)
 
 	if exp < now {
-		return fmt.Errorf("Your refresh token has expired. Please log in.")
+		return fmt.Errorf("Authorization failed. Your refresh token has expired; please log in.")
 	}
 
 	if err = us.CreateJWTAccessToken(); err != nil {
@@ -344,9 +346,9 @@ func CreateDESUserForDevice(serial, pw string) (user UserResponse, err error) {
 }
 
 /* UserSession WEBSOCKET CONNECTION *** DO NOT RUN IN GO ROUTINE *** */
-func (us *UserSession) UserSessionWS_Connect(c *websocket.Conn) {
+func (us *UserSession) UserSessionWS_Connect(ws *websocket.Conn) {
 
-	t := time.Now().Unix()
+	start := time.Now().Unix()
 
 	us.DataOut = make(chan string)
 	us.Close = make(chan struct{})
@@ -354,17 +356,17 @@ func (us *UserSession) UserSessionWS_Connect(c *websocket.Conn) {
 	us.CloseKeep = make(chan struct{})
 
 	/* LISTEN FOR MESSAGES FROM CONNECTED USER */
-	go us.ListenForMessages(c)
+	go us.ListenForMessages(ws, start)
 
-	/* KEEP ALIVE GO ROUTINE SEND "live" EVERY 30 SECONDS TO PREVENT DISCONNECT */
-	go us.RunKeepAlive(t)
+	/* KEEP ALIVE GO ROUTINE SEND "live" EVERY 30 SECONDS TO PREVENT WS DISCONNECT */
+	go us.RunKeepAlive(start)
 
-	/* *** DO NOT RUN IN GO ROUTINE *** SEND MESSAGES TO CONNECTED USER */
-	go us.SendMessages(c)
+	/* SEND MESSAGES TO CONNECTED USER */
+	go us.SendMessages(ws, start)
 
 	UserSessionsMapWrite(*us)
 
-	fmt.Printf("\n(UserSession) UserSessionWS_Connect() -> %s : %d -> OPEN.\n", us.USR.Name, t)
+	// fmt.Printf("\n(*UserSession) UserSessionWS_Connect() -> %s : %d -> OPEN.\n", us.USR.Name, start)
 	open := true
 	for open {
 		select {
@@ -381,16 +383,16 @@ func (us *UserSession) UserSessionWS_Connect(c *websocket.Conn) {
 			open = false
 		}
 	}
-	fmt.Printf("\n(UserSession) UserSessionWS_Connect() -> %s : %d -> CLOSED.\n", us.USR.Name, t)
+	// fmt.Printf("\n(*UserSession) UserSessionWS_Connect() -> %s : %d -> CLOSED.\n", us.USR.Name, start)
 }
 
-/* LISTEN FOR MESSAGES FROM CONNECTED USER */
-func (us *UserSession) ListenForMessages(c *websocket.Conn) {
+/* GO ROUTINE: LISTEN FOR MESSAGES FROM CONNECTED USER */
+func (us *UserSession) ListenForMessages(ws *websocket.Conn, start int64) {
 	listen := true
 	for listen {
-		_, msg, err := c.ReadMessage()
+		_, msg, err := ws.ReadMessage()
 		if err != nil {
-			// fmt.Printf("(UserSession) ListenForMessages() %s -> ERROR: %s\n", us.USR.Email, err.Error())
+			// fmt.Printf("\n(*UserSession) ListenForMessages() %s -> ERROR: %s\n", us.USR.Email, err.Error())
 			if strings.Contains(err.Error(), "close") {
 				msg = []byte("close")
 			}
@@ -401,32 +403,14 @@ func (us *UserSession) ListenForMessages(c *websocket.Conn) {
 			us.CloseSend <- struct{}{}
 			listen = false
 		}
-	}
-	// fmt.Printf("(UserSession) ListenForMessages() -> done\n")
+	} // fmt.Printf("\n(*UserSession) ListenForMessages() -> %s : %d -> DONE.\n", us.USR.Name, start)
 	us.Close <- struct{}{}
 }
 
-/* SEND MESSAGES TO CONNECTED USER */
-func (us *UserSession) SendMessages(c *websocket.Conn) {
-	send := true
-	for send {
-		select {
-
-		case <-us.CloseSend:
-			send = false
-
-		case data := <-us.DataOut:
-			if err := c.WriteJSON(data); err != nil {
-				// fmt.Printf("(UserSession) SendMessages -> data := <-us.DataOut: %s\n", string(data))
-			}
-		}
-	}
-	// fmt.Printf("(UserSession) SendMessages  -> done\n")
-}
-
-/* KEEP ALIVE GO ROUTINE SEND "live" EVERY 30 SECONDS TO PREVENT WS DISCONNECT */
+/* GO ROUTINE: SEND WSMessage PERIODICALLY TO PREVENT WS DISCONNECT */
 func (us *UserSession) RunKeepAlive(start int64) {
 	msg := fmt.Sprintf("%s : %d", us.USR.Name, start)
+	count := 0
 	live := true
 	for live {
 		select {
@@ -435,13 +419,35 @@ func (us *UserSession) RunKeepAlive(start int64) {
 			live = false
 
 		default:
-			js, err := json.Marshal(&WSMessage{Type: "live", Data: msg})
-			if err != nil {
-				LogErr(err)
+			if count == USER_SESSION_WS_KEEP_ALIVE_SEC {
+				js, err := json.Marshal(&WSMessage{Type: "live", Data: msg})
+				if err != nil {
+					LogErr(err)
+				}
+				us.DataOut <- string(js)
+				count = 0
 			}
-			us.DataOut <- string(js)
-			time.Sleep(time.Second * 10)
+			time.Sleep(time.Second * 1)
+			count++
 		}
-	}
-	// fmt.Printf("(UserSession) RunKeepAlive() -> done\n")
+	} // fmt.Printf("\n(*UserSession) RunKeepAlive() -> %s : %d -> DONE.\n", us.USR.Name, start)
+}
+
+/* GO ROUTINE: SEND MESSAGES TO CONNECTED USER */
+func (us *UserSession) SendMessages(ws *websocket.Conn, start int64) {
+	send := true
+	for send {
+		select {
+
+		case <-us.CloseSend:
+			send = false
+
+		case data := <-us.DataOut:
+			if err := ws.WriteJSON(data); err != nil {
+				if !strings.Contains(err.Error(), "close sent") {
+					LogErr(err)
+				}
+			}
+		}
+	} // fmt.Printf("\n(*UserSession) SendMessages -> %s : %d -> DONE.\n", us.USR.Name, start)
 }

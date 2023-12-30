@@ -2,7 +2,7 @@ package c001v001
 
 import (
 	"encoding/json"
-	"fmt"
+	// "fmt"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
 
@@ -22,12 +22,12 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect() (err error) {
 
 	duc.MQTTUser = user
 	duc.MQTTPW = pw
-	duc.MQTTClientID = duc.WSClientID
+
 	/* DEVICE USER CLIENTS ***DO NOT*** AUTOMATICALLY RESUBSCRIBE */
 	if err = duc.DESMQTTClient.DESMQTTClient_Connect(true, false); err != nil {
 		return err
 	}
-	// pkg.Json(`(duc *DeviceUserClient) MQTTDeviceUserClient_Connect(...) -> duc.DESMQTTClient.DESMQTTClient_Connect()
+	// pkg.Json(`(*DeviceUserClient) MQTTDeviceUserClient_Connect(...) -> duc.DESMQTTClient.DESMQTTClient_Connect()
 	// duc.DESMQTTClient.ClientOptions.ClientID:`,
 	// duc.DESMQTTClient.ClientOptions.ClientID)
 
@@ -48,7 +48,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect() (err error) {
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	duc.MQTTSubscription_DeviceUserClient_SIGMsgLimit().Sub(duc.DESMQTTClient)
 
-	fmt.Printf("\n(duc) MQTTDeviceUserClient_Connect( ) -> ClientID: %s\n", duc.ClientID)
+	// fmt.Printf("\n(*DeviceUserClient) MQTTDeviceUserClient_Connect( ): %s\n", duc.MQTTClientID)
 	return err
 }
 func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
@@ -74,7 +74,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 	/* DISCONNECT THE DESMQTTCLient */
 	duc.DESMQTTClient_Disconnect()
 
-	fmt.Printf("\n(duc) MQTTDeviceUserClient_Disconnect( ): Complete -> ClientID: %s\n", duc.ClientID)
+	// fmt.Printf("\n(*DeviceUserClient) MQTTDeviceUserClient_Disconnect( ): %s\n", duc.MQTTClientID)
 }
 
 /* SUBSCRIPTIONS ****************************************************************************************/

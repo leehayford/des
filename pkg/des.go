@@ -15,9 +15,12 @@ License:
 package pkg
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/websocket/v2"
 	"github.com/google/uuid"      // go get github.com/google/uuid
 )
 
@@ -68,6 +71,33 @@ func ValidateUUIDString(u string) (ok bool) {
 	}
 	_, err := uuid.Parse(u)
 	return err == nil
+}
+
+func ParseRequestBody(c *fiber.Ctx, obj interface{}) (err error) {
+
+	// objType := reflect.TypeOf(obj)
+	// fmt.Println(objType)
+	// for _, f := range reflect.VisibleFields(objType) {
+	// 	fmt.Printf("\nobjType field: %v\n", f.Name)
+	// }
+
+	if err = c.BodyParser(&obj); err != nil {
+		err = fmt.Errorf("Invalid request body: %s", err.Error())
+		return
+	}
+
+	return
+}
+
+func SendWSConnectionError(ws *websocket.Conn, txt string) {
+	
+	js, err := json.Marshal(&WSMessage{Type: "err", Data: txt})
+	if err != nil {
+		LogErr(err)
+		return
+	}
+	ws.Conn.WriteJSON(string(js))
+	ws.Close()
 }
 
 type WSMessage struct {
