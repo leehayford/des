@@ -2,6 +2,7 @@ package c001v001
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"time"
@@ -410,21 +411,50 @@ func (device *Device) GetDeviceDESU() (err error) {
 }
 
 /* RETURNS ALL EVENTS ASSOCIATED WITH THE ACTIVE JOB */
-func (device *Device) GetActiveJobEvents() (evts *[]Event, err error) {
+func (device *Device) QryActiveJobEvents() (evts []Event, err error) {
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
 
 	qry := device.JobDBC.
-	Select("*").
-	Table("events").
-	Where("evt_addr = ?", device.DESDevSerial).
-	Order("evt_time DESC")
-	
+		Select("*").
+		Table("events").
+		Where("evt_addr = ?", device.DESDevSerial).
+		Order("evt_time DESC")
+
 	res := qry.Scan(&evts)
 	if res.Error != nil {
 		err = fmt.Errorf("Failed to retrieve active job events: %s", res.Error.Error())
 	}
+	return
+}
+
+func (device *Device) QryActiveJobXYSamples(qty int) (xys XYPoints, err error) {
+
+	/* SYNC DEVICE WITH DevicesMap */
+	device.GetMappedClients()
+
+	/* QUERY LIMITED SET FROM SAMPLES TABLE; MOST RECENT qty */
+	qry := device.JobDBC.Select("*").Table("samples").Limit(qty).Order("smp_time DESC")
+	
+	smps := []Sample{}
+
+	res := qry.Scan(&smps)
+	if res.Error != nil {
+		err = fmt.Errorf("Failed to retrieve active job XYPoints: %s", res.Error.Error())
+	}
+
+	slice := smps[:]
+	sort.Slice(slice, func(a, b int) bool {
+		return smps[a].SmpTime < smps[b].SmpTime
+	})
+
+	/* CONVERT SAMPLES TO XYPOINTS CUHZ JAVASCRIPT... */
+	for _, smp := range smps {
+		xys.AppendXYSample(smp)
+	}
+
+
 	return
 }
 
@@ -468,8 +498,9 @@ func (start *StartJob) SIGValidate(device *Device) (err error) {
 	return
 }
 
-/* TODO : DB WRITE ERRORS
-	HTTP REQUEST LOGIC - START JOB REQUEST
+/*
+	 TODO : DB WRITE ERRORS
+		HTTP REQUEST LOGIC - START JOB REQUEST
 
 - PREPARE, LOG, AND SEND: StartJob STRUCT to MQTT .../cmd/start
 */
@@ -770,8 +801,9 @@ func (device *Device) OfflineJobStart(smp Sample) {
 
 /* END JOB ************************************************************************************************/
 
-/* TODO : DB WRITE ERRORS
-	HTTP REQUEST LOGIC - END JOB REQUEST
+/*
+	 TODO : DB WRITE ERRORS
+		HTTP REQUEST LOGIC - END JOB REQUEST
 
 - PREPARE, LOG State AND Event STRUCTS
 - SEND Event STRUCT to MQTT .../cmd/end
@@ -1155,7 +1187,7 @@ func (device *Device) SetStateRequest(src string) (err error) {
 	device = &d
 
 	/* LOG STA CHANGE REQUEST TO CMDARCHIVE */
-	if err =WriteSTA(sta, &device.CmdDBC); err != nil {
+	if err = WriteSTA(sta, &device.CmdDBC); err != nil {
 		return fmt.Errorf("SetStateRequest CMD DB write failed: %s", err.Error())
 	}
 

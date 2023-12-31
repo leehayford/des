@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -30,7 +31,8 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 		router.Post("/event", pkg.DesAuth, HandleSetEventRequest)
 
 		/* DEVICE-VIEWER-LEVEL OPERATIONS */
-		router.Post("/job_events", pkg.DesAuth, HandleGetActiveJobEvents)
+		router.Post("/job_events", pkg.DesAuth, HandleQryActiveJobEvents)
+		router.Post("/job_samples", pkg.DesAuth, HandleQryActiveJobSamples)
 		router.Post("/search", pkg.DesAuth, HandleSearchDevices)
 		router.Get("/list", pkg.DesAuth, HandleGetDeviceList)
 
@@ -47,7 +49,7 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 
 func ValidatePostRequestBody_Device(c *fiber.Ctx, device *Device) (err error) {
 
-	if err = pkg.ParseRequestBody(c, &device); err != nil { 
+	if err = pkg.ParseRequestBody(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 
@@ -55,9 +57,11 @@ func ValidatePostRequestBody_Device(c *fiber.Ctx, device *Device) (err error) {
 	return
 }
 
-/* RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
-	ALONG WITH THE ACTIVE JOB FOR EACH DEVICE
-	IN THE FORM OF A DESRegistration
+/*
+	RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
+
+ALONG WITH THE ACTIVE JOB FOR EACH DEVICE
+IN THE FORM OF A DESRegistration
 */
 func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleGetDeviceList( )\n")
@@ -90,7 +94,7 @@ func HandleSearchDevices(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	params := pkg.DESSearchParam{}
-	if err = pkg.ParseRequestBody(c, &params); err != nil { 
+	if err = pkg.ParseRequestBody(c, &params); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 	// if err := c.BodyParser(&params); err != nil {
@@ -129,7 +133,7 @@ func HandleStartJobRequest(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = ValidatePostRequestBody_Device(c, &device); err != nil { 
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleStartJobRequest(): -> c.BodyParser(&device) -> device", device)
 
@@ -169,7 +173,7 @@ func HandleEndJobRequest(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = ValidatePostRequestBody_Device(c, &device); err != nil { 
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleEndJobRequest(): -> c.BodyParser(&device) -> dev", device)
 
@@ -197,7 +201,7 @@ func HandleSetAdminRequest(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = ValidatePostRequestBody_Device(c, &device); err != nil { 
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleSetAdminRequest(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
 
@@ -228,7 +232,7 @@ func HandleSetStateRequest(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = ValidatePostRequestBody_Device(c, &device); err != nil { 
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleSetStateRequest(): -> c.BodyParser(&device) -> device.STA", device.STA)
 
@@ -256,7 +260,7 @@ func HandleSetHeaderRequest(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = ValidatePostRequestBody_Device(c, &device); err != nil { 
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleSetHeaderRequest(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
 
@@ -284,7 +288,7 @@ func HandleSetConfigRequest(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = ValidatePostRequestBody_Device(c, &device); err != nil { 
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleSetConfigRequest(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
 
@@ -312,7 +316,7 @@ func HandleSetEventRequest(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = ValidatePostRequestBody_Device(c, &device); err != nil { 
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleSetEventRequest( ): -> c.BodyParser(&device) -> device.EVT", device.EVT)
 
@@ -324,8 +328,8 @@ func HandleSetEventRequest(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
-func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
-	// fmt.Printf("\nHandleGetActiveJobEvents( )\n")
+func HandleQryActiveJobEvents(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleQryActiveJobEvents( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(c.Locals("role")) {
@@ -335,17 +339,52 @@ func HandleGetActiveJobEvents(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err := c.BodyParser(&device); err != nil {
-		txt := fmt.Sprintf("Invalid request body: %s", err.Error())
-		return c.Status(fiber.StatusBadRequest).SendString(txt)
-	} // pkg.Json("HandleGetActiveJobEvents(): -> c.BodyParser(&device) -> device", device)
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	} // pkg.Json("HandleQryActiveJobEvents(): -> c.BodyParser(&device) -> device", device)
 
-	evts, err := device.GetActiveJobEvents()
+	evts, err := device.QryActiveJobEvents()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	} // pkg.Json("HandleGetActiveJobEvents(): -> device.GetActiveJobEvents() -> evts", evts)
+	} // pkg.Json("HandleQryActiveJobEvents(): -> device.QryActiveJobEvents() -> evts", evts)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"events": &evts})
+}
+
+func HandleQryActiveJobSamples(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleQryActiveJobSamples( )\n")
+
+	/* CHECK USER PERMISSION */
+	if !pkg.UserRole_Viewer(c.Locals("role")) {
+		txt := "You must be a registered user to view job evens."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	} // pkg.Json("HandleQryActiveJobSamples(): -> c.BodyParser(&device) -> device", device)
+
+	/* PARSE AND VALIDATE REQUEST DATA - QUERY PARAMS */
+	strQty, err := url.QueryUnescape(c.Query("qty"))
+	if err != nil {
+		txt := fmt.Sprintf("Invalid query parameter: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
+	}
+
+	qty, err := strconv.Atoi(strQty)
+	if err != nil {
+		txt := fmt.Sprintf("Invalid query parameter: %s", err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(txt)
+	}
+
+	xys, err := device.QryActiveJobXYSamples(qty)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	} // pkg.Json("HandleQryActiveJobSamples(): -> device.QryActiveJobSamples() -> len(smps)", len(smps))
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"xy_points": &xys})
 }
 
 /* USED TO OPEN A WEB SOCKET CONNECTION BETWEEN A USER AND A GIVEN DEVICE */
@@ -364,7 +403,7 @@ func HandleDeviceUserClient_Connect(ws *websocket.Conn) {
 		pkg.SendWSConnectionError(ws, err.Error())
 		return
 	}
-	
+
 	if !pkg.ValidateUUIDString(sid) {
 		pkg.SendWSConnectionError(ws, "Invalid user session ID.")
 		return
@@ -404,7 +443,7 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = ValidatePostRequestBody_Device(c, &device); err != nil { 
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 	// if err := c.BodyParser(&device); err != nil {
@@ -439,7 +478,7 @@ func HandleDESDeviceClientDisconnect(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = ValidatePostRequestBody_Device(c, &device); err != nil { 
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleDisconnectDevice(): -> c.BodyParser(&device) -> device", device)
 
@@ -465,7 +504,7 @@ func HandleDESDeviceClientRefresh(c *fiber.Ctx) (err error) {
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
-	if err = ValidatePostRequestBody_Device(c, &device); err != nil { 
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} //pkg.Json("HandleCheckDESDeviceClient(): -> c.BodyParser(&device) -> device", device)
 

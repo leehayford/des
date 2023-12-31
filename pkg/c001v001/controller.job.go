@@ -541,7 +541,7 @@ func (job *Job) GetJobData_Limited(limit int) (err error) {
 	job.DBClient.DB.Select("*").Table("headers").Limit(limit).Order("hdr_time DESC").Scan(&job.Headers)
 	job.DBClient.DB.Select("*").Table("configs").Limit(limit).Order("cfg_time DESC").Scan(&job.Configs)
 	job.DBClient.DB.Select("*").Table("events").Limit(limit).Order("evt_time DESC").Scan(&job.Events)
-	job.DBClient.DB.Select("*").Table("samples").Limit(limit).Order("smp_time DESC").Scan(&job.Samples)
+	job.DBClient.DB.Select("*").Table("samples").Limit(limit).Order("smp_time ASC").Scan(&job.Samples)
 	for _, smp := range job.Samples {
 		job.XYPoints.AppendXYSample(smp)
 	}
