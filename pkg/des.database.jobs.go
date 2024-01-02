@@ -21,6 +21,7 @@ import (
 
 	/* https://gorm.io/docs/ */
 	"gorm.io/gorm" // go get gorm.io/gorm
+	// "github.com/glebarez/sqlite" // go get github.com/glebarez/sqlite
 	"gorm.io/driver/sqlite" // go get gorm.io/driver/sqlite
 	"gorm.io/gorm/logger"
 )
@@ -41,7 +42,7 @@ func CheckDatabaseExists(db_name string) (exits bool) {
 }
 func MakeDBClient(db_name string) (dbc JobDBClient) {
 	dbc = JobDBClient{ConnStr: fmt.Sprintf("%s/%s", DES_JOB_DATABASES, db_name)}
-	return 
+	return
 }
 
 func (jdbc *JobDBClient) GetDBName() string {
@@ -53,7 +54,7 @@ func (jdbc *JobDBClient) GetDBName() string {
 		return ""
 	}
 }
-func (jdbc *JobDBClient) Connect( ) (err error) {
+func (jdbc *JobDBClient) Connect() (err error) {
 
 	if jdbc.DB, err = gorm.Open(sqlite.Open(jdbc.ConnStr), &gorm.Config{}); err != nil {
 		// fmt.Printf("\n(*JobDBClient) Connect() -> %s -> FAILED! \n", jdbc.GetDBName())
@@ -78,4 +79,3 @@ func (jdbc *JobDBClient) Disconnect() (err error) {
 	jdbc = &JobDBClient{}
 	return
 }
-

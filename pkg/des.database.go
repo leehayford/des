@@ -187,10 +187,11 @@ func ConfirmDESDirectories() (err error) {
 }
 func ConfirmDirectory(name string) (err error) {
 	if err = os.Mkdir(name, os.ModePerm); err != nil {
-		if (strings.Contains(err.Error(), os.ErrExist.Error())) {
+		if strings.Contains(err.Error(), "exists") {
+			// if (strings.Contains(err.Error(), os.ErrExist.Error())) {
 			// fmt.Printf("%s : %s\n", name, os.ErrExist.Error())
-			err = nil 
-		} 
+			err = nil
+		}
 	}
 	return
 }
@@ -227,9 +228,9 @@ func ArchiveDESDirectories() (err error) {
 }
 func ArchiveDirectory(dir, arc string) (err error) {
 	if err := os.Rename(dir, arc); err != nil {
-		if (strings.Contains(err.Error(), "cannot find the file")) {
-			/* TODO: IDENTIFY CORRECT os.Err... 
-				- IT'S NONE OF THESE, AND THAT'S THE WHOLE LIST...
+		if strings.Contains(err.Error(), "cannot find the file") {
+			/* TODO: IDENTIFY CORRECT os.Err...
+			- IT'S NONE OF THESE, AND THAT'S THE WHOLE LIST...
 			*/
 			// fmt.Printf("%s : %s\n", dir, err.Error())
 			// fmt.Printf("%s : %s\n", dir, os.ErrClosed.Error())
@@ -240,12 +241,13 @@ func ArchiveDirectory(dir, arc string) (err error) {
 			// fmt.Printf("%s : %s\n", dir, os.ErrNotExist.Error())
 			// fmt.Printf("%s : %s\n", dir, os.ErrPermission.Error())
 			// fmt.Printf("%s : %s\n", dir, os.ErrProcessDone.Error())
-			err = nil 
-		} 
-		
+			err = nil
+		}
+
 	}
-	return 
+	return
 }
+
 /*
 	DES DATABASE
 
