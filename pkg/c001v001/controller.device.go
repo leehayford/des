@@ -179,7 +179,7 @@ func (device *Device) InitializeDB(name string) (err error) {
 
 	return
 }
-func (device * Device) GetDeviceFiles() (err error) {
+func (device *Device) GetDeviceIntitializationFiles() (err error) {
 
 	if err = device.ConnectCmdDBC(); err != nil {
 		return pkg.LogErr(err)

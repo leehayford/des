@@ -18,7 +18,7 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 
 		/* DEVICE-ADMIN-LEVEL OPERATIONS */
 		router.Post("/register", pkg.DesAuth, HandleRegisterDevice)
-		router.Post("/files", pkg.DesAuth, HandleGetDeviceFiles)
+		router.Post("/files", pkg.DesAuth, HandleGetDeviceIntitializationFiles)
 		router.Post("/des_client_refresh", pkg.DesAuth, HandleDESDeviceClientRefresh)
 		router.Post("/des_client_disconnect", pkg.DesAuth, HandleDESDeviceClientDisconnect)
 
@@ -78,7 +78,7 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_OPERATOR + ": View device list")
+			SendString(pkg.ERR_AUTH_OPERATOR + ": View device list")
 	}
 
 	regs, err := GetDeviceList()
@@ -98,7 +98,7 @@ func HandleSearchDevices(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_OPERATOR + ": Search devices")
+			SendString(pkg.ERR_AUTH_OPERATOR + ": Search devices")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -133,7 +133,7 @@ func HandleStartJobRequest(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_OPERATOR + ": Start a job")
+			SendString(pkg.ERR_AUTH_OPERATOR + ": Start a job")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -145,7 +145,7 @@ func HandleStartJobRequest(c *fiber.Ctx) (err error) {
 	/* CHECK DEVICE AVAILABILITY */
 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
 		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
-	} 
+	}
 
 	/* SEND START JOB REQUEST */
 	uid := (c.Locals("sub").(string))
@@ -172,7 +172,7 @@ func HandleEndJobRequest(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_OPERATOR + ": End a job")
+			SendString(pkg.ERR_AUTH_OPERATOR + ": End a job")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -184,7 +184,7 @@ func HandleEndJobRequest(c *fiber.Ctx) (err error) {
 	/* CHECK DEVICE AVAILABILITY */
 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
 		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
-	} 
+	}
 
 	/* SEND END JOB REQUEST */
 	uid := (c.Locals("sub").(string))
@@ -206,7 +206,7 @@ func HandleSetAdminRequest(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_OPERATOR + ": Edit device alarms")
+			SendString(pkg.ERR_AUTH_OPERATOR + ": Edit device alarms")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -218,7 +218,7 @@ func HandleSetAdminRequest(c *fiber.Ctx) (err error) {
 	/* CHECK DEVICE AVAILABILITY */
 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
 		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
-	} 
+	}
 
 	/* SEND SET ADMIN REQUEST */
 	if err = device.SetAdminRequest(c.IP()); err != nil {
@@ -242,7 +242,7 @@ func HandleSetStateRequest(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_OPERATOR + ": Request device state")
+			SendString(pkg.ERR_AUTH_OPERATOR + ": Request device state")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -254,7 +254,7 @@ func HandleSetStateRequest(c *fiber.Ctx) (err error) {
 	/* CHECK DEVICE AVAILABILITY */
 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
 		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
-	} 
+	}
 
 	/* SEND GET STATE REQUEST */
 	if err = device.SetStateRequest(c.IP()); err != nil {
@@ -275,7 +275,7 @@ func HandleSetHeaderRequest(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_OPERATOR + ": Edit job headers")
+			SendString(pkg.ERR_AUTH_OPERATOR + ": Edit job headers")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -287,7 +287,7 @@ func HandleSetHeaderRequest(c *fiber.Ctx) (err error) {
 	/* CHECK DEVICE AVAILABILITY */
 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
 		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
-	} 
+	}
 
 	/* SEND SET HEADER REQUEST */
 	if err = device.SetHeaderRequest(c.IP()); err != nil {
@@ -308,7 +308,7 @@ func HandleSetConfigRequest(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_OPERATOR + ": Edit device configuration")
+			SendString(pkg.ERR_AUTH_OPERATOR + ": Edit device configuration")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -320,7 +320,7 @@ func HandleSetConfigRequest(c *fiber.Ctx) (err error) {
 	/* CHECK DEVICE AVAILABILITY */
 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
 		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
-	} 
+	}
 
 	/* SEND SET CONFIG REQUEST */
 	if err = device.SetConfigRequest(c.IP()); err != nil {
@@ -341,7 +341,7 @@ func HandleSetEventRequest(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_OPERATOR + ": Post job events")
+			SendString(pkg.ERR_AUTH_OPERATOR + ": Post job events")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -353,7 +353,7 @@ func HandleSetEventRequest(c *fiber.Ctx) (err error) {
 	/* CHECK DEVICE AVAILABILITY */
 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
 		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
-	} 
+	}
 
 	/* SEND CREATE EVENT REQUEST */
 	// uid := (c.Locals("sub").(string))
@@ -370,7 +370,7 @@ func HandleQryActiveJobEvents(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_VIEWER + ": View job events")
+			SendString(pkg.ERR_AUTH_VIEWER + ": View job events")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -393,7 +393,7 @@ func HandleQryActiveJobSamples(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_VIEWER + ": View sample data")
+			SendString(pkg.ERR_AUTH_VIEWER + ": View sample data")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -429,7 +429,7 @@ func HandleDeviceUserClient_Connect(ws *websocket.Conn) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(ws.Locals("role")) {
-		pkg.SendWSConnectionError(ws, pkg.ERR_AUTH_OPERATOR + ": Connect to devices.")
+		pkg.SendWSConnectionError(ws, pkg.ERR_AUTH_OPERATOR+": Connect to devices.")
 		return
 	}
 
@@ -474,7 +474,7 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Super(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_SUPER + ": Register devices")
+			SendString(pkg.ERR_AUTH_SUPER + ": Register devices")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -505,7 +505,7 @@ func HandleDESDeviceClientDisconnect(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Super(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_SUPER + ": Disconnect devices")
+			SendString(pkg.ERR_AUTH_SUPER + ": Disconnect devices")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -531,7 +531,7 @@ func HandleDESDeviceClientRefresh(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Admin(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_SUPER + ": Connect devices")
+			SendString(pkg.ERR_AUTH_SUPER + ": Connect devices")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -558,29 +558,28 @@ func HandleDESDeviceClientRefresh(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &d})
 }
 
-func HandleGetDeviceFiles(c *fiber.Ctx) (err error) {
+func HandleGetDeviceIntitializationFiles(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleGetDeviceFiles( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Super(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString(pkg.ERR_AUTH_SUPER + ": Retrieve device files")
+			SendString(pkg.ERR_AUTH_SUPER + ": Retrieve device files")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	device := Device{}
 	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
-	}  // pkg.Json("HandleGetDeviceFiles( ) -> cValidatePostRequestBody_Device -> device.DESDev", device.DESDev)
+	} // pkg.Json("HandleGetDeviceFiles( ) -> cValidatePostRequestBody_Device -> device.DESDev", device.DESDev)
 
 	/* GET FIRST RECORDS FROM CMDARCHIVE */
-	if err = device.GetDeviceFiles(); err != nil {
+	if err = device.GetDeviceIntitializationFiles(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	}  // pkg.Json("HandleGetDeviceFiles( ) -> GetDeviceFiles() -> device", device)
+	} // pkg.Json("HandleGetDeviceFiles( ) -> GetDeviceFiles() -> device", device)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"files": &device})
 }
-
 
 /**************************************************************************************************************/
 /* DEBUGGING STUFF :  REMOVE FOR PRODUCTION *******************************************************/
