@@ -18,6 +18,7 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 
 		/* DEVICE-ADMIN-LEVEL OPERATIONS */
 		router.Post("/register", pkg.DesAuth, HandleRegisterDevice)
+		router.Post("/files", pkg.DesAuth, HandleGetDeviceFiles)
 		router.Post("/des_client_refresh", pkg.DesAuth, HandleDESDeviceClientRefresh)
 		router.Post("/des_client_disconnect", pkg.DesAuth, HandleDESDeviceClientDisconnect)
 
@@ -480,11 +481,7 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 	device := Device{}
 	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
-	}
-	// if err := c.BodyParser(&device); err != nil {
-	// 	txt := fmt.Sprintf("Invalid request body: %s", err.Error())
-	// 	return c.Status(fiber.StatusBadRequest).SendString(txt)
-	// } // pkg.Json("HandleRegisterDevice( ) -> c.BodyParser( device ) -> device.DESDev", device.DESDev)
+	} // pkg.Json("HandleRegisterDevice( ) -> c.BodyParser( device ) -> device.DESDev", device.DESDev)
 
 	/* REGISTER A C001V001 DEVICE ON THIS DES */
 	if err := device.RegisterDevice(c.IP()); err != nil {
@@ -560,6 +557,30 @@ func HandleDESDeviceClientRefresh(c *fiber.Ctx) (err error) {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &d})
 }
+
+func HandleGetDeviceFiles(c *fiber.Ctx) (err error) {
+	// fmt.Printf("\nHandleGetDeviceFiles( )\n")
+
+	/* CHECK USER PERMISSION */
+	if !pkg.UserRole_Super(c.Locals("role")) {
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_SUPER + ": Retrieve device files")
+	}
+
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	}  // pkg.Json("HandleGetDeviceFiles( ) -> cValidatePostRequestBody_Device -> device.DESDev", device.DESDev)
+
+	/* GET FIRST RECORDS FROM CMDARCHIVE */
+	if err = device.GetDeviceFiles(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}  // pkg.Json("HandleGetDeviceFiles( ) -> GetDeviceFiles() -> device", device)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"files": &device})
+}
+
 
 /**************************************************************************************************************/
 /* DEBUGGING STUFF :  REMOVE FOR PRODUCTION *******************************************************/

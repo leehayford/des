@@ -128,12 +128,15 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() (err error) {
 
 	fmt.Printf("\n\n(*DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connecting... \n", demo.DESDevSerial)
 
-	dir := demo.CmdArchiveName()
-	demo.ReadLastADMFromJSONFile(dir)
-	demo.ReadLastSTAFromJSONFile(dir)
-	demo.ReadLastHDRFromJSONFile(dir)
-	demo.ReadLastCFGFromJSONFile(dir)
-	demo.ReadLastEVTFromJSONFile(dir)
+	// dir := demo.CmdArchiveName()
+	// demo.ReadLastADMFromJSONFile(dir)
+	// demo.ReadLastSTAFromJSONFile(dir)
+	// demo.ReadLastHDRFromJSONFile(dir)
+	// demo.ReadLastCFGFromJSONFile(dir)
+	// demo.ReadLastEVTFromJSONFile(dir)
+	if err = demo.GetDeviceFiles(); err != nil {
+		return
+	}
 
 	/* ENSURE DEMO DEVICE HAS CORRECT ID VALUES
 	DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS

@@ -139,7 +139,6 @@ func (device *Device) RegisterDevice(src string) (err error) {
 
 	return
 }
-
 func (device *Device) InitializeDB(name string) (err error) {
 
 	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
@@ -180,7 +179,23 @@ func (device *Device) InitializeDB(name string) (err error) {
 
 	return
 }
+func (device * Device) GetDeviceFiles() (err error) {
 
+	if err = device.ConnectCmdDBC(); err != nil {
+		return pkg.LogErr(err)
+	}
+
+	/* TODO: ERR CHECKING */
+	device.CmdDBC.First(&device.ADM)
+	device.CmdDBC.First(&device.STA)
+	device.CmdDBC.First(&device.HDR)
+	device.CmdDBC.First(&device.CFG)
+	device.CmdDBC.First(&device.EVT)
+
+	device.CmdDBC.Disconnect()
+
+	return
+}
 func (device *Device) ReferenceSRC() (src pkg.DESMessageSource) {
 	src.Time = time.Now().UTC().UnixMilli()
 	src.Addr = device.DESDevSerial
