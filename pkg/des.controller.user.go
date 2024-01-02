@@ -33,14 +33,14 @@ import (
 const USER_SESSION_WS_KEEP_ALIVE_SEC = 30
 
 type UserSession struct {
-	SID         uuid.UUID     `json:"sid"`
-	REFTok      string        `json:"ref_token"`
-	ACCTok      string        `json:"acc_token"`
-	USR         UserResponse  `json:"user"`
-	DataOut     chan string   `json:"-"`
-	Close       chan struct{} `json:"-"`
-	CloseSend   chan struct{} `json:"-"`
-	CloseKeep   chan struct{} `json:"-"`
+	SID       uuid.UUID     `json:"sid"`
+	REFTok    string        `json:"ref_token"`
+	ACCTok    string        `json:"acc_token"`
+	USR       UserResponse  `json:"user"`
+	DataOut   chan string   `json:"-"`
+	Close     chan struct{} `json:"-"`
+	CloseSend chan struct{} `json:"-"`
+	CloseKeep chan struct{} `json:"-"`
 }
 
 type UserSessionMap map[string]UserSession
@@ -107,6 +107,63 @@ func (us *UserSession) GetMappedRefTok() (err error) {
 		return
 	}
 	us.REFTok = u.REFTok
+	return
+}
+
+func GetUserByID(uid string) (user User, err error) {
+
+	DES.DB.First(&user, "id = ?", uid)
+	if user.ID.String() != uid {
+		err = fmt.Errorf(ERR_AUTH_USER_NOT_FOUND)
+	}
+	return
+}
+
+func GetUserReferenceSRC(uid string) (src DESMessageSource, err error) {
+	//ERR_USER_NOT_FOUND
+	user, err := GetUserByID(uid)
+	if err != nil {
+		return
+	}
+
+	src.Time = time.Now().UTC().UnixMilli()
+	src.Addr = user.Email
+	src.UserID = user.ID.String()
+	src.App = DES_APP
+	return
+}
+
+func GetUserList() (users []UserResponse, err error) {
+
+	qry := DES.DB.Table("users").Select("*")
+
+	us := []User{}
+	res := qry.Scan(&us)
+	if res.Error != nil {
+		err = fmt.Errorf("Failed to retrieve users from database: %s", res.Error.Error())
+		return
+	}
+
+	for _, user := range us {
+		users = append(users, user.FilterUserRecord())
+	}
+
+	return
+}
+
+func CreateDESUserForDevice(serial, pw string) (user UserResponse, err error) {
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	u := User{
+		Name:     serial,
+		Email:    fmt.Sprintf("%s@datacan.ca", strings.ToLower(serial)),
+		Password: string(hashedPassword),
+		Role:     "device",
+	}
+	result := DES.DB.Create(&u)
+	err = result.Error
+	user = u.FilterUserRecord()
+
 	return
 }
 
@@ -299,49 +356,6 @@ func (us *UserSession) CreateJWTAccessToken() (err error) {
 	if err != nil {
 		err = fmt.Errorf("Failed to sign access token: %s", err.Error())
 	}
-	return
-}
-
-func GetUserByID(userID interface{}) (user User, err error) {
-
-	DES.DB.First(&user, "id = ?", userID)
-	if user.ID.String() != userID {
-		err = fmt.Errorf("The user belonging to this token no logger exists.")
-	}
-	return
-}
-
-func GetUserList() (users []UserResponse, err error) {
-
-	qry := DES.DB.Table("users").Select("*")
-
-	us := []User{}
-	res := qry.Scan(&us)
-	if res.Error != nil {
-		err = fmt.Errorf("Failed to retrieve users from database: %s", res.Error.Error())
-		return
-	}
-
-	for _, user := range us {
-		users = append(users, user.FilterUserRecord())
-	}
-
-	return
-}
-
-func CreateDESUserForDevice(serial, pw string) (user UserResponse, err error) {
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
-	u := User{
-		Name:     serial,
-		Email:    fmt.Sprintf("%s@datacan.ca", strings.ToLower(serial)),
-		Password: string(hashedPassword),
-		Role:     "device",
-	}
-	result := DES.DB.Create(&u)
-	err = result.Error
-	user = u.FilterUserRecord()
-
 	return
 }
 

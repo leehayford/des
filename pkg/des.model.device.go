@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -16,13 +15,13 @@ License:
 package pkg
 
 import (
-	"encoding/json"
-	"time"
+	// "encoding/json"
+	// "time"
 )
 
 type DESDev struct {
-	DESDevID int64 `gorm:"unique; primaryKey" json:"des_dev_id"`	
-	
+	DESDevID int64 `gorm:"unique; primaryKey" json:"des_dev_id"`
+
 	DESDevRegTime   int64  `gorm:"not null" json:"des_dev_reg_time"`
 	DESDevRegAddr   string `json:"des_dev_reg_addr"`
 	DESDevRegUserID string `gorm:"not null; varchar(36)" json:"des_dev_reg_user_id"`
@@ -31,9 +30,10 @@ type DESDev struct {
 	DESDevSerial  string   `gorm:"not null; varchar(10)" json:"des_dev_serial"`
 	DESDevVersion string   `gorm:"not null; varchar(3)" json:"des_dev_version"`
 	DESDevClass   string   `gorm:"not null; varchar(3)" json:"des_dev_class"`
-	DESJobs []DESJob `gorm:"foreignKey:DESJobDevID" json:"-"`
-	User User `gorm:"foreignKey:DESDevRegUserID" json:"-"`
+	DESJobs       []DESJob `gorm:"foreignKey:DESJobDevID" json:"-"`
+	User          User     `gorm:"foreignKey:DESDevRegUserID" json:"-"`
 }
+
 func WriteDESDevice(device DESDev) (err error) {
 	device.DESDevID = 0
 	res := DES.DB.Create(&device)
@@ -60,72 +60,67 @@ func GetDESDevList(devices *[]DESDev) (err error) {
 			subQry).
 		Order("des_devs.des_dev_serial DESC")
 
-		res := qry.Find(&devices)
-		return res.Error
-}
-
-
-type DESDevError struct {
-	DESDevErrID int64 `gorm:"unique; primaryKey" json:"des_dev_err_id"`	
-	DESDevErrTime   int64  `gorm:"not null" json:"des_dev_err_time"`
-	DESDevErrMsg	string `gorm:"not null" json:"des_dev_err_msg"`
-	DESDevErrJson	string `json:"des_dev_err_json"` // If there is an object associated with the error, this is the JSON string thereof.
-	DESErrDevID int64   `json:"des_err_dev_id"`
-	DESDev DESDev `gorm:"foreignKey:DESErrDevID" json:"-"`
-}
-func WriteDESDevError(dev_err DESDevError) (err error) {
-	dev_err.DESDevErrID = 0
-	res := DES.DB.Create(&dev_err)
+	res := qry.Find(&devices)
 	return res.Error
 }
-func GetDESDevErrorList(devices *[]DESDev) (err error) {
 
-	/*
-		WHERE A DEVICE HAS MORE THAN ONE REGISTRATION RECORD
-		WE WANT THE LATEST
-	*/
-	subQry := DES.DB.
-		Table("des_devs").
-		Select(`des_dev_serial, MAX(des_dev_reg_time) AS max_time`).
-		Group("des_dev_serial")
+// type DESDevError struct {
+// 	DESDevErrID   int64  `gorm:"unique; primaryKey" json:"des_dev_err_id"`
+// 	DESDevErrTime int64  `gorm:"not null" json:"des_dev_err_time"`
+// 	DESDevErrMsg  string `gorm:"not null" json:"des_dev_err_msg"`
+// 	DESDevErrJson string `json:"des_dev_err_json"` // If there is an object associated with the error, this is the JSON string thereof.
+// 	DESErrDevID   int64  `json:"des_err_dev_id"`
+// 	DESDev        DESDev `gorm:"foreignKey:DESErrDevID" json:"-"`
+// }
 
-	qry := DES.DB.
-		Select(" * ").
-		Joins(`JOIN ( ? ) x 
-		ON des_devs.des_dev_serial = x.des_dev_serial 
-		AND des_devs.des_dev_reg_time = x.max_time`,
-			subQry).
-		Order("des_devs.des_dev_serial DESC")
+// func WriteDESDevError(dev_err DESDevError) (err error) {
+// 	dev_err.DESDevErrID = 0
+// 	res := DES.DB.Create(&dev_err)
+// 	return res.Error
+// }
+// func GetDESDevErrorList() (devices *[]DESDev, err error) {
 
-		res := qry.Find(&devices)
-		return res.Error
-}
+// 	/*
+// 		WHERE A DEVICE HAS MORE THAN ONE REGISTRATION RECORD
+// 		WE WANT THE LATEST
+// 	*/
+// 	subQry := DES.DB.
+// 		Table("des_devs").
+// 		Select(`des_dev_serial, MAX(des_dev_reg_time) AS max_time`).
+// 		Group("des_dev_serial")
 
-type ObjError struct {
-	Msg string      `json:"msg"`
-}
+// 	qry := DES.DB.
+// 		Select(" * ").
+// 		Joins(`JOIN ( ? ) x 
+// 		ON des_devs.des_dev_serial = x.des_dev_serial 
+// 		AND des_devs.des_dev_reg_time = x.max_time`,
+// 			subQry).
+// 		Order("des_devs.des_dev_serial DESC")
 
-func (des_dev DESDev)MakeDESDevError(msg string, obj interface{}) (dev_err DESDevError, err error) {
+// 	res := qry.Find(&devices)
+// 	err = res.Error
+// 	return
+// }
 
-	t := time.Now().UTC().UnixMilli()
+// func (des_dev DESDev) MakeDESDevError(msg string, obj interface{}) (dev_err DESDevError, err error) {
 
-	js, err := ModelToJSONString(obj)
-	if err != nil {
-		LogErr(err)
-		b, _ := json.Marshal(&ObjError{Msg: "Model could not be converted to json string."})
-		js = string(b)
-	}
+// 	t := time.Now().UTC().UnixMilli()
 
-	dev_err = DESDevError{
-		DESDevErrTime: t,
-		DESDevErrMsg: msg,
-		DESDevErrJson: js,
-		DESErrDevID: des_dev.DESDevID,
-	}
+// 	js, err := ModelToJSONString(obj)
+// 	if err != nil {
+// 		LogErr(err)
+// 		b, _ := json.Marshal(&DESErrObj{Msg: "Model could not be converted to json string."})
+// 		js = string(b)
+// 	}
 
-	err = WriteDESDevError(dev_err)
+// 	dev_err = DESDevError{
+// 		DESDevErrTime: t,
+// 		DESDevErrMsg:  msg,
+// 		DESDevErrJson: js,
+// 		DESErrDevID:   des_dev.DESDevID,
+// 	}
 
-	return
-}
+// 	err = WriteDESDevError(dev_err)
 
-
+// 	return
+// }

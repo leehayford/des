@@ -18,7 +18,19 @@ func InitializeJobRoutes(app, api *fiber.App) (err error) {
 		router.Post("/new_header", pkg.DesAuth, HandleJobNewHeader)
 		router.Post("/new_event", pkg.DesAuth, HandleNewReportEvent)
 		router.Post("/event_list", pkg.DesAuth, HandleGetJobEvents)
+
+		router.Get("/des_list", pkg.DesAuth, HandleGetAdminJobList)
 	})
+	return
+}
+
+func ValidatePostRequestBody_Job(c *fiber.Ctx, job *Job) (err error) {
+
+	if err = pkg.ParseRequestBody(c, &job); err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	}
+
+	/*  TODO: ADDITIONAL JOB VALIDATION */
 	return
 }
 
@@ -33,12 +45,8 @@ func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
 	})
 }
 
-/*
-RETURNS THE LIST OF JOBS REGISTERED TO THIS DES
-
-ALONG WITH THE DEVICE FOR EACH OF THOSE JOBS
-IN THE FORM OF A DESRegistration
-*/
+/* RETURNS THE LIST OF COMPLETED JOBS REGISTERED TO THIS DES, 
+EXCLUDING CMDARCHIVES AND ACTIVE JOBS */
 func HandleGetJobList(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleGetJobList( )\n")
 
@@ -100,7 +108,7 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 	}
 	
 	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
-	defer job.DBClient.Disconnect()
+	defer job.DBC.Disconnect()
 
 	/* QUERY JOB DATABASE */
 	if err = job.GetJobData(); err != nil {
@@ -135,7 +143,7 @@ func HandleNewReport(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
-	defer job.DBClient.Disconnect()
+	defer job.DBC.Disconnect()
 
 	/* GENERATE THE NEW REPORT RECORDS IN THE JOB DATABASE */
 	job.GenerateReport(&rep)
@@ -200,7 +208,7 @@ func HandleGetJobEvents(c *fiber.Ctx) (err error) {
 		})
 	}
 	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
-	defer job.DBClient.Disconnect()
+	defer job.DBC.Disconnect()
 
 	if err = job.GetJobEvents(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -249,7 +257,7 @@ func HandleNewReportEvent(c *fiber.Ctx) (err error) {
 		})
 	}
 	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
-	defer job.DBClient.Disconnect()
+	defer job.DBC.Disconnect()
 
 	if err = job.NewReportEvent(c.IP(), &job.Events[0]); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -264,4 +272,27 @@ func HandleNewReportEvent(c *fiber.Ctx) (err error) {
 		"message": "You are a tolerable person!",
 		"data":    fiber.Map{"evt": job.Events[0]},
 	})
+}
+
+
+
+/* RETURNS THE LIST OF ALL JOBS REGISTERED TO THIS DES,
+INCLUDING CMDARCHIVES AND ACTIVE JOBS */
+func HandleGetAdminJobList(c *fiber.Ctx) (err error) {
+
+	/* CHECK USER PERMISSION */
+	if !pkg.UserRole_Admin(c.Locals("role")) {
+		txt := "You must be an administrator user to view DES job list."
+		return c.Status(fiber.StatusForbidden).SendString(txt)
+	}
+
+	regs, err := GetAdminJobList( )
+	if err != nil {
+		txt := fmt.Sprintf("Failed to retrieve jobs from server: %s", err.Error())
+		return c.Status(fiber.StatusInternalServerError).SendString(txt)
+	}
+
+	jobs := GetJobs(regs)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"jobs": jobs})
 }

@@ -38,29 +38,29 @@ func main() {
 	flag.Parse()
 
 	if *cleanDB {
-		/* CLEAN DATABASE - DROP ALL */
+		/* DROP ALL DATABASES */
 		pkg.ADB.DropAllDatabases()
+		
+		/* ARCHIVE ALL DEVICE / JOB DIRECTORIES */
+		pkg.ArchiveDESDirectories()
 	}
 
-	/* CREATE OR MIGRATE DES DATABASE & CONNECT */
-	exists := pkg.ADB.CheckDatabaseExists(pkg.DES_DB)
-	if !exists {
-		pkg.ADB.CreateDatabase(pkg.DES_DB)
+	/* CONFIRM REQUIRED DIRECTORIES EXIST */
+	pkg.ConfirmDESDirectories()
+
+	/* CREATE OR MIGRATE DES DATABASE */
+	if !*sim {
+		pkg.ADB.CreateDESDatabase()
 	}
+
 	pkg.DES.Connect()
 	defer pkg.DES.Disconnect()
-
-	/* IF DES DATABASE DIDN'T ALREADY EXIST, CREATE TABLES, OTHERWISE MIGRATE */
-	if err := pkg.DES.CreateDESTables(exists); err != nil {
-		pkg.LogErr(err)
-	}
 
 	/* MAIN SERVER */
 	app := fiber.New()
 	api := fiber.New()
 
 	if *sim {
-
 		/********************************************************************************************/
 		/* DEMO DEVICES -> NOT FOR PRODUCTION */
 		fmt.Println("\n\nConnecting all C001V001 MQTT DemoDevice Clients...")
@@ -87,20 +87,25 @@ func main() {
 		}))
 
 		/* DES ROUTES *************************************************************************************/
+		/****************************************************************************************************/
+		
 		/*DES AUTH & USER ROUTES */
 		pkg.InitializeDESUserRoutes(app, api)
 
 		/* DES DEVICE ROUTES */
 		pkg.InitializeDESDeviceRoutes(app, api)
+
 		/****************************************************************************************************/
 
-
 		/* C001V001 ROUTES ******************************************************************************/
+		/****************************************************************************************************/
+		
 		/* C001V001 DEVICE ROUTES */
 		c001v001.InitializeDeviceRoutes(app, api)
 
 		/* C001V001 JOB / REPORTING ROUTES */
 		c001v001.InitializeJobRoutes(app, api)
+
 		/****************************************************************************************************/
 
 	}

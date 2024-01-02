@@ -11,7 +11,8 @@ import (
 SAMPLE - AS WRITTEN TO JOB DATABASE
 */
 type Sample struct {
-	SmpID int64 `gorm:"unique; primaryKey" json:"-"`
+	// SmpID int64 `gorm:"unique; primaryKey" json:"-"` // POSTGRESS
+	SmpID int64 `gorm:"autoIncrement" json:"-"` // SQLITE
 
 	SmpTime    int64   `gorm:"not null" json:"smp_time"`
 	SmpCH4     float32 `json:"smp_ch4"`
@@ -26,15 +27,15 @@ type Sample struct {
 	SmpJobName string  `json:"smp_job_name"`
 }
 
-func WriteSMP(smp Sample, dbc *pkg.DBClient) (err error) {
+func WriteSMP(smp Sample, jdbc *pkg.JobDBClient) (err error) {
 
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
 	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
-	dbc.WG.Add(1)
+	// dbc.WG.Add(1)
 	smp.SmpID = 0
-	res := dbc.Create(&smp)
-	dbc.WG.Done()
+	res := jdbc.Create(&smp)
+	// dbc.WG.Done()
 
 	return res.Error
 }

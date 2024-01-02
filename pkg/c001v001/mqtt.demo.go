@@ -41,7 +41,7 @@ type DemoDeviceClient struct {
 	Rate  chan int32
 	Mode  chan int32
 	TZero chan time.Time
-	GPS chan bool
+	GPS   chan bool
 	Live  bool
 }
 
@@ -95,7 +95,6 @@ func GetDemoDeviceList() (demos []pkg.DESRegistration, err error) {
 	return
 }
 
-
 /* CALLED ON SERVER STARTUP */
 func DemoDeviceClient_ConnectAll() {
 
@@ -129,24 +128,23 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() (err error) {
 
 	fmt.Printf("\n\n(*DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> connecting... \n", demo.DESDevSerial)
 
-	fmt.Printf("\n(*DemoDeviceClient) DemoDeviceClient_Connect() -> %s -> getting last known status... \n", demo.DESDevSerial)
-	if err = demo.ConnectJobDBC(); err != nil { return pkg.LogErr(err) }
-	demo.JobDBC.Last(&demo.ADM)
-	demo.JobDBC.Last(&demo.STA)
-	demo.JobDBC.Last(&demo.HDR)
-	demo.JobDBC.Last(&demo.CFG)
-	demo.JobDBC.Last(&demo.SMP)
-	demo.JobDBC.Last(&demo.EVT)
-	demo.JobDBC.Disconnect() // we don't want to maintain this connection
+	dir := demo.CmdArchiveName()
+	demo.ReadLastADMFromJSONFile(dir)
+	demo.ReadLastSTAFromJSONFile(dir)
+	demo.ReadLastHDRFromJSONFile(dir)
+	demo.ReadLastCFGFromJSONFile(dir)
+	demo.ReadLastEVTFromJSONFile(dir)
 
-	/* ENSURE DEMO DEVICE HAS CORRECT ID VALUES 
-		DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS 
-		- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
-	if err = demo.GetDeviceDESU(); err != nil { return pkg.LogErr(err) } 
+	/* ENSURE DEMO DEVICE HAS CORRECT ID VALUES
+	DEVICE USER ID IS USED WHEN CREATING AUTOMATED / ALARM Event OR Config STRUCTS
+	- WE DON'T WANT TO ATTRIBUTE THEM TO ANOTHER USER */
+	if err = demo.GetDeviceDESU(); err != nil {
+		return pkg.LogErr(err)
+	}
 	demo.STA.StaAddr = demo.DESDevSerial
 	demo.STA.StaUserID = demo.DESU.ID.String()
 	demo.STA.StaApp = demo.DESDevSerial
-	
+
 	// demo.EVT.WG = &sync.WaitGroup{}
 	demo.Stop = make(chan struct{})
 	demo.Rate = make(chan int32)
@@ -157,7 +155,7 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() (err error) {
 
 	if err := demo.MQTTDemoDeviceClient_Connect(); err != nil {
 		demo.Live = false
-		return pkg.LogErr(err) 
+		return pkg.LogErr(err)
 	}
 
 	/* ADD TO DemoDeviceClients MAP */
@@ -172,10 +170,10 @@ func (demo *DemoDeviceClient) DemoDeviceClient_Connect() (err error) {
 	go func() {
 		for demo.Live {
 			select {
-			
-			case gps = <- demo.GPS: /* IF GPS IS ON, LTE IS OFF */
 
-			default: 
+			case gps = <-demo.GPS: /* IF GPS IS ON, LTE IS OFF */
+
+			default:
 				if !gps {
 					demo.MQTTPublication_DemoDeviceClient_SIGPing()
 					time.Sleep(time.Millisecond * DEVICE_PING_TIMEOUT)
@@ -264,7 +262,7 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
-	
+
 	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
 	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().UnSub(demo.DESMQTTClient)
 	demo.MQTTSubscription_DemoDeviceClient_CMDTestOLS().UnSub(demo.DESMQTTClient)
@@ -316,12 +314,14 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDEndJob() pkg.
 	}
 }
 
-/* SUBSCRIPTION -> REPORT ALL MODELS -> UPON RECEIPT REPLY TO EACH SIG TOPIC WITH THE CORRESPONDING MODEL
-	- Admin .../sig/admin 
-	- State .../sig/State
-	- Header .../sig/header
-	- Config .../sig/config
-	- Event .../sig/event
+/*
+	SUBSCRIPTION -> REPORT ALL MODELS -> UPON RECEIPT REPLY TO EACH SIG TOPIC WITH THE CORRESPONDING MODEL
+
+- Admin .../sig/admin
+- State .../sig/State
+- Header .../sig/header
+- Config .../sig/config
+- Event .../sig/event
 */
 func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDReport() pkg.MQTTSubscription {
 	return pkg.MQTTSubscription{
@@ -622,7 +622,6 @@ func (demo *DemoDeviceClient) MQTTSubscription_DemoDeviceClient_CMDTestOLS() pkg
 	}
 }
 
-
 /* PUBLICATIONS ******************************************************************************************/
 
 /* MQTTPublication_DemoDeviceClient_SIGStartJob */
@@ -632,7 +631,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGStartJob(start
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
-	
+
 	json, err := pkg.ModelToJSONString(start)
 	if err != nil {
 		pkg.LogErr(err)
@@ -678,7 +677,7 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGPing() {
 	/* RUN IN A GO ROUTINE (SEPARATE THREAD) TO
 	PREVENT BLOCKING WHEN PUBLISH IS CALLED IN A MESSAGE HANDLER
 	*/
-	
+
 	json, err := pkg.ModelToJSONString(pkg.Ping{Time: time.Now().UTC().UnixMilli(), OK: true})
 	if err != nil {
 		pkg.LogErr(err)
@@ -857,7 +856,6 @@ func (demo *DemoDeviceClient) MQTTPublication_DemoDeviceClient_SIGMsgLimit(msg M
 	sig.Pub(demo.DESMQTTClient)
 }
 
-
 /* SIMULATIONS *******************************************************************************************/
 
 func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
@@ -869,11 +867,11 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	evt.EvtCode = OP_CODE_GPS_ACQ
 	evt.EvtTitle = GetEventTypeByCode(evt.EvtCode)
 	go demo.MQTTPublication_DemoDeviceClient_SIGEvent(evt)
-	
+
 	/* DISCONNECT LTE AND SIMULATE GPS AQUISITION */
 	demo.GPS <- true
 	fmt.Printf("\n(*DemoDeviceClient) StartDemoJob( %s ) -> LTE OFF; GPS ON...\n", demo.DESDevSerial)
-	time.Sleep(time.Millisecond * ( DES_PING_TIMEOUT / 2 ) )
+	time.Sleep(time.Millisecond * (DES_PING_TIMEOUT / 2))
 
 	/* CAPTURE TIME VALUE FOR JOB INTITALIZATION: DB/JOB NAME, ADM, HDR, CFG, EVT */
 	startTime := time.Now().UTC().UnixMilli()
@@ -888,7 +886,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 		DESJobName:  fmt.Sprintf("%s_%d", demo.DESDevSerial, startTime),
 		DESJobStart: startTime,
 		DESJobEnd:   0,
-		DESJobLng:  -114.75 + rand.Float64()*(-110.15+114.75),
+		DESJobLng:   -114.75 + rand.Float64()*(-110.15+114.75),
 		DESJobLat:   51.85 + rand.Float64()*(54.35-51.85),
 		DESJobDevID: demo.DESDevID,
 	}
@@ -908,7 +906,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	sta.StaJobName = demo.DESJobName
 
 	demo.HDR = start.HDR
-	demo.HDR.HdrTime = startTime 
+	demo.HDR.HdrTime = startTime
 	demo.HDR.HdrAddr = demo.DESDevSerial
 	demo.HDR.HdrJobStart = startTime
 	demo.HDR.HdrJobEnd = 0
@@ -943,9 +941,9 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 	demo.WriteEvtToJSONFile(demo.DESJobName, demo.EVT)
 
 	/* LOAD VALUE INTO SIM 'RAM'
-		UPDATE THE DEVICE STATE ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB
-		AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS 
-		AND BEFORE WE SEND THE RESPONSE
+	UPDATE THE DEVICE STATE ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB
+	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
+	AND BEFORE WE SEND THE RESPONSE
 	*/
 	demo.STA = sta
 
@@ -958,7 +956,7 @@ func (demo *DemoDeviceClient) StartDemoJob(start StartJob, offline bool) {
 				HDR: demo.HDR,
 				CFG: demo.CFG,
 				EVT: demo.EVT,
-		})
+			})
 	}
 
 	/* RUN JOB... */
@@ -1055,7 +1053,7 @@ func (demo *DemoDeviceClient) EndDemoJob(evt Event) {
 
 func (demo *DemoDeviceClient) SimOfflineStart() {
 	fmt.Printf("\n(*DemoDeviceClient) SimOfflineStart( %s )...\n", demo.DESDevSerial)
-	
+
 	demo.DESJobRegAddr = demo.DESDevSerial
 	demo.DESJobRegUserID = demo.DESU.GetUUIDString()
 	demo.DESJobRegApp = demo.DESDevSerial
@@ -1084,7 +1082,7 @@ func (demo *DemoDeviceClient) SimOfflineStart() {
 			HDR: hdr,
 			CFG: cfg,
 			EVT: evt,
-		},true,
+		}, true,
 	)
 
 }
@@ -1356,4 +1354,3 @@ func YCosX(t0, ti time.Time, max, shift float64) (y float32) {
 
 	return float32(a * (math.Cos(dt*freq+(freq/shift)) + 1))
 }
-

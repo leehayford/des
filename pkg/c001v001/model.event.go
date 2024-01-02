@@ -1,9 +1,6 @@
 package c001v001
 
 import (
-	"fmt"
-	"errors"
-
 	"github.com/leehayford/des/pkg"
 )
 
@@ -11,12 +8,13 @@ import (
 EVENT - AS WRITTEN TO JOB DATABASE
 */
 type Event struct {
-	EvtID int64 `gorm:"unique; primaryKey" json:"-"`
+	// EvtID   int64  `gorm:"unique; primaryKey" json:"-"` // POSTGRES
+	EvtID int64 `gorm:"autoIncrement" json:"-"` // SQLITE
 
 	EvtTime   int64  `gorm:"not null" json:"evt_time"`
-	EvtAddr   string `json:"evt_addr"`
+	EvtAddr   string `gorm:"varchar(36)" json:"evt_addr"`
 	EvtUserID string `gorm:"not null; varchar(36)" json:"evt_user_id"`
-	EvtApp    string `gorm:"not null; varchar(36)" json:"evt_app"`
+	EvtApp    string `gorm:"varchar(36)" json:"evt_app"`
 
 	EvtCode  int32    `json:"evt_code"`
 	EvtTitle string   `gorm:"varchar(36)" json:"evt_title"`
@@ -24,16 +22,16 @@ type Event struct {
 	EvtType  EventTyp `gorm:"foreignKey:EvtCode; references:EvtTypCode" json:"-"`
 }
 
-func WriteEVT(evt Event, dbc *pkg.DBClient) (err error) {
+func WriteEVT(evt Event, jdbc *pkg.JobDBClient) (err error) {
 
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
 	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
-	dbc.WG.Add(1)
-	evt.EvtID = 0
-	res := dbc.Create(&evt)
-	evt.EvtID = 0
-	dbc.WG.Done()
+	// dbc.WG.Add(1)
+	// evt.EvtID = 0
+	res := jdbc.Create(&evt)
+	// evt.EvtID = 0
+	// dbc.WG.Done()
 
 	return res.Error
 }
@@ -95,56 +93,94 @@ func (evt *Event) Validate() {
 	evt.EvtUserID = pkg.ValidateStringLength(evt.EvtUserID, 36)
 	evt.EvtApp = pkg.ValidateStringLength(evt.EvtApp, 36)
 
+	if evt.EvtTitle == "" {
+		evt.EvtTitle = GetEventTypeByCode(evt.EvtCode)
+	}
+
 	evt.EvtTitle = pkg.ValidateStringLength(evt.EvtTitle, 36)
 	evt.EvtMsg = pkg.ValidateStringLength(evt.EvtMsg, 512)
 }
 
+func (evt *Event) GetMessageSource() (src pkg.DESMessageSource) {
+	src.Time = evt.EvtTime
+	src.Addr = evt.EvtAddr
+	src.UserID = evt.EvtUserID
+	src.App = evt.EvtApp
+	return
+}
+
+
+/* EVENT - VALIDATE CMD REQUEST FROM USER */
+func (evt *Event) CMDValidate(device *Device, uid string) (err error) {
+
+	src := evt.GetMessageSource()
+	dev_src := device.ReferenceSRC()
+	if err = src.ValidateSRC_CMD(dev_src, uid, evt); err != nil {
+		return
+	}
+
+	/* USERS CAN NOT SEND RESPONSE CODES TO THE DEVICE */
+	switch evt.EvtCode {
+	case OP_CODE_DES_REGISTERED:
+	case OP_CODE_JOB_ENDED:
+	case OP_CODE_JOB_STARTED:
+	case OP_CODE_GPS_ACQ:
+		_, err = pkg.LogDESError(uid, pkg.ERR_INVALID_SRC_OP_CODE_CMD, evt)
+		return
+	}
+
+	return
+}
 /*
 EVENT - VALIDATE MQTT SIG FROM DEVICE
 */
 func (evt *Event) SIGValidate(device *Device) (err error) {
 
-	if err = pkg.ValidateUnixMilli(evt.EvtTime); err != nil {
-		return fmt.Errorf("Invlid AdmTime: %s", err.Error())
+	src := evt.GetMessageSource()
+	dev_src := device.ReferenceSRC()
+	if err = src.ValidateSRC_SIG(dev_src, evt); err != nil {
+		return
 	}
-	if evt.EvtAddr != device.DESDevSerial { 
-		pkg.LogErr(errors.New("\nInvalid device.EVT.EvtAddr."))
-		evt.EvtAddr = device.DESDevSerial 
+
+	if evt.EvtCode > MAX_OP_CODE {
+		if (evt.EvtCode <= MAX_STATUS_CODE) && evt.EvtUserID != dev_src.UserID {
+			pkg.LogDESError(dev_src.UserID, pkg.ERR_INVALID_SRC_SIG, evt)
+			evt.EvtUserID = dev_src.UserID
+
+		} else if evt.EvtCode > MAX_STATUS_CODE && evt.EvtUserID == dev_src.UserID {
+			pkg.LogDESError(dev_src.UserID, pkg.ERR_INVALID_SRC_SIG, evt)
+		}
 	}
-	if evt.EvtCode > MAX_OP_CODE && 
-		evt.EvtCode <= MAX_STATUS_CODE && 
-		evt.EvtUserID != device.DESU.ID.String() {
-		pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
-		evt.EvtUserID = device.DESU.ID.String()
-	}
+
 	evt.Validate()
 
 	return
 }
 
 type EventTyp struct {
-	EvtTypID   int64  `gorm:"unique; primaryKey" json:"-"`
+	// EvtTypID   int64  `gorm:"unique; primaryKey" json:"-"` // POSTGRESS
+	EvtTypID   int64  `gorm:"autoIncrement" json:"-"` // SQLITE
 	EvtTypCode int32  `gorm:"unique" json:"evt_typ_code"`
 	EvtTypName string `json:"evt_typ_name"`
 	EvtTypDesc string `json:"evt_typ_desc"`
 }
 
-func WriteETYP(etyp EventTyp, dbc *pkg.DBClient) (err error) {
+func WriteETYP(etyp EventTyp, jdbc *pkg.JobDBClient) (err error) {
 
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
 	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
-	dbc.WG.Add(1)
-	etyp.EvtTypID = 0
-	res := dbc.Create(&etyp)
-	dbc.WG.Done()
+	// dbc.WG.Add(1)
+	// etyp.EvtTypID = 0
+	res := jdbc.Create(&etyp)
+	// dbc.WG.Done()
 
 	return res.Error
 }
 
 /* TODO: TEST MAP IMPLEMENTATION */
-// type EventTypesMap map[string]EventTyp
-// var EventTypes = make(EventTypesMap)
+// type EventTypesMap map[int32]EventTyp
+// var EVENT_TYPE_MAP = make(EventTypesMap)
 // func LoadEventTypes() {
 // 	EventTypes["req_reg"] = EventTyp{EvtTypCode: STATUS_DES_REG_REQ, EvtTypName: "DEVICE REGISTRATION REQUESTED"}
 // 	EventTypes["reg"] = EventTyp{EvtTypCode: STATUS_DES_REGISTERED, EvtTypName: "DEVICE REGISTERED"}

@@ -12,6 +12,7 @@ require (
 	golang.org/x/crypto v0.14.0
 	gonum.org/v1/gonum v0.13.0
 	gorm.io/driver/postgres v1.5.2
+	gorm.io/driver/sqlite v1.5.4
 	gorm.io/gorm v1.25.2
 )
 
@@ -32,6 +33,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
+	github.com/mattn/go-sqlite3 v1.14.19 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee // indirect
 	github.com/stretchr/testify v1.8.4 // indirect

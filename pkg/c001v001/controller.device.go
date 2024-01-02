@@ -3,7 +3,8 @@ package c001v001
 import (
 	"fmt"
 	"sort"
-	"strings"
+
+	// "strings"
 
 	"time"
 
@@ -33,8 +34,8 @@ type Device struct {
 	SMP                 Sample           `json:"smp"` // Last known Sample value
 	DBG                 Debug            `json:"dbg"` // Settings used while debugging
 	DESPingStop         chan struct{}    `json:"-"`   // Send DESPingStop when DeviceClients are disconnected
-	CmdDBC              pkg.DBClient     `json:"-"`   // Database Client for the CMDARCHIVE
-	JobDBC              pkg.DBClient     `json:"-"`   // Database Client for the active job
+	CmdDBC              pkg.JobDBClient  `json:"-"`   // Database Client for the CMDARCHIVE
+	JobDBC              pkg.JobDBClient  `json:"-"`   // Database Client for the active job
 	pkg.DESMQTTClient   `json:"-"`       // MQTT client handling all subscriptions and publications for this device
 	DESU                pkg.UserResponse `json:"-"` // User Account of this Device. Appears in Device / DES generated records / messages
 }
@@ -115,51 +116,10 @@ func (device *Device) RegisterDevice(src string) (err error) {
 		EvtMsg:    "DEVICE REGISTERED",
 	}
 
-	/*  CREATE A CMDARCHIVE DATABASE FOR THIS DEVICE */
-	pkg.ADB.CreateDatabase(strings.ToLower(device.CmdArchiveName()))
-
-	/*  TEMPORARILY CONNECT TO CMDARCHIVE DATABASE FOR THIS DEVICE */
-	if err = device.ConnectJobDBC(); err != nil {
+	/* CREATE CMD ARCHIVE DATABASE */
+	if err := device.InitializeDB(device.DESJobName); err != nil {
 		return err
 	}
-
-	/* CREATE JOB DB TABLES */
-	if err := device.JobDBC.Migrator().CreateTable(
-		&Admin{},
-		&State{},
-		&Header{},
-		&Config{},
-		&EventTyp{},
-		&Event{},
-		&Sample{},
-	); err != nil {
-		pkg.LogErr(err)
-	}
-
-	for _, typ := range EVENT_TYPES {
-		WriteETYP(typ, &device.JobDBC)
-	}
-	if err := WriteADM(device.ADM, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteSTA(device.STA, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteHDR(device.HDR, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteCFG(device.CFG, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteEVT(device.EVT, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-	if err := WriteSMP(device.SMP, &device.JobDBC); err != nil {
-		pkg.LogErr(err)
-	}
-
-	/* CLOSE TEMPORARY CONNECTION TO  CMDARCHIVE DB */
-	device.JobDBC.Disconnect()
 
 	/* CREATE DESJobSearch RECORD FOR CMDARCHIVE */
 	device.Create_DESJobSearch(device.DESRegistration)
@@ -177,6 +137,56 @@ func (device *Device) RegisterDevice(src string) (err error) {
 	device.DESMQTTClient = pkg.DESMQTTClient{}
 	device.DeviceClient_Connect()
 
+	return
+}
+
+func (device *Device) InitializeDB(name string) (err error) {
+
+	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
+	if pkg.CheckDatabaseExists(name) {
+		return fmt.Errorf(pkg.ERR_DB_EXISTS)
+	}
+	/* CREATE DATABASE CONNECTION AND OPEN */
+	dbc := pkg.MakeDBClient(name)
+	dbc.Connect()
+
+	/* CREATE CMDARCHIVE DB TABLES */
+	if err = CreateJobDB(&dbc); err != nil {
+		return
+	}
+
+	/* CREATE INITIAL RECORDS  */
+	if err = WriteADM(device.ADM, &dbc); err != nil {
+		return
+	}
+	if err = WriteSTA(device.STA, &dbc); err != nil {
+		return
+	}
+	if err = WriteHDR(device.HDR, &dbc); err != nil {
+		return
+	}
+	if err = WriteCFG(device.CFG, &dbc); err != nil {
+		return
+	}
+	if err = WriteEVT(device.EVT, &dbc); err != nil {
+		return
+	}
+	if err = WriteSMP(device.SMP, &dbc); err != nil {
+		return
+	}
+
+	/* CLOSE DB CONNECTION */
+	dbc.Disconnect()
+
+	return
+}
+
+func (device *Device) ReferenceSRC() (src pkg.DESMessageSource) {
+	src.Time = time.Now().UTC().UnixMilli()
+	src.Addr = device.DESDevSerial
+	src.UserID = device.DESU.ID.String()
+	src.App = device.DESDevSerial
+	// pkg.Json("( *Device) ReferenceSRC(): ", src)
 	return
 }
 
@@ -358,7 +368,7 @@ func (device Device) GetCmdArchiveDESRegistration() (cmd Job) {
 
 /* CONNECTS THE CMDARCHIVE DBClient TO THE CMDARCHIVE DATABASE */
 func (device *Device) ConnectCmdDBC() (err error) {
-	device.CmdDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.CmdArchiveName()))}
+	device.CmdDBC = pkg.MakeDBClient(device.CmdArchiveName())
 	return device.CmdDBC.Connect()
 }
 
@@ -392,7 +402,7 @@ func (device *Device) GetCurrentJob() {
 
 /* CONNECTS THE ACTIVE JOB DBClient TO THE ACTIVE JOB DATABASE */
 func (device *Device) ConnectJobDBC() (err error) {
-	device.JobDBC = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(device.DESJobName))}
+	device.JobDBC = pkg.MakeDBClient(device.DESJobName)
 	return device.JobDBC.Connect()
 }
 
@@ -436,7 +446,7 @@ func (device *Device) QryActiveJobXYSamples(qty int) (xys XYPoints, err error) {
 
 	/* QUERY LIMITED SET FROM SAMPLES TABLE; MOST RECENT qty */
 	qry := device.JobDBC.Select("*").Table("samples").Limit(qty).Order("smp_time DESC")
-	
+
 	smps := []Sample{}
 
 	res := qry.Scan(&smps)
@@ -453,7 +463,6 @@ func (device *Device) QryActiveJobXYSamples(qty int) (xys XYPoints, err error) {
 	for _, smp := range smps {
 		xys.AppendXYSample(smp)
 	}
-
 
 	return
 }
@@ -504,7 +513,7 @@ func (start *StartJob) SIGValidate(device *Device) (err error) {
 
 - PREPARE, LOG, AND SEND: StartJob STRUCT to MQTT .../cmd/start
 */
-func (device *Device) StartJobRequest(src string) (err error) {
+func (device *Device) StartJobRequest(src, uid string) (err error) {
 
 	/* SYNC DEVICE WITH DevicesMap */
 	device.GetMappedClients()
@@ -528,7 +537,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.ADM.AdmDefPort = pkg.MQTT_PORT
 	device.ADM.AdmOpHost = pkg.MQTT_HOST
 	device.ADM.AdmOpPort = pkg.MQTT_PORT
-	device.ADM.Validate()
+	device.ADM.CMDValidate(device, uid)
 	// pkg.Json("StartJobRequest(): -> device.ADM", device.ADM)
 
 	device.STA.StaTime = startTime
@@ -540,7 +549,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.STA.StaClass = DEVICE_CLASS
 	device.STA.StaLogging = OP_CODE_JOB_START_REQ // This means there is a pending request for the device to start a new job
 	device.STA.StaJobName = device.CmdArchiveName()
-	device.STA.Validate()
+	device.STA.CMDValidate(device, uid)
 	device.UpdateMappedSTA()
 	// pkg.Json("StartJobRequest(): -> device.STA", device.STA)
 
@@ -552,14 +561,14 @@ func (device *Device) StartJobRequest(src string) (err error) {
 	device.HDR.HdrJobEnd = 0
 	device.HDR.HdrGeoLng = DEFAULT_GEO_LNG
 	device.HDR.HdrGeoLat = DEFAULT_GEO_LAT
-	device.HDR.Validate()
+	device.HDR.CMDValidate(device, uid)
 	// pkg.Json("StartJobRequest(): -> device.HDR", device.HDR)
 
 	device.CFG.CfgTime = startTime
 	device.CFG.CfgAddr = src
 	device.CFG.CfgUserID = device.DESJobRegUserID
 	device.CFG.CfgApp = device.DESJobRegApp
-	device.CFG.Validate()
+	device.CFG.CMDValidate(device, uid)
 	// pkg.Json("StartJobRequest(): -> device.CFG", device.CFG)
 
 	device.EVT = Event{
@@ -571,6 +580,7 @@ func (device *Device) StartJobRequest(src string) (err error) {
 		EvtTitle:  "START JOB REQUEST",
 		EvtMsg:    "",
 	}
+	device.EVT.CMDValidate(device, uid)
 
 	/* LOG START JOB REQUEST TO CMDARCHIVE */
 	device.CmdDBC.Create(&device.ADM) /* TODO: USE WriteADM... */
@@ -595,10 +605,10 @@ func (device *Device) StartJobRequest(src string) (err error) {
 
 - CALLED WHEN THE DEVICE CLIENT RECIEVES A 'JOB STARTED' EVENT FROM THE DEVICE
 */
-func (device *Device) StartJob(start StartJob) {
+func (device *Device) StartJob(start StartJob) (err error) {
 	// pkg.Json("(*Device) StartJobX(start StartJob): ", start)
 
-	/* CALL DB WRITE IN GOROUTINE */
+	/* TODO: ADD MUTEX TO JobDBClient SO WE CAN CALL DB WRITE IN GOROUTINE */
 	WriteADM(start.ADM, &device.CmdDBC)
 	WriteSTA(start.STA, &device.CmdDBC)
 	WriteHDR(start.HDR, &device.CmdDBC)
@@ -608,13 +618,13 @@ func (device *Device) StartJob(start StartJob) {
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
 
-	device.DESJobRegTime = start.STA.StaTime
-	device.DESJobRegAddr = start.STA.StaAddr
-	device.DESJobRegUserID = start.STA.StaUserID
-	device.DESJobRegApp = start.STA.StaApp
+	device.DESJobRegTime = start.EVT.EvtTime
+	device.DESJobRegAddr = start.EVT.EvtAddr
+	device.DESJobRegUserID = start.EVT.EvtUserID
+	device.DESJobRegApp = start.EVT.EvtApp
 
 	device.DESJobName = start.STA.StaJobName
-	device.DESJobStart = start.STA.StaTime
+	device.DESJobStart = start.EVT.EvtTime
 	device.DESJobEnd = 0
 	device.DESJobDevID = device.DESDevID
 
@@ -638,71 +648,24 @@ func (device *Device) StartJob(start StartJob) {
 	}
 
 	// fmt.Printf("\n(*Device) StartJob() -> CREATE A JOB RECORD IN THE DES DATABASE\n%v\n", device.DESJob)
-
 	/* CREATE A JOB RECORD IN THE DES DATABASE */
 	if err := pkg.WriteDESJob(&device.DESJob); err != nil {
 		pkg.LogErr(err)
 	}
 
-	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
-	if pkg.ADB.CheckDatabaseExists(device.DESJobName) {
-		device.JobDBC = device.CmdDBC
-		fmt.Printf("\n(device *Device) StartJob( ): DATABASE ALREADY EXISTS! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
-	} else {
-		/* CREATE NEW JOB DATABASE */
-		pkg.ADB.CreateDatabase(device.DESJobName)
-
-		/* CONNECT TO THE NEW ACTIVE JOB DATABASE, ON FAILURE, LOG TO CMDARCHIVE */
-		if err := device.ConnectJobDBC(); err != nil {
+	/* CREATE JOB DATABASE */
+	if err := device.InitializeDB(device.DESJobName); err != nil {
+		if err.Error() == pkg.ERR_DB_EXISTS {
 			device.JobDBC = device.CmdDBC
-			fmt.Printf("\n(*Device) StartJob( ): CONNECTION FAILED! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
-
-		} else {
-			fmt.Printf("\n(*Device) StartJob( ): CONNECTED TO: %s\n", device.JobDBC.GetDBName())
-
-			/* CREATE JOB DB TABLES */
-			if err := device.JobDBC.Migrator().CreateTable(
-				&Admin{},
-				&State{},
-				&Header{},
-				&Config{},
-				&Sample{},
-				&EventTyp{},
-				&Event{},
-				&Report{},
-				&RepSection{},
-				&SecDataset{},
-				&SecAnnotation{},
-			); err != nil {
-				pkg.LogErr(err)
-			}
-
-			for _, typ := range EVENT_TYPES {
-				WriteETYP(typ, &device.JobDBC)
-			}
-
-			/* WRITE INITIAL JOB RECORDS */
-			if err := WriteADM(start.ADM, &device.JobDBC); err != nil {
-				pkg.LogErr(err)
-			}
-			if err := WriteSTA(start.STA, &device.JobDBC); err != nil {
-				pkg.LogErr(err)
-			}
-			if err := WriteHDR(start.HDR, &device.JobDBC); err != nil {
-				pkg.LogErr(err)
-			}
-			if err := WriteCFG(start.CFG, &device.JobDBC); err != nil {
-				pkg.LogErr(err)
-			}
-			if err := WriteEVT(start.EVT, &device.JobDBC); err != nil {
-				pkg.LogErr(err)
-			}
-
+			return fmt.Errorf("(*Device) StartJob( ): ERROR *** %s *** LOGGING TO: %s\n", err.Error(), device.JobDBC.GetDBName())
 		}
 	}
 
-	/* WAIT FOR PENDING MQTT MESSAGES TO COMPLETE */
-	// device.DESMQTTClient.WG.Wait()
+	/* CONNECT TO THE NEW ACTIVE JOB DATABASE, ON FAILURE, LOG TO CMDARCHIVE */
+	if err := device.ConnectJobDBC(); err != nil {
+		device.JobDBC = device.CmdDBC
+		return fmt.Errorf("(*Device) StartJob( ): CONNECTION FAILED! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
+	}
 
 	/* UPDATE THE DEVICE STATE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB
 	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
@@ -713,6 +676,13 @@ func (device *Device) StartJob(start StartJob) {
 	device.EVT = start.EVT
 	device.STA = start.STA
 
+	/* TODO: ADD MUTEX TO JobDBClient SO WE CAN CALL DB WRITE IN GOROUTINE */
+	WriteADM(start.ADM, &device.JobDBC)
+	WriteSTA(start.STA, &device.JobDBC)
+	WriteHDR(start.HDR, &device.JobDBC)
+	WriteCFG(start.CFG, &device.JobDBC)
+	WriteEVT(start.EVT, &device.JobDBC)
+
 	/* UPDATE THE DEVICES CLIENT MAP */
 	DevicesMapWrite(device.DESDevSerial, *device)
 
@@ -720,6 +690,7 @@ func (device *Device) StartJob(start StartJob) {
 	device.Create_DESJobSearch(device.DESRegistration)
 
 	// pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
+	return fmt.Errorf("(*Device) StartJob( ): OK; CONNECTED TO: %s\n", device.JobDBC.GetDBName())
 }
 
 /*
@@ -808,7 +779,9 @@ func (device *Device) OfflineJobStart(smp Sample) {
 - PREPARE, LOG State AND Event STRUCTS
 - SEND Event STRUCT to MQTT .../cmd/end
 */
-func (device *Device) EndJobRequest(src string) (err error) {
+func (device *Device) EndJobRequest(src, uid string) (err error) {
+
+	fmt.Printf("(*Device) EndJobRequest(): -> uid %s\n", uid)
 
 	endTime := time.Now().UTC().UnixMilli()
 
@@ -822,7 +795,9 @@ func (device *Device) EndJobRequest(src string) (err error) {
 	sta.StaClass = DEVICE_CLASS
 	sta.StaLogging = OP_CODE_JOB_END_REQ // This means there is a pending request for the device to end the current job
 	sta.StaJobName = device.CmdArchiveName()
-	sta.Validate()
+	if err = sta.CMDValidate(device, uid); err != nil {
+		return
+	}
 
 	/* SYNC DEVICE WITH DevicesMap */
 	d := DevicesMapRead(device.DESDevSerial)
@@ -832,11 +807,14 @@ func (device *Device) EndJobRequest(src string) (err error) {
 	device.EVT = Event{
 		EvtTime:   endTime,
 		EvtAddr:   src,
-		EvtUserID: device.DESJobRegUserID,
-		EvtApp:    device.DESJobRegApp,
+		EvtUserID: sta.StaUserID,
+		EvtApp:    sta.StaApp,
 		EvtCode:   OP_CODE_JOB_END_REQ,
-		EvtTitle:  "END JOB REQUEST",
-		EvtMsg:    "",
+		EvtTitle:  GetEventTypeByCode(OP_CODE_JOB_END_REQ),
+		EvtMsg:    device.DESJobName,
+	}
+	if err = device.EVT.CMDValidate(device, uid); err != nil {
+		return
 	}
 
 	/* LOG END JOB REQUEST TO CMDARCHIVE */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.CmdArchiveName())
@@ -907,7 +885,7 @@ func (device *Device) EndJob(sta State) {
 		job.GenerateReport(&Report{RepTitle: title, DESRegistration: job.DESRegistration})
 	}
 	/* ENSURE THE REPORTING JOB DATABASE CONNECTION CLOSES AFTER THIS OPERATION */
-	defer job.DBClient.Disconnect()
+	defer job.DBC.Disconnect()
 
 	/* UPDATE DES CMDARCHIVE */
 	cmd := device.GetCmdArchiveDESRegistration()

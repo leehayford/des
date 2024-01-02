@@ -77,7 +77,6 @@ func ValidateSerialNumber(serial string ) (err error) {
 	return
 }
 
-
 /* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE ************************************************/
 
 /* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  */

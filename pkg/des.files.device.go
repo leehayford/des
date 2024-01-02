@@ -30,7 +30,9 @@ import (
 	MODELS APPENDED TO A SINGLE JSON ARRAY [ { 1 }, { 2 }, { 3 } ]
 */
 func WriteModelToJSONFile(dirName, fileName string, mod interface{}) (err error) {
-
+	if fileName == "" {
+		return LogErr(fmt.Errorf(ERR_FILE_NAME_EMPTY))
+	}
 	js, err := ModelToJSONString(mod)
 	if err != nil {
 		LogErr(err)
@@ -67,12 +69,28 @@ func WriteModelToJSONFile(dirName, fileName string, mod interface{}) (err error)
 	return
 }
 
+func ReadModelBytesFromJSONFile(dirName, fileName string) (buf []byte, err error) {
+	if fileName == "" {
+		return nil, LogErr(fmt.Errorf(ERR_FILE_NAME_EMPTY))
+	}
+	dir := fmt.Sprintf("%s/%s",DES_DEVICE_FILES , dirName)
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s.json", dir, fileName), os.O_RDONLY, 0600)
+	if err != nil {
+		return nil, LogErr(err)
+	}
+	
+	buf, err = ioutil.ReadAll(f)
+	f.Close()
+	return
+}
 
 /* HEX FILES *************************************************************************************/
 
 /* APPENDS MODEL HEX VALUES TO ~/DES_DEVICE_FILES/dirName/fileName.bin */
 func WriteModelBytesToHEXFile(dirName, fileName string, buf []byte) (err error) {
-
+	if fileName == "" {
+		return LogErr(fmt.Errorf(ERR_FILE_NAME_EMPTY))
+	}
 	dir := fmt.Sprintf("%s/%s",DES_DEVICE_FILES , dirName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		LogErr(err)
@@ -95,7 +113,9 @@ func WriteModelBytesToHEXFile(dirName, fileName string, buf []byte) (err error) 
 
 /* RETURNS ALL BYTES FROM ~/DES_DEVICE_FILES/dirName/fileName.bin */
 func ReadModelBytesFromHEXFile(dirName, fileName string) (buf []byte, arr error) {
-
+	if fileName == "" {
+		return nil, LogErr(fmt.Errorf(ERR_FILE_NAME_EMPTY))
+	}
 	dir := fmt.Sprintf("%s/%s",DES_DEVICE_FILES , dirName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/%s.bin", dir, fileName), os.O_RDONLY, 0600)
 	if err != nil {

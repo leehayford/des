@@ -172,21 +172,21 @@ func (device *Device) GetMappedClients() {
 	d := DevicesMapRead(device.DESDevSerial) // fmt.Printf("\n%v", d)
 
 	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
-	if d.CmdDBC.DB != nil {
-		d.CmdDBC.WG.Wait()
-	}
-	if device.CmdDBC.DB != nil {
-		device.CmdDBC.WG.Wait()
-	}
+	// if d.CmdDBC.DB != nil {
+	// 	d.CmdDBC.WG.Wait()
+	// }
+	// if device.CmdDBC.DB != nil {
+	// 	device.CmdDBC.WG.Wait()
+	// }
 	device.CmdDBC = d.CmdDBC
 
 	/* WAIT TO PREVENT RACE CONDITION - DON"T READ WHEN DBC IS BUSY */
-	if d.JobDBC.DB != nil {
-		d.JobDBC.WG.Wait()
-	}
-	if device.JobDBC.DB != nil {
-		device.JobDBC.WG.Wait()
-	}
+	// if d.JobDBC.DB != nil {
+	// 	d.JobDBC.WG.Wait()
+	// }
+	// if device.JobDBC.DB != nil {
+	// 	device.JobDBC.WG.Wait()
+	// }
 	device.JobDBC = d.JobDBC
 
 	if device.DESMQTTClient.Client == nil {

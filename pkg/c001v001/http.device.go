@@ -56,6 +56,14 @@ func ValidatePostRequestBody_Device(c *fiber.Ctx, device *Device) (err error) {
 	/*  TODO: ADDITIONAL DEVICE VALIDATION */
 	return
 }
+func ValidateDeviceMsgSourcePOST(c *fiber.Ctx, src *pkg.DESMessageSource) (err error) {
+
+	return
+}
+func ValidateDeviceMsgSourceSIG(c *fiber.Ctx, src *pkg.DESMessageSource) (err error) {
+
+	return
+}
 
 /*
 	RETURNS THE LIST OF DEVICES REGISTERED TO THIS DES
@@ -68,8 +76,8 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		txt := "You must be an operator to view device list"
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_OPERATOR + ": View device list")
 	}
 
 	regs, err := GetDeviceList()
@@ -88,8 +96,8 @@ func HandleSearchDevices(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		txt := "You must be an operator to search devices"
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_OPERATOR + ": Search devices")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -97,10 +105,6 @@ func HandleSearchDevices(c *fiber.Ctx) (err error) {
 	if err = pkg.ParseRequestBody(c, &params); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
-	// if err := c.BodyParser(&params); err != nil {
-	// 	txt := fmt.Sprintf("Invalid request body: %s", err.Error())
-	// 	return c.Status(fiber.StatusBadRequest).SendString(txt)
-	// } // pkg.Json("HandleSearchDevices( )", params)
 
 	/* SEARCH ACTIVE DEVICES BASED ON params */
 	regs, err := pkg.SearchDESDevices(params)
@@ -127,8 +131,8 @@ func HandleStartJobRequest(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		txt := "You must be an operator to start a job"
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_OPERATOR + ": Start a job")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -137,15 +141,14 @@ func HandleStartJobRequest(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleStartJobRequest(): -> c.BodyParser(&device) -> device", device)
 
-	/* TODO : MOVE TO DES, CREATE CUSTOM Status ?
-	CHECK DEVICE AVAILABILITY */
+	/* CHECK DEVICE AVAILABILITY */
 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
-		txt := "Device not connected to broker."
-		return c.Status(fiber.StatusForbidden).SendString(txt)
-	} // pkg.Json("HandleStartJobRequest(): -> device.CheckPing( ) -> device", device)
+		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
+	} 
 
 	/* SEND START JOB REQUEST */
-	if err = device.StartJobRequest(c.IP()); err != nil {
+	uid := (c.Locals("sub").(string))
+	if err = device.StartJobRequest(c.IP(), uid); err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
 	// pkg.Json("HandleStartJobRequest(): -> device.StartJobRequest(...) -> device", device)
@@ -167,8 +170,8 @@ func HandleEndJobRequest(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		txt := "You must be an operator to end a job"
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_OPERATOR + ": End a job")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -177,8 +180,14 @@ func HandleEndJobRequest(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleEndJobRequest(): -> c.BodyParser(&device) -> dev", device)
 
+	/* CHECK DEVICE AVAILABILITY */
+	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
+		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
+	} 
+
 	/* SEND END JOB REQUEST */
-	if err = device.EndJobRequest(c.IP()); err != nil {
+	uid := (c.Locals("sub").(string))
+	if err = device.EndJobRequest(c.IP(), uid); err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	} // pkg.Json("HandleEndJobRequest(): -> device.EndJobRequest(...) -> device", device)
 
@@ -195,8 +204,8 @@ func HandleSetAdminRequest(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		txt := "You must be an operator to alter device administration data."
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_OPERATOR + ": Edit device alarms")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -204,6 +213,11 @@ func HandleSetAdminRequest(c *fiber.Ctx) (err error) {
 	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleSetAdminRequest(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
+
+	/* CHECK DEVICE AVAILABILITY */
+	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
+		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
+	} 
 
 	/* SEND SET ADMIN REQUEST */
 	if err = device.SetAdminRequest(c.IP()); err != nil {
@@ -226,8 +240,8 @@ func HandleSetStateRequest(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		txt := "You must be an operator to check device state."
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_OPERATOR + ": Request device state")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -235,6 +249,11 @@ func HandleSetStateRequest(c *fiber.Ctx) (err error) {
 	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleSetStateRequest(): -> c.BodyParser(&device) -> device.STA", device.STA)
+
+	/* CHECK DEVICE AVAILABILITY */
+	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
+		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
+	} 
 
 	/* SEND GET STATE REQUEST */
 	if err = device.SetStateRequest(c.IP()); err != nil {
@@ -254,8 +273,8 @@ func HandleSetHeaderRequest(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		txt := "You must be an operator to alter job header data."
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_OPERATOR + ": Edit job headers")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -263,6 +282,11 @@ func HandleSetHeaderRequest(c *fiber.Ctx) (err error) {
 	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleSetHeaderRequest(): -> c.BodyParser(&device) -> device.HDR", device.HDR)
+
+	/* CHECK DEVICE AVAILABILITY */
+	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
+		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
+	} 
 
 	/* SEND SET HEADER REQUEST */
 	if err = device.SetHeaderRequest(c.IP()); err != nil {
@@ -282,8 +306,8 @@ func HandleSetConfigRequest(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		txt := "You must be an operator to alter job configuration data."
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_OPERATOR + ": Edit device configuration")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -291,6 +315,11 @@ func HandleSetConfigRequest(c *fiber.Ctx) (err error) {
 	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleSetConfigRequest(): -> c.BodyParser(&device) -> device.CFG", device.CFG)
+
+	/* CHECK DEVICE AVAILABILITY */
+	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
+		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
+	} 
 
 	/* SEND SET CONFIG REQUEST */
 	if err = device.SetConfigRequest(c.IP()); err != nil {
@@ -310,8 +339,8 @@ func HandleSetEventRequest(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
-		txt := "You must be an operator to create Events."
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_OPERATOR + ": Post job events")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -320,7 +349,13 @@ func HandleSetEventRequest(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // pkg.Json("HandleSetEventRequest( ): -> c.BodyParser(&device) -> device.EVT", device.EVT)
 
+	/* CHECK DEVICE AVAILABILITY */
+	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
+		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
+	} 
+
 	/* SEND CREATE EVENT REQUEST */
+	// uid := (c.Locals("sub").(string))
 	if err = device.SetEventRequest(c.IP()); err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	} // pkg.Json("HandleSetEventRequest( ): -> device.CreateEventRequest(...) -> device.EVT", device.EVT)
@@ -333,8 +368,8 @@ func HandleQryActiveJobEvents(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(c.Locals("role")) {
-		txt := "You must be a registered user to view job evens."
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_VIEWER + ": View job events")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -356,8 +391,8 @@ func HandleQryActiveJobSamples(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(c.Locals("role")) {
-		txt := "You must be a registered user to view job evens."
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_VIEWER + ": View sample data")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -393,7 +428,7 @@ func HandleDeviceUserClient_Connect(ws *websocket.Conn) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(ws.Locals("role")) {
-		pkg.SendWSConnectionError(ws, "You must be an operator to connect to devices.")
+		pkg.SendWSConnectionError(ws, pkg.ERR_AUTH_OPERATOR + ": Connect to devices.")
 		return
 	}
 
@@ -405,7 +440,7 @@ func HandleDeviceUserClient_Connect(ws *websocket.Conn) {
 	}
 
 	if !pkg.ValidateUUIDString(sid) {
-		pkg.SendWSConnectionError(ws, "Invalid user session ID.")
+		pkg.SendWSConnectionError(ws, pkg.ERR_AUTH_INVALID_SESSION)
 		return
 	}
 
@@ -437,8 +472,8 @@ func HandleRegisterDevice(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Super(c.Locals("role")) {
-		txt := "You must be an super administrator to register devices"
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_SUPER + ": Register devices")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -471,9 +506,9 @@ func HandleDESDeviceClientDisconnect(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleDisconnectDevice( )\n")
 
 	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Admin(c.Locals("role")) {
-		txt := "You must be an administrator to view disconnect devices."
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+	if !pkg.UserRole_Super(c.Locals("role")) {
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_SUPER + ": Disconnect devices")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -498,8 +533,8 @@ func HandleDESDeviceClientRefresh(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Admin(c.Locals("role")) {
-		txt := "You must be an administrator to connect devices."
-		return c.Status(fiber.StatusForbidden).SendString(txt)
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_SUPER + ": Connect devices")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */

@@ -1,7 +1,6 @@
 package c001v001
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/leehayford/des/pkg"
@@ -11,11 +10,12 @@ import (
 HEADER AS WRITTEN TO JOB DATABASE
 */
 type Header struct {
-	HdrID int64 `gorm:"unique; primaryKey" json:"-"`
+	// HdrID   int64  `gorm:"unique; primaryKey" json:"-"` // POSTGRES
+	HdrID int64 `gorm:"autoIncrement" json:"-"`
 
 	HdrTime   int64  `gorm:"not null" json:"hdr_time"`
 	HdrAddr   string `gorm:"varchar(36)" json:"hdr_addr"`
-	HdrUserID string `gorm:"not null; varchar(36)" json:"hdr_user_id"`
+	HdrUserID string `gorm:"not null; varchar(36)"  json:"hdr_user_id"`
 	HdrApp    string `gorm:"varchar(36)" json:"hdr_app"`
 
 	HdrJobStart int64 `json:"hdr_job_start"`
@@ -28,7 +28,6 @@ type Header struct {
 	HdrWellBHLoc string `gorm:"varchar(32)" json:"hdr_well_bh_loc"`
 	HdrWellLic   string `gorm:"varchar(32)" json:"hdr_well_lic"`
 
-	
 	/* TODO: CHANGE HDR LNG / LAT TO FLOAT32*/
 	/*GEO LOCATION - USED TO POPULATE A GeoJSON OBJECT */
 	HdrGeoLng float64 `json:"hdr_geo_lng"`
@@ -37,18 +36,19 @@ type Header struct {
 	// HdrGeoLat float32 `json:"hdr_geo_lat"`
 }
 
-func WriteHDR(hdr Header, dbc *pkg.DBClient) (err error) {
+func WriteHDR(hdr Header, jdbc *pkg.JobDBClient) (err error) {
 
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
 	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
-	dbc.WG.Add(1)
-	hdr.HdrID = 0
-	res := dbc.Create(&hdr)
-	dbc.WG.Done()
+	// dbc.WG.Add(1)
+	// hdr.HdrID = 0
+	res := jdbc.Create(&hdr)
+	// dbc.WG.Done()
 
 	return res.Error
 }
+
 /*
 HEADER - DEFAULT VALUES
 */
@@ -87,28 +87,43 @@ func (hdr *Header) Validate() {
 	hdr.HdrWellSFLoc = pkg.ValidateStringLength(hdr.HdrWellSFLoc, 32)
 	hdr.HdrWellBHLoc = pkg.ValidateStringLength(hdr.HdrWellBHLoc, 32)
 	hdr.HdrWellLic = pkg.ValidateStringLength(hdr.HdrWellLic, 32)
+}
 
+func (hdr *Header) GetMessageSource() (src pkg.DESMessageSource) {
+	src.Time = hdr.HdrTime
+	src.Addr = hdr.HdrAddr
+	src.UserID = hdr.HdrUserID
+	src.App = hdr.HdrApp
+	return
 }
 
 /* 
+HEADER - VALIDATE CMD REQUEST FROM USER 
+*/
+func (hdr *Header) CMDValidate(device *Device, uid string) (err error) {
+
+	src := hdr.GetMessageSource()
+	dev_src := device.ReferenceSRC()
+	if err = src.ValidateSRC_CMD(dev_src, uid, hdr); err != nil {
+		return
+	}
+
+	return
+}
+
+/*
 HEADER - VALIDATE MQTT SIG FROM DEVICE
 */
 func (hdr *Header) SIGValidate(device *Device) (err error) {
-	
-	if err = pkg.ValidateUnixMilli(hdr.HdrTime); err != nil {
-		return fmt.Errorf("Invlid HdrTime: %s", err.Error())
+
+	src := hdr.GetMessageSource()
+	dev_src := device.ReferenceSRC()
+	if err = src.ValidateSRC_SIG(dev_src, hdr); err != nil {
+		return
 	}
-	
-	if hdr.HdrAddr != device.DESDevSerial { 
-		pkg.LogErr(errors.New("\nInvalid device.HDR.HdrDddr."))
-		hdr.HdrAddr = device.DESDevSerial 
-	}
-	// if hdr.HdrAddr == device.DESDevSerial && hdr.HdrUserID != device.DESU.ID.String() { 
-	// 	pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
-	// 	hdr.HdrUserID = device.DESU.ID.String() 
-	// }
+
 	hdr.Validate()
-	
+
 	return
 }
 
@@ -126,8 +141,6 @@ func (hdr *Header) SearchToken() (token string) {
 		hdr.HdrWellLic,
 	)
 }
-
-
 
 /*
 HEADER - AS STORED IN DEVICE FLASH
@@ -183,3 +196,4 @@ func (hdr *Header) HeaderFromBytes(b []byte) {
 	//  pkg.Json("(demo *DemoDeviceClient)HeaderFromBytes() -> hdr", hdr)
 	return
 }
+

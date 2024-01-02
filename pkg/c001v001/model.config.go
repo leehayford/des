@@ -1,8 +1,6 @@
 package c001v001
 
 import (
-	"errors"
-	"fmt"
 	"github.com/leehayford/des/pkg"
 )
 
@@ -10,7 +8,8 @@ import (
 CONFIG - AS WRITTEN TO JOB DATABASE
 */
 type Config struct {
-	CfgID int64 `gorm:"unique; primaryKey" json:"-"`	
+	// CfgID int64 `gorm:"unique; primaryKey" json:"-"`	// POSTGRESS
+	CfgID int64 `gorm:"autoIncrement" json:"-"` // SQLITE
 
 	CfgTime   int64  `gorm:"not null" json:"cfg_time"`
 	CfgAddr   string `gorm:"varchar(36)" json:"cfg_addr"`
@@ -21,10 +20,10 @@ type Config struct {
 	CfgSCVD     float32 `json:"cfg_scvd"`
 	CfgSCVDMult float32 `json:"cfg_scvd_mult"`
 	CfgSSPRate  float32 `json:"cfg_ssp_rate"`
-	CfgSSPDur   int32 `json:"cfg_ssp_dur"`
+	CfgSSPDur   int32   `json:"cfg_ssp_dur"`
 	CfgHiSCVF   float32 `json:"cfg_hi_scvf"`
 	CfgFlowTog  float32 `json:"cfg_flow_tog"`
-	CfgSSCVFDur int32 `json:"cfg_sscvf_dur"`
+	CfgSSCVFDur int32   `json:"cfg_sscvf_dur"`
 
 	/*VALVE*/
 	CfgVlvTgt int32 `json:"cfg_vlv_tgt"`
@@ -40,15 +39,16 @@ type Config struct {
 	CfgDiagLog    int32 `json:"cfg_diag_log"`
 	CfgDiagTrans  int32 `json:"cfg_diag_trans"`
 }
-func WriteCFG(cfg Config, dbc *pkg.DBClient) (err error) {
 
-	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
-		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+func WriteCFG(cfg Config, jdbc *pkg.JobDBClient) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
+	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
-	dbc.WG.Add(1)
-	cfg.CfgID = 0
-	res := dbc.Create(&cfg) 
-	dbc.WG.Done()
+	// dbc.WG.Add(1)
+	// cfg.CfgID = 0
+	res := jdbc.Create(&cfg)
+	// dbc.WG.Done()
 
 	return res.Error
 }
@@ -126,12 +126,12 @@ func (cfg *Config) DefaultSettings_Config(reg pkg.DESRegistration) {
 	cfg.CfgApp = reg.DESJobRegApp
 
 	/* JOB */
-	cfg.CfgSCVD = 596.8    // m
-	cfg.CfgSCVDMult = 10.5 // kPa / m
-	cfg.CfgSSPRate = 1.95  // kPa / hour
-	cfg.CfgSSPDur = 21600000    // 6 hours
-	cfg.CfgHiSCVF = 201.4  //  L/min
-	cfg.CfgFlowTog = 1.85  // L/min
+	cfg.CfgSCVD = 596.8       // m
+	cfg.CfgSCVDMult = 10.5    // kPa / m
+	cfg.CfgSSPRate = 1.95     // kPa / hour
+	cfg.CfgSSPDur = 21600000  // 6 hours
+	cfg.CfgHiSCVF = 201.4     //  L/min
+	cfg.CfgFlowTog = 1.85     // L/min
 	cfg.CfgSSCVFDur = 7200000 // 2 hours
 
 	/* VALVE */
@@ -185,23 +185,36 @@ func (cfg *Config) Validate() {
 	}
 }
 
-/* 
-CONFIG - VALIDATE MQTT SIG FROM DEVICE
-*/
+func (cfg *Config) GetMessageSource() (src pkg.DESMessageSource) {
+	src.Time = cfg.CfgTime
+	src.Addr = cfg.CfgAddr
+	src.UserID = cfg.CfgUserID
+	src.App = cfg.CfgApp
+	return
+}
+
+/* CONFIG - VALIDATE CMD REQUEST FROM USER */
+func (cfg *Config) CMDValidate(device *Device, uid string) (err error) {
+
+	src := cfg.GetMessageSource()
+	dev_src := device.ReferenceSRC()
+	if err = src.ValidateSRC_CMD(dev_src, uid, cfg); err != nil {
+		return
+	}
+
+	return
+}
+
+/* CONFIG - VALIDATE MQTT SIG FROM DEVICE */
 func (cfg *Config) SIGValidate(device *Device) (err error) {
-	
-	if err = pkg.ValidateUnixMilli(cfg.CfgTime); err != nil {
-		return fmt.Errorf("Invlid CfgTime: %s", err.Error())
+
+	src := cfg.GetMessageSource()
+	dev_src := device.ReferenceSRC()
+	if err = src.ValidateSRC_SIG(dev_src, cfg); err != nil {
+		return
 	}
-	if cfg.CfgAddr != device.DESDevSerial { 
-		pkg.LogErr(errors.New("\nInvalid device.CFG.CfgAddr."))
-		cfg.CfgAddr = device.DESDevSerial 
-	}
-	// if cfg.CfgAddr == device.DESDevSerial && cfg.CfgUserID != device.DESU.ID.String() { 
-	// 	pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
-	// 	cfg.CfgUserID = device.DESU.ID.String() 
-	// }
+
 	cfg.Validate()
-	
+
 	return
 }

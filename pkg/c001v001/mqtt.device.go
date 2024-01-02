@@ -90,10 +90,11 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGStartJob() pkg.MQTTSubscr
 			}
 			/* VALIDATE */
 			if err := start.SIGValidate(device); err != nil { 
-				desd := device.DESDev 
-				go desd.MakeDESDevError(err.Error(), start)
+				go pkg.LogDESError(device.DESDevSerial, err.Error(), start)
 			} else {
-				device.StartJob(start) 
+				if err := device.StartJob(start); err != nil {
+					go pkg.LogDESError(device.DESDevSerial, err.Error(), start)
+				}
 			} 
 		},
 	}
@@ -115,8 +116,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEndJob() pkg.MQTTSubscrip
 
 			/* VALIDATE */
 			if err := sta.SIGValidate(device); err != nil { 
-				desd := device.DESDev 
-				go desd.MakeDESDevError(err.Error(), sta)
+				go pkg.LogDESError(device.DESDevSerial, err.Error(), sta)
 			} else { 
 				device.EndJob(sta)
 			}
@@ -169,8 +169,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGAdmin() pkg.MQTTSubscript
 
 			/* VALIDATE */
 			if err := adm.SIGValidate(device); err != nil { 
-				desd := device.DESDev 
-				go desd.MakeDESDevError(err.Error(), adm)
+				go pkg.LogDESError(device.DESDevSerial, err.Error(), adm)
 			} else {
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteADM(adm, &device.CmdDBC)
@@ -207,8 +206,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGState() pkg.MQTTSubscript
 
 			/* VALIDATE */
 			if err := sta.SIGValidate(device); err != nil { 
-				desd := device.DESDev 
-				go desd.MakeDESDevError(err.Error(), sta)
+				go pkg.LogDESError(device.DESDevSerial, err.Error(), sta)
 			} else {
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteSTA(sta, &device.CmdDBC)
@@ -244,8 +242,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGHeader() pkg.MQTTSubscrip
 
 			/* VALIDATE */
 			if err := hdr.SIGValidate(device); err != nil { 
-				desd := device.DESDev 
-				go desd.MakeDESDevError(err.Error(), hdr)
+				go pkg.LogDESError(device.DESDevSerial, err.Error(), hdr)
 			} else {
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteHDR(hdr, &device.CmdDBC)
@@ -287,8 +284,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGConfig() pkg.MQTTSubscrip
 
 			/* VALIDATE */
 			if err := cfg.SIGValidate(device); err != nil { 
-				desd := device.DESDev 
-				go desd.MakeDESDevError(err.Error(), cfg)
+				go pkg.LogDESError(device.DESDevSerial, err.Error(), cfg)
 			} else {
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteCFG(cfg, &device.CmdDBC)
@@ -326,8 +322,7 @@ func (device *Device) MQTTSubscription_DeviceClient_SIGEvent() pkg.MQTTSubscript
 
 			/* VALIDATE */
 			if err := evt.SIGValidate(device); err != nil { 
-				desd := device.DESDev 
-				go desd.MakeDESDevError(err.Error(), evt)
+				go pkg.LogDESError(device.DESDevSerial, err.Error(), evt)
 			} else {
 				/* CALL DB WRITE IN GOROUTINE */
 				go WriteEVT(evt, &device.CmdDBC)

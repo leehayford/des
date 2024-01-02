@@ -17,6 +17,8 @@ package pkg
 import (
 	// "encoding/json"
 	"fmt"
+	"time"
+
 	// "log"
 	"os"
 	"strings"
@@ -27,9 +29,8 @@ import (
 	/* https://gorm.io/docs/ */
 	"golang.org/x/crypto/bcrypt" // go get golang.org/x/crypto/bcrypt
 
-	"gorm.io/gorm" // go get gorm.io/gorm
-	// "gorm.io/plugin/dbresolver" // go get "gorm.io/plugin/dbresolver"
 	"gorm.io/driver/postgres" // go get gorm.io/driver/postgres
+	"gorm.io/gorm"            // go get gorm.io/gorm
 	"gorm.io/gorm/logger"
 )
 
@@ -61,26 +62,7 @@ func (dbc *DBClient) GetDBName() string {
 }
 
 func (dbc *DBClient) Connect( /* TODO: CONNECTION POOL OPTIONS */ ) (err error) {
-	/* TODO: SETUP CONNECTION POOLING FOR DIFFERENT TYPES OF CONNECTIONS
-	? "gorm.io/plugin/dbresolver" ?
 
-	INITIALLY AIMING FOR 100 ACTIVE DEVICES / DES
-
-	ADMIN DB POOL:
-		USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
-
-	DES DB:
-		USED WHEN CREATING NEW JOBS -> TYPICALLY LESS THAN ONE /DAY / DEVICE
-
-	DEVICE DB POOL OR POOLS:
-		CMDARCHIVE:
-			USED BY DEVICE CLIENT -> A FEW TRANSACTIONS / PER DAY / DEVICE
-		ACTIVE JOB:
-			USED BY DEVICE CLIENT -> ~ ONE TRANSACTION / SECOND / DEVCE
-
-	JOB DB POOL:
-		USED WHEN USERS ARE CREATING / VIEWING REPORTS/JOB DATA -> A FEW TRANSACTIONS / PER MINUTE
-	*/
 	if dbc.DB, err = gorm.Open(postgres.Open(dbc.ConnStr), &gorm.Config{}); err != nil {
 		// fmt.Printf("\n(dbc *DBClient) Connect() -> %s -> FAILED! \n", dbc.GetDBName())
 		return LogErr(err)
@@ -92,7 +74,7 @@ func (dbc *DBClient) Connect( /* TODO: CONNECTION POOL OPTIONS */ ) (err error) 
 	// fmt.Printf("\n(dbc *DBClient) Connect() -> %s -> connected... \n", dbc.GetDBName())
 	return err
 }
-func (dbc DBClient) Disconnect() (err error) {
+func (dbc *DBClient) Disconnect() (err error) {
 
 	/* ENSURE ALL PENDING WRITES TO JOB DB ARE COMPLETE BEFORE DISCONNECTION */
 	// fmt.Printf("\n(dbc *DBClient) Disconnect() -> %s -> waiting for final write ops... \n", dbc.GetDBName())
@@ -106,7 +88,7 @@ func (dbc DBClient) Disconnect() (err error) {
 		return LogErr(err)
 	}
 	// fmt.Printf("\n(dbc *DBClient) Disconnect() -> %s -> connection closed. \n", dbc.GetDBName())
-	dbc = DBClient{}
+	dbc = &DBClient{}
 	return
 }
 
@@ -119,14 +101,16 @@ var ADB ADMINDatabase = ADMINDatabase{DBClient: DBClient{ConnStr: ADMIN_DB_CONNE
 
 type ADMINDatabase struct{ DBClient }
 
-func (adb ADMINDatabase) CreateDatabase(db_name string) {
+func (adb ADMINDatabase) CreateDatabase(db_name string) (err error) {
 	db_name = strings.ToLower(db_name)
 	createDBCommand := fmt.Sprintf(`CREATE DATABASE %s WITH OWNER = datacan 
 		ENCODING = 'UTF8' LC_COLLATE = 'C.UTF-8' LC_CTYPE = 'C.UTF-8' TABLESPACE = pg_default CONNECTION LIMIT = -1 IS_TEMPLATE = False;`,
 		db_name,
 	)
 	fmt.Printf("\n(adb *ADMINDatabase) CreateDatabase( ): Creating %s...\n", db_name)
-	adb.DB.Exec(createDBCommand)
+	res := adb.DB.Exec(createDBCommand)
+	err = res.Error
+	return
 }
 func (adb ADMINDatabase) CheckDatabaseExists(db_name string) (exists bool) {
 	db_name = strings.ToLower(db_name)
@@ -140,22 +124,128 @@ func (adb ADMINDatabase) DropDatabase(db_name string) {
 	adb.DB.Exec(dropDBCommand)
 }
 func (adb ADMINDatabase) DropAllDatabases() {
-	databases := &[]string{}
-	adb.Raw("SELECT datname FROM pg_catalog.pg_database WHERE datdba != 10").Scan(databases)
-	for _, db := range *databases {
+	databases := []string{}
+	adb.Raw("SELECT datname FROM pg_catalog.pg_database WHERE datdba != 10").Scan(&databases)
+	for _, db := range databases {
 		fmt.Printf("\nDROPPING: %s\n", db)
 		adb.DropDatabase(db)
 	}
-	/* REMOVE ALL ALL DEVICE FILES */
-	if err := os.RemoveAll(DES_DEVICE_FILES); err != nil {
-		LogErr(err)
-	}
-	/* DEMO -> NOT FOR PRODUCTION */
-	if err := os.RemoveAll("demo"); err != nil {
-		LogErr(err)
-	}
 }
 
+/* CREATE OR MIGRATE DES DATABASE */
+func (adb ADMINDatabase) CreateDESDatabase() (err error) {
+	exists := adb.CheckDatabaseExists(DES_DB)
+
+	if !exists {
+		if err = adb.CreateDatabase(DES_DB); err != nil {
+			return LogErr(err)
+		}
+	}
+
+	/* CREATE TABLES OR MIGRATE */
+	DES.Connect()
+	defer DES.Disconnect()
+	if err = DES.CreateDESTables(exists); err != nil {
+		return LogErr(err)
+	}
+
+	return
+}
+
+/* IF ANY REQURIRED DIRECTORY FAILS TO EXIST, ACTIVELY DISAGREE */
+func ConfirmDESDirectories() (err error) {
+
+	if err = ConfirmDirectory(DES_JOB_DATABASES); err != nil {
+		return LogErr(err)
+	}
+
+	if err = ConfirmDirectory(DES_JOB_DATABASES_ARCHIVE); err != nil {
+		return LogErr(err)
+	}
+
+	if err = ConfirmDirectory(DES_JOB_FILES); err != nil {
+		return LogErr(err)
+	}
+
+	if err = ConfirmDirectory(DES_JOB_FILES_ARCHIVE); err != nil {
+		return LogErr(err)
+	}
+
+	if err = ConfirmDirectory(DES_JOB_DATABASES); err != nil {
+		return LogErr(err)
+	}
+
+	if err = ConfirmDirectory(DES_DEVICE_FILES); err != nil {
+		return LogErr(err)
+	}
+
+	if err = ConfirmDirectory(DES_DEVICE_FILES_ARCHIVE); err != nil {
+		return LogErr(err)
+	}
+
+	return
+}
+func ConfirmDirectory(name string) (err error) {
+	if err = os.Mkdir(name, os.ModePerm); err != nil {
+		if (strings.Contains(err.Error(), os.ErrExist.Error())) {
+			// fmt.Printf("%s : %s\n", name, os.ErrExist.Error())
+			err = nil 
+		} 
+	}
+	return
+}
+
+/* MOVE ALL EXISTING JOB / DEVICE DATA TO ARCHIVE DIRECTORIES */
+func ArchiveDESDirectories() (err error) {
+
+	/* TIME OF ARCHIVING ALL EXISTING JOB / DEVICE DATA */
+	arc_time := time.Now().UTC().UnixMilli()
+
+	/* ARCHIVE ALL EXISTING JOB DATABASES */
+	jdba := fmt.Sprintf("%s/%d", DES_JOB_DATABASES_ARCHIVE, arc_time)
+	if err := ArchiveDirectory(DES_JOB_DATABASES, jdba); err != nil {
+		return LogErr(err)
+	}
+
+	/* ARCHIVE ALL EXISTING JOB FILEES */
+	jfa := fmt.Sprintf("%s/%d", DES_JOB_FILES_ARCHIVE, arc_time)
+	if err := ArchiveDirectory(DES_JOB_FILES, jfa); err != nil {
+		return LogErr(err)
+	}
+
+	/* ARCHIVE ALL EXISTING DEVICE FILES */
+	dfa := fmt.Sprintf("%s/%d", DES_DEVICE_FILES_ARCHIVE, arc_time)
+	if err := ArchiveDirectory(DES_DEVICE_FILES, dfa); err != nil {
+		return LogErr(err)
+	}
+
+	/* DEMO -> NOT FOR PRODUCTION */
+	if err := os.RemoveAll("demo"); err != nil {
+		return LogErr(err)
+	}
+	return
+}
+func ArchiveDirectory(dir, arc string) (err error) {
+	if err := os.Rename(dir, arc); err != nil {
+		if (strings.Contains(err.Error(), "cannot find the file")) {
+			/* TODO: IDENTIFY CORRECT os.Err... 
+				- IT'S NONE OF THESE, AND THAT'S THE WHOLE LIST...
+			*/
+			// fmt.Printf("%s : %s\n", dir, err.Error())
+			// fmt.Printf("%s : %s\n", dir, os.ErrClosed.Error())
+			// fmt.Printf("%s : %s\n", dir, os.ErrDeadlineExceeded.Error())
+			// fmt.Printf("%s : %s\n", dir, os.ErrExist.Error())
+			// fmt.Printf("%s : %s\n", dir, os.ErrInvalid.Error())
+			// fmt.Printf("%s : %s\n", dir, os.ErrNoDeadline.Error())
+			// fmt.Printf("%s : %s\n", dir, os.ErrNotExist.Error())
+			// fmt.Printf("%s : %s\n", dir, os.ErrPermission.Error())
+			// fmt.Printf("%s : %s\n", dir, os.ErrProcessDone.Error())
+			err = nil 
+		} 
+		
+	}
+	return 
+}
 /*
 	DES DATABASE
 
@@ -175,7 +265,7 @@ func (des DESDatabase) CreateDESTables(exists bool) (err error) {
 			&DESDev{},
 			&DESJob{},
 			&DESJobSearch{},
-			&DESDevError{},
+			&DESError{},
 		)
 	} else {
 		// fmt.Printf("\nCreating DES Tables: %s\n", DES.ConnStr)
@@ -184,7 +274,7 @@ func (des DESDatabase) CreateDESTables(exists bool) (err error) {
 			&DESDev{},
 			&DESJob{},
 			&DESJobSearch{},
-			&DESDevError{},
+			&DESError{},
 		); err != nil {
 			return err
 		}
@@ -205,15 +295,14 @@ func (des DESDatabase) CreateDESTables(exists bool) (err error) {
 
 	return err
 }
-func(des DESDatabase) GetAllTables() (err error) {
+func (des DESDatabase) GetAllTables() (err error) {
 
 	return
 }
-func(des DESDatabase) GetAllRows() (err error) {
+func (des DESDatabase) GetAllRows() (err error) {
 
 	return
 }
-
 
 // type WGTestThing struct {
 // 	Name string

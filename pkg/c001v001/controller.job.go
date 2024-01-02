@@ -2,7 +2,6 @@ package c001v001
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/leehayford/des/pkg"
@@ -19,60 +18,73 @@ type Job struct {
 	XYPoints            XYPoints `json:"xypoints"`
 	Reports             []Report `json:"reports"`
 	pkg.DESRegistration `json:"reg"`
-	pkg.DBClient        `json:"-"`
+	DBC                 pkg.JobDBClient `json:"-"`
 }
-
 
 /*************************************************************************************************************************/
 /* AN OPEN Job.DBClient CONNECTION REQUIRED FOR ALL OTHER (job *Job)FUNCTIONS **************************/
 func (job *Job) ConnectDBC() (err error) {
-	job.DBClient = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(job.DESJobName))}
-	return job.DBClient.Connect()
+	// job.DBClient = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(job.DESJobName))}
+	// return job.DBClient.Connect()
+
+	job.DBC = pkg.MakeDBClient(job.DESJobName)
+	return job.DBC.Connect()
 }
+
 /*************************************************************************************************************************/
+
+func CreateJobDB(dbc *pkg.JobDBClient) (err error) {
+	if err := dbc.Migrator().CreateTable(
+		&Admin{},
+		&State{},
+		&Header{},
+		&Config{},
+		&EventTyp{},
+		&Event{},
+		&Sample{},
+		&Report{},
+		&RepSection{},
+		&SecDataset{},
+		&SecAnnotation{},
+	); err != nil {
+		return pkg.LogErr(err)
+	}
+
+	for _, typ := range EVENT_TYPES {
+		if err = WriteETYP(typ, dbc); err != nil {
+			return pkg.LogErr(err)
+		}
+	}
+
+	return
+}
 
 /* RETURNS ALL DATA FOR THIS JOB */
 func (job *Job) GetJobData() (err error) {
-	// db := job.JDB()
-	// if err = db.Connect(); err != nil {
-	// 	return
-	// }
-	// defer db.Disconnect()
 
-	job.DBClient.DB.Select("*").Table("admins").Order("adm_time ASC").Scan(&job.Admins)
-
-	job.DBClient.DB.Select("*").Table("states").Order("sta_time ASC").Scan(&job.States)
-
-	job.DBClient.DB.Select("*").Table("headers").Order("hdr_time ASC").Scan(&job.Headers)
-
-	job.DBClient.DB.Select("*").Table("configs").Order("cfg_time ASC").Scan(&job.Configs)
-
-	job.DBClient.DB.Select("*").Table("events").Order("evt_time ASC").Scan(&job.Events)
-
-	job.DBClient.DB.Select("*").Table("samples").Order("smp_time ASC").Scan(&job.Samples)
+	job.DBC.DB.Select("*").Table("admins").Order("adm_time ASC").Scan(&job.Admins)
+	job.DBC.DB.Select("*").Table("states").Order("sta_time ASC").Scan(&job.States)
+	job.DBC.DB.Select("*").Table("headers").Order("hdr_time ASC").Scan(&job.Headers)
+	job.DBC.DB.Select("*").Table("configs").Order("cfg_time ASC").Scan(&job.Configs)
+	job.DBC.DB.Select("*").Table("events").Order("evt_time ASC").Scan(&job.Events)
+	job.DBC.DB.Select("*").Table("samples").Order("smp_time ASC").Scan(&job.Samples)
 	for _, smp := range job.Samples {
 		job.XYPoints.AppendXYSample(smp)
 	}
 
-	x := job.DBClient.DB.Preload("RepSecs.SecDats").Preload("RepSecs.SecAnns.AnnEvt").Preload(clause.Associations).Find(&job.Reports)
+	x := job.DBC.DB.Preload("RepSecs.SecDats").Preload("RepSecs.SecAnns.AnnEvt").Preload(clause.Associations).Find(&job.Reports)
 	if x.Error != nil {
 		err = x.Error
 		return
 	} // pkg.Json("GetJobData() -> Reports ", x.Error)
 
-	// db.Disconnect()
 	return
 }
 
 /* RETURNS ALL EVENTS FOR THIS JOB */
 func (job *Job) GetJobEvents() (err error) {
-	// db := job.JDB()
-	// if err = db.Connect(); err != nil {
-	// 	return
-	// }
-	// defer db.Disconnect()
 
-	res := job.DBClient.DB.Select("*").Table("events").Order("evt_time ASC").Scan(&job.Events)
+	res := job.DBC.DB.Select("*").Table("events").Order("evt_time ASC").Scan(&job.Events)
 	err = res.Error
 
 	// db.Disconnect()
@@ -86,7 +98,7 @@ func (job *Job) CreateReport(rep *Report) {
 	}
 
 	/* WRITE TO JOB DB */
-	job.DBClient.DB.Create(&rep)
+	job.DBC.DB.Create(&rep)
 
 	return
 }
@@ -102,7 +114,7 @@ func (job *Job) CreateRepSection(rep *Report, start, end int64, name string) (se
 	sec.SecName = name
 
 	/* WRITE TO JOB DB */
-	job.DBClient.DB.Create(&sec)
+	job.DBC.DB.Create(&sec)
 
 	return
 }
@@ -120,7 +132,7 @@ func (job *Job) CreateSecDataset(sec *RepSection, csv, plot bool, yaxis string, 
 	dat.DatYMax = ymax
 
 	/* WRITE TO JOB DB */
-	job.DBClient.DB.Create(&dat)
+	job.DBC.DB.Create(&dat)
 
 	return
 }
@@ -134,7 +146,7 @@ func (job *Job) AutoScaleSection(scls *SecScales, start, end int64) (err error) 
 	// db := job.JDB()
 	// db.Connect()
 	// defer db.Disconnect()
-	qry := job.DBClient.DB.Table("samples").
+	qry := job.DBC.DB.Table("samples").
 		Where(`smp_time >= ? AND smp_time <= ?`, start, end).
 		Select(`
 			MIN(smp_ch4) min_ch4, 
@@ -199,10 +211,10 @@ func (job *Job) CreateSecAnnotation(sec *RepSection, csv, plot bool, evt Event) 
 	ann.AnnSecID = sec.SecID
 	ann.AnnCSV = csv
 	ann.AnnPlot = plot
-	ann.AnnEvtID = evt.EvtID
+	ann.AnnEvtFK = evt.EvtID
 
 	/* WRITE TO JOB DB */
-	job.DBClient.DB.Create(&ann)
+	job.DBC.DB.Create(&ann)
 
 	// db := job.JDB()
 	// db.Connect()
@@ -221,7 +233,7 @@ func (job *Job) NewReportEvent(src string, evt *Event) (err error) {
 	evt.Validate()
 
 	/* WRITE TO JOB DB */
-	job.DBClient.DB.Create(&evt)
+	job.DBC.DB.Create(&evt)
 
 	// db := job.JDB()
 	// db.Connect()
@@ -232,9 +244,11 @@ func (job *Job) NewReportEvent(src string, evt *Event) (err error) {
 	return
 }
 
-/* GENERATES A REPORT WITH SECTIONS BASED ON VALVE  TARGET; RUNS:
-	- AUTOMATICALLY WHEN A JOB HAS ENDED 
-	- WHEN A USER ADDS A NEW REPORT MANUALLY
+/*
+	GENERATES A REPORT WITH SECTIONS BASED ON VALVE  TARGET; RUNS:
+
+- AUTOMATICALLY WHEN A JOB HAS ENDED
+- WHEN A USER ADDS A NEW REPORT MANUALLY
 */
 func (job *Job) GenerateReport(rep *Report) {
 
@@ -243,7 +257,7 @@ func (job *Job) GenerateReport(rep *Report) {
 
 	job.GetJobData()
 	job.CreateReport(rep)
-	// pkg.Json("CreateDefaultReport( ): -> rep ", rep)
+	pkg.Json("CreateDefaultReport( ): -> rep ", rep)
 
 	buildCount := 0
 	ventCount := 0
@@ -529,24 +543,6 @@ func (job *Job) CreateFlowSection(rep *Report, start, end int64, name string, cf
 	CREATE EVENT / ANNOTATION SCVF START
 	CREATE EVENT / ANNOTATION SCVF END
 	*/
-	return
-}
-
-/* NOT CURRENTLY IN USE... */
-func (job *Job) GetJobData_Limited(limit int) (err error) {
-	// db := job.JDB()
-	// db.Connect()
-	// defer db.Disconnect()
-	job.DBClient.DB.Select("*").Table("admins").Limit(limit).Order("adm_time DESC").Scan(&job.Admins)
-	job.DBClient.DB.Select("*").Table("headers").Limit(limit).Order("hdr_time DESC").Scan(&job.Headers)
-	job.DBClient.DB.Select("*").Table("configs").Limit(limit).Order("cfg_time DESC").Scan(&job.Configs)
-	job.DBClient.DB.Select("*").Table("events").Limit(limit).Order("evt_time DESC").Scan(&job.Events)
-	job.DBClient.DB.Select("*").Table("samples").Limit(limit).Order("smp_time ASC").Scan(&job.Samples)
-	for _, smp := range job.Samples {
-		job.XYPoints.AppendXYSample(smp)
-	}
-	// db.Disconnect()
-	// pkg.Json("GetJobData(): job", job)
 	return
 }
 

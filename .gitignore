@@ -1,7 +1,11 @@
 settings.go
+main.exe
 jwt_key_ed25519
 jwt_key_ed25519.pub
 /demo
 /job_databases
+/job_databases_archive
 /job_files
+/job_files_archive
 /device_files
+/device_files_archive

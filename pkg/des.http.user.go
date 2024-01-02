@@ -164,6 +164,8 @@ func HandleRefreshAccessToken(c *fiber.Ctx) (err error) {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"user_session": us})
 } 
+
+/* CONNECT USERSESSION WEBSOCKET */
 func HandleUserSessionWS_Connect(ws *websocket.Conn) {
 	// fmt.Printf("\nHandleUserWSConnect( )\n")
 

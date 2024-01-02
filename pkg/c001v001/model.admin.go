@@ -1,9 +1,6 @@
 package c001v001
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/leehayford/des/pkg"
 )
 
@@ -11,7 +8,8 @@ import (
 ADMIN - AS WRITTEN TO JOB DATABASE
 */
 type Admin struct {
-	AdmID int64 `gorm:"unique; primaryKey" json:"-"`	
+	// AdmID int64 `gorm:"unique; primaryKey" json:"-"` // POSTGRESS
+	AdmID int64 `gorm:"autoIncrement" json:"-"` // SQLITE
 
 	AdmTime   int64  `gorm:"not null" json:"adm_time"`
 	AdmAddr   string `gorm:"varchar(36)" json:"adm_addr"`
@@ -31,7 +29,7 @@ type Admin struct {
 	/*MOTOR ALARMS*/
 	AdmMotHiAmp float32 `json:"adm_mot_hi_amp"`
 
-	AdmPress float32 `json:"adm_press"` // 6991.3 kPa (1014 psia)
+	AdmPress    float32 `json:"adm_press"`     // 6991.3 kPa (1014 psia)
 	AdmPressMin float32 `json:"adm_press_min"` // 689.5 kPa (100 psia)
 	AdmPressMax float32 `json:"adm_press_max"` // 6991.3 kPa (1014 psia)
 
@@ -63,19 +61,19 @@ type Admin struct {
 	AdmLFSDiffMin  float32 `json:"adm_lfs_diff_min"`  // 13.8 kPa (2 psia)
 	AdmLFSDiffMax  float32 `json:"adm_lfs_diff_max"`  // 68.9 kPa (10 psia)
 }
-func WriteADM(adm Admin, dbc *pkg.DBClient) (err error) {
 
-	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING 
-		WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+func WriteADM(adm Admin, jdbc *pkg.JobDBClient) (err error) {
+
+	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
+	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
-	dbc.WG.Add(1)
-	adm.AdmID = 0
-	res := dbc.Create(&adm) 
-	dbc.WG.Done()
+	// dbc.WG.Add(1)
+	// adm.AdmID = 0
+	res := jdbc.Create(&adm)
+	// dbc.WG.Done()
 
 	return res.Error
 }
-
 
 /*
 ADMIN - AS STORED IN DEVICE FLASH
@@ -96,7 +94,7 @@ func (adm Admin) AdminToBytes() (out []byte) {
 	out = append(out, pkg.Float32ToBytes(adm.AdmBatLoVolt)...)
 
 	out = append(out, pkg.Float32ToBytes(adm.AdmMotHiAmp)...)
-	
+
 	out = append(out, pkg.Float32ToBytes(adm.AdmPress)...)
 	out = append(out, pkg.Float32ToBytes(adm.AdmPressMin)...)
 	out = append(out, pkg.Float32ToBytes(adm.AdmPressMax)...)
@@ -142,7 +140,7 @@ func (adm *Admin) AdminFromBytes(b []byte) {
 
 		AdmMotHiAmp: pkg.BytesToFloat32_L(b[196:200]),
 
-		AdmPress: pkg.BytesToFloat32_L(b[196:200]),
+		AdmPress:    pkg.BytesToFloat32_L(b[196:200]),
 		AdmPressMin: pkg.BytesToFloat32_L(b[200:204]),
 		AdmPressMax: pkg.BytesToFloat32_L(b[204:208]),
 
@@ -175,55 +173,55 @@ ADMIN - DEFAULT VALUES
 */
 func (adm *Admin) DefaultSettings_Admin(reg pkg.DESRegistration) {
 
-		adm.AdmTime = reg.DESJobRegTime
-		adm.AdmAddr = reg.DESJobRegAddr
-		adm.AdmUserID = reg.DESJobRegUserID
-		adm.AdmApp = reg.DESJobRegApp
+	adm.AdmTime = reg.DESJobRegTime
+	adm.AdmAddr = reg.DESJobRegAddr
+	adm.AdmUserID = reg.DESJobRegUserID
+	adm.AdmApp = reg.DESJobRegApp
 
-		/* BROKER */
-		adm.AdmDefHost = pkg.MQTT_HOST
-		adm.AdmDefPort = pkg.MQTT_PORT
-		adm.AdmOpHost = pkg.MQTT_HOST
-		adm.AdmOpPort = pkg.MQTT_PORT
+	/* BROKER */
+	adm.AdmDefHost = pkg.MQTT_HOST
+	adm.AdmDefPort = pkg.MQTT_PORT
+	adm.AdmOpHost = pkg.MQTT_HOST
+	adm.AdmOpPort = pkg.MQTT_PORT
 
-		/* BATTERY */
-		adm.AdmBatHiAmp = 2.5  // Amps
-		adm.AdmBatLoVolt = 10.5 // Volts
+	/* BATTERY */
+	adm.AdmBatHiAmp = 2.5   // Amps
+	adm.AdmBatLoVolt = 10.5 // Volts
 
-		/* MOTOR */
-		adm.AdmMotHiAmp =1.9 // Volts
+	/* MOTOR */
+	adm.AdmMotHiAmp = 1.9 // Volts
 
-        adm.AdmPress = 6894.8 // kPa (1014 psia)
-        adm.AdmPressMin = 689.5 // kPa (100 psia)
-        adm.AdmPressMax = 6894.8 // kPa (1014 psia)
+	adm.AdmPress = 6894.8    // kPa (1014 psia)
+	adm.AdmPressMin = 689.5  // kPa (100 psia)
+	adm.AdmPressMax = 6894.8 // kPa (1014 psia)
 
-		// /* POSTURE - NOT IMPLEMENTED */
-		// TiltTarget float32 `json:"tilt_target"` // 90.0 °
-		// TiltMargin float32 `json:"tilt_margin"` // 3.0 °
-		// AzimTarget float32 `json:"azim_target"` // 180.0 °
-		// AzimMargin float32 `json:"azim_margin"` // 3.0 °
+	// /* POSTURE - NOT IMPLEMENTED */
+	// TiltTarget float32 `json:"tilt_target"` // 90.0 °
+	// TiltMargin float32 `json:"tilt_margin"` // 3.0 °
+	// AzimTarget float32 `json:"azim_target"` // 180.0 °
+	// AzimMargin float32 `json:"azim_margin"` // 3.0 °
 
-		/* HIGH FLOW SENSOR ( HFS )*/
-		adm.AdmHFSFlow = 200.0 // 200.0 L/min
-		adm.AdmHFSFlowMin =  150.0 // 150.0 L/min
-		adm.AdmHFSFlowMax =  250.0 //  250.0 L/min
-		adm.AdmHFSPress =    1103.1 // kPa (160 psia)
-		adm.AdmHFSPressMin = 158.6 // kPa (23 psia)
-		adm.AdmHFSPressMax = 1378.9 // kPa (200 psia)
-		adm.AdmHFSDiff =    448.2 // kPa (65 psia)
-		adm.AdmHFSDiffMin =  68.9 // kPa (10 psia)
-		adm.AdmHFSDiffMax =  517.1 // kPa (75 psia)
+	/* HIGH FLOW SENSOR ( HFS )*/
+	adm.AdmHFSFlow = 200.0      // 200.0 L/min
+	adm.AdmHFSFlowMin = 150.0   // 150.0 L/min
+	adm.AdmHFSFlowMax = 250.0   //  250.0 L/min
+	adm.AdmHFSPress = 1103.1    // kPa (160 psia)
+	adm.AdmHFSPressMin = 158.6  // kPa (23 psia)
+	adm.AdmHFSPressMax = 1378.9 // kPa (200 psia)
+	adm.AdmHFSDiff = 448.2      // kPa (65 psia)
+	adm.AdmHFSDiffMin = 68.9    // kPa (10 psia)
+	adm.AdmHFSDiffMax = 517.1   // kPa (75 psia)
 
-		/* LOW FLOW SENSOR ( LFS )*/
-		adm.AdmLFSFlow =    1.85 // 1.85 L/min
-		adm.AdmLFSFlowMin =  0.5  // 0.5 L/min
-		adm.AdmLFSFlowMax =  2.0  // 2.0 L/min
-		adm.AdmLFSPress =    413.7 // kPa (60 psia)
-		adm.AdmLFSPressMin = 137.9 // kPa (20 psia)
-		adm.AdmLFSPressMax = 551.5 // kPa (80 psia)
-		adm.AdmLFSDiff =     62.0 // kPa (9 psia)
-		adm.AdmLFSDiffMin =  13.8 // kPa (2 psia)
-		adm.AdmLFSDiffMax =  68.9 // kPa (10 psia)
+	/* LOW FLOW SENSOR ( LFS )*/
+	adm.AdmLFSFlow = 1.85      // 1.85 L/min
+	adm.AdmLFSFlowMin = 0.5    // 0.5 L/min
+	adm.AdmLFSFlowMax = 2.0    // 2.0 L/min
+	adm.AdmLFSPress = 413.7    // kPa (60 psia)
+	adm.AdmLFSPressMin = 137.9 // kPa (20 psia)
+	adm.AdmLFSPressMax = 551.5 // kPa (80 psia)
+	adm.AdmLFSDiff = 62.0      // kPa (9 psia)
+	adm.AdmLFSDiffMin = 13.8   // kPa (2 psia)
+	adm.AdmLFSDiffMax = 68.9   // kPa (10 psia)
 }
 
 /*
@@ -241,23 +239,38 @@ func (adm *Admin) Validate() {
 
 }
 
-/* 
+func (adm *Admin) GetMessageSource() (src pkg.DESMessageSource) {
+	src.Time = adm.AdmTime
+	src.Addr = adm.AdmAddr
+	src.UserID = adm.AdmUserID
+	src.App = adm.AdmApp
+	return
+}
+
+/* ADMIN - VALIDATE CMD REQUEST FROM USER */
+func (adm *Admin) CMDValidate(device *Device, uid string) (err error) {
+
+	src := adm.GetMessageSource()
+	dev_src := device.ReferenceSRC()
+	if err = src.ValidateSRC_CMD(dev_src, uid, adm); err != nil {
+		return
+	}
+
+	return
+}
+
+/*
 ADMIN - VALIDATE MQTT SIG FROM DEVICE
 */
 func (adm *Admin) SIGValidate(device *Device) (err error) {
-	
-	if err = pkg.ValidateUnixMilli(adm.AdmTime); err != nil {
-		return fmt.Errorf("Invlid AdmTime: %s", err.Error())
+
+	src := adm.GetMessageSource()
+	dev_src := device.ReferenceSRC()
+	if err = src.ValidateSRC_SIG(dev_src, adm); err != nil {
+		return
 	}
-	if adm.AdmAddr != device.DESDevSerial { 
-		pkg.LogErr(errors.New("\nInvalid device.ADM.AdmAddr."))
-		adm.AdmAddr = device.DESDevSerial 
-	}
-	// if adm.AdmAddr == device.DESDevSerial && adm.AdmUserID != device.DESU.ID.String() { 
-	// 	pkg.LogErr(errors.New("\nInvalid device.DESU: wrong user ID."))
-	// 	adm.AdmUserID = device.DESU.ID.String() 
-	// }
+
 	adm.Validate()
-	
+
 	return
 }
