@@ -1,11 +1,11 @@
 package c001v001
 
 import (
+	"fmt"
 	"encoding/json"
 	
 	"github.com/leehayford/des/pkg"
 )
-
 
 /* ADM DEMO MEMORY -> JSON*/
 func (device Device) WriteAdmToJSONFile(jobName string, adm Admin) (err error) {
@@ -24,7 +24,7 @@ func (device *Device) ReadLastADMFromJSONFile(jobName string) (adm Admin, err er
 		return
 	} 
 	
-	for i := len(adms) -1; i <= 0; i-- {
+	for i := len(adms) -1; i >= 0; i-- {
 		chk := adms[i]
 		if chk.AdmAddr == device.DESDevSerial {
 			adm = chk
@@ -51,18 +51,19 @@ func (device *Device) ReadLastSTAFromJSONFile(jobName string) (sta State, err er
 	if err = json.Unmarshal(buf, &stas); err != nil {
 		pkg.LogErr(err)
 		return
-	} 
+	}  // pkg.Json("(*Device) ReadLastSTAFromJSONFile: -> states: ", stas)
 	
-	for i := len(stas) -1; i <= 0; i-- {
+	fmt.Printf("%s States: %d\n", device.DESDevSerial, len(stas))
+	for i := len(stas) -1; i >= 0; i-- {
 		chk := stas[i]
+		fmt.Printf("%d: %s\n", i, device.DESDevSerial)
 		if chk.StaAddr == device.DESDevSerial {
 			sta = chk
 			break
 		}
-	} 
-	pkg.Json("(*Device) ReadLastSTAFromJSONFile: -> sta: ", sta)
-
+	}  // pkg.Json("(*Device) ReadLastSTAFromJSONFile: -> sta: ", sta)
 	device.STA = sta
+	pkg.Json("(*Device) ReadLastSTAFromJSONFile: -> device.STA: ", device.STA)
 	return
 }
 
@@ -84,7 +85,7 @@ func (device *Device) ReadLastHDRFromJSONFile(jobName string) (hdr Header, err e
 		return
 	} 
 	
-	for i := len(hdrs) -1; i <= 0; i-- {
+	for i := len(hdrs) -1; i >= 0; i-- {
 		chk := hdrs[i]
 		if chk.HdrAddr == device.DESDevSerial {
 			hdr = chk
@@ -114,7 +115,7 @@ func (device *Device) ReadLastCFGFromJSONFile(jobName string) (cfg Config, err e
 		return
 	} 
 	
-	for i := len(cfgs) -1; i <= 0; i-- {
+	for i := len(cfgs) -1; i >= 0; i-- {
 		chk := cfgs[i]
 		if chk.CfgAddr == device.DESDevSerial {
 			cfg = chk
@@ -144,7 +145,7 @@ func (device *Device) ReadLastEVTFromJSONFile(jobName string) (evt Event, err er
 		return
 	} 
 	
-	for i := len(evts) -1; i <= 0; i-- {
+	for i := len(evts) -1; i >= 0; i-- {
 		chk := evts[i]
 		if chk.EvtAddr == device.DESDevSerial {
 			evt = chk
@@ -155,6 +156,7 @@ func (device *Device) ReadLastEVTFromJSONFile(jobName string) (evt Event, err er
 	device.EVT = evt
 	return
 }
+
 
 
 /* HEX FILES *************************************************************************************/
