@@ -49,7 +49,14 @@ func (jdbc *JobDBClient) ConfirmDBFile() (err error) {
 			return os_err
 		}
 		f.Close()
-		err = nil
+		
+		if err = jdbc.Connect(); err != nil {
+			return
+		}
+		
+		if err = jdbc.Disconnect(); err != nil {
+			return
+		}
 	}
 	return
 }

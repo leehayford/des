@@ -113,13 +113,13 @@ func (device *Device) RegisterDevice(src string) (err error) {
 		EvtMsg:    "DEVICE REGISTERED",
 	}
 
+	/* CREATE DESJobSearch RECORD FOR CMDARCHIVE */
+	device.Create_DESJobSearch(device.DESRegistration)
+
 	/* CREATE CMD ARCHIVE DATABASE */
 	if err := device.InitializeDB(device.DESJobName); err != nil {
 		return err
 	}
-
-	/* CREATE DESJobSearch RECORD FOR CMDARCHIVE */
-	device.Create_DESJobSearch(device.DESRegistration)
 
 	/* WRITE TO ~/device_files/XXXXXXXXXX_CMDARCHIVE/... */
 	// fmt.Printf("\n(*Device) RegisterDevice( ) -> WRITE TO ~/device_files/%s/...\n", device.DESJobName)
