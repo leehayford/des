@@ -243,9 +243,6 @@ func (device *Device) DeviceClient_Connect() (err error) {
 	if res := device.JobDBC.Last(&device.CFG); res.Error != nil {
 		return pkg.LogErr(res.Error)
 	}
-	// if res := device.JobDBC.Last(&device.SMP); res.Error != nil {
-	// 	return pkg.LogErr(res.Error)
-	// }
 	if res := device.JobDBC.Last(&device.EVT); res.Error != nil {
 		return pkg.LogErr(res.Error)
 	}
