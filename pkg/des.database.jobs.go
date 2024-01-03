@@ -38,6 +38,8 @@ func GetJobDBClient(db_name string) (dbc JobDBClient, err error) {
 	err = dbc.ConfirmDBFile()
 	return
 }
+
+/* GIT BRANCH: empdbfile -> testing create empty db file if not found*/
 func (jdbc *JobDBClient) ConfirmDBFile() (err error) {
 	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
 	_, err = os.Stat(fmt.Sprintf(jdbc.ConnStr))
