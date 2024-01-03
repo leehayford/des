@@ -138,16 +138,15 @@ func (device *Device) RegisterDevice(src string) (err error) {
 }
 func (device *Device) InitializeDB(name string) (err error) {
 
-	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
-	if pkg.CheckDatabaseExists(name) {
-		return fmt.Errorf(pkg.ERR_DB_EXISTS)
-	}
 	/* CREATE DATABASE CONNECTION AND OPEN */
-	dbc := pkg.MakeDBClient(name)
+	dbc, err := pkg.GetJobDBClient(name)
+	if err != nil {
+		return
+	}
 	dbc.Connect()
 
 	/* CREATE CMDARCHIVE DB TABLES */
-	if err = CreateJobDB(&dbc); err != nil {
+	if err = CreateJobDBTables(&dbc); err != nil {
 		return
 	}
 
@@ -377,7 +376,7 @@ func (device Device) GetCmdArchiveDESRegistration() (cmd Job) {
 
 /* CONNECTS THE CMDARCHIVE DBClient TO THE CMDARCHIVE DATABASE */
 func (device *Device) ConnectCmdDBC() (err error) {
-	device.CmdDBC = pkg.MakeDBClient(device.CmdArchiveName())
+	device.CmdDBC, err = pkg.GetJobDBClient(device.CmdArchiveName())
 	return device.CmdDBC.Connect()
 }
 
@@ -411,7 +410,7 @@ func (device *Device) GetCurrentJob() {
 
 /* CONNECTS THE ACTIVE JOB DBClient TO THE ACTIVE JOB DATABASE */
 func (device *Device) ConnectJobDBC() (err error) {
-	device.JobDBC = pkg.MakeDBClient(device.DESJobName)
+	device.JobDBC, err = pkg.GetJobDBClient(device.DESJobName)
 	return device.JobDBC.Connect()
 }
 
@@ -666,14 +665,14 @@ func (device *Device) StartJob(start StartJob) (err error) {
 	if err := device.InitializeDB(device.DESJobName); err != nil {
 		if err.Error() == pkg.ERR_DB_EXISTS {
 			device.JobDBC = device.CmdDBC
-			return fmt.Errorf("(*Device) StartJob( ): ERROR *** %s *** LOGGING TO: %s\n", err.Error(), device.JobDBC.GetDBName())
+			return fmt.Errorf("(*Device) StartJob( ): ERROR *** %s *** LOGGING TO: %s\n", err.Error(), device.JobDBC.GetDBNameFromConnStr())
 		}
 	}
 
 	/* CONNECT TO THE NEW ACTIVE JOB DATABASE, ON FAILURE, LOG TO CMDARCHIVE */
 	if err := device.ConnectJobDBC(); err != nil {
 		device.JobDBC = device.CmdDBC
-		return fmt.Errorf("(*Device) StartJob( ): CONNECTION FAILED! *** LOGGING TO: %s\n", device.JobDBC.GetDBName())
+		return fmt.Errorf("(*Device) StartJob( ): CONNECTION FAILED! *** LOGGING TO: %s\n", device.JobDBC.GetDBNameFromConnStr())
 	}
 
 	/* UPDATE THE DEVICE STATE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB
@@ -699,7 +698,7 @@ func (device *Device) StartJob(start StartJob) (err error) {
 	device.Create_DESJobSearch(device.DESRegistration)
 
 	// pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
-	return fmt.Errorf("(*Device) StartJob( ): OK; CONNECTED TO: %s\n", device.JobDBC.GetDBName())
+	return fmt.Errorf("(*Device) StartJob( ): OK; CONNECTED TO: %s\n", device.JobDBC.GetDBNameFromConnStr())
 }
 
 /*

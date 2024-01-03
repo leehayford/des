@@ -97,8 +97,8 @@ func (hdr *Header) GetMessageSource() (src pkg.DESMessageSource) {
 	return
 }
 
-/* 
-HEADER - VALIDATE CMD REQUEST FROM USER 
+/*
+HEADER - VALIDATE CMD REQUEST FROM USER
 */
 func (hdr *Header) CMDValidate(device *Device, uid string) (err error) {
 
@@ -196,4 +196,3 @@ func (hdr *Header) HeaderFromBytes(b []byte) {
 	//  pkg.Json("(demo *DemoDeviceClient)HeaderFromBytes() -> hdr", hdr)
 	return
 }
-

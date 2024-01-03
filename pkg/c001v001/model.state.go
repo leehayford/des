@@ -149,7 +149,6 @@ func (sta *State) GetMessageSource() (src pkg.DESMessageSource) {
 	return
 }
 
-
 func (sta *State) CMDValidate(device *Device, uid string) (err error) {
 
 	src := sta.GetMessageSource()

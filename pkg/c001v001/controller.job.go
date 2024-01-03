@@ -27,13 +27,14 @@ func (job *Job) ConnectDBC() (err error) {
 	// job.DBClient = pkg.DBClient{ConnStr: fmt.Sprintf("%s%s", pkg.DB_SERVER, strings.ToLower(job.DESJobName))}
 	// return job.DBClient.Connect()
 
-	job.DBC = pkg.MakeDBClient(job.DESJobName)
+	job.DBC, err = pkg.GetJobDBClient(job.DESJobName)
 	return job.DBC.Connect()
 }
 
 /*************************************************************************************************************************/
 
-func CreateJobDB(dbc *pkg.JobDBClient) (err error) {
+func CreateJobDBTables(dbc *pkg.JobDBClient) (err error) {
+
 	if err := dbc.Migrator().CreateTable(
 		&Admin{},
 		&State{},

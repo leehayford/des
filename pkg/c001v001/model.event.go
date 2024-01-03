@@ -109,7 +109,6 @@ func (evt *Event) GetMessageSource() (src pkg.DESMessageSource) {
 	return
 }
 
-
 /* EVENT - VALIDATE CMD REQUEST FROM USER */
 func (evt *Event) CMDValidate(device *Device, uid string) (err error) {
 
@@ -131,6 +130,7 @@ func (evt *Event) CMDValidate(device *Device, uid string) (err error) {
 
 	return
 }
+
 /*
 EVENT - VALIDATE MQTT SIG FROM DEVICE
 */

@@ -45,6 +45,8 @@ func WriteModelToJSONFile(dirName, fileName string, mod interface{}) (err error)
 
 	path := fmt.Sprintf("%s/%s.json", dir, fileName)
 	
+	
+
 	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return LogErr(err)

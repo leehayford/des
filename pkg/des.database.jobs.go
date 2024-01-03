@@ -33,26 +33,23 @@ type JobDBClient struct {
 	/* TODO: ADD RWMUTEXT */
 }
 
-func CheckDatabaseExists(db_name string) (exits bool) {
-	_, err := os.Stat(fmt.Sprintf("%s/%s", DES_JOB_DATABASES, db_name))
-	if !os.IsNotExist(err) {
-		exits = true
-	}
-	return
-}
-func MakeDBClient(db_name string) (dbc JobDBClient) {
+func GetJobDBClient(db_name string) (dbc JobDBClient, err error) {
 	dbc = JobDBClient{ConnStr: fmt.Sprintf("%s/%s", DES_JOB_DATABASES, db_name)}
+	err = dbc.ConfirmDBFile()
 	return
 }
-
-func (jdbc *JobDBClient) GetDBName() string {
-	str := strings.Split(jdbc.ConnStr, "/")
-	if len(str) == 2 {
-		/* THIS IS A VALID CONNECTION STRING */
-		return str[1] /* TODO: IMPROVE VALIDATION ? */
-	} else {
-		return ""
+func (jdbc *JobDBClient) ConfirmDBFile() (err error) {
+	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
+	_, err = os.Stat(fmt.Sprintf(jdbc.ConnStr))
+	if os.IsNotExist(err) {
+		f, os_err := os.Create(jdbc.ConnStr)
+		if os_err != nil {
+			return os_err
+		}
+		f.Close()
+		err = nil
 	}
+	return
 }
 func (jdbc *JobDBClient) Connect() (err error) {
 
@@ -79,3 +76,21 @@ func (jdbc *JobDBClient) Disconnect() (err error) {
 	jdbc = &JobDBClient{}
 	return
 }
+func (jdbc *JobDBClient) GetDBNameFromConnStr() string {
+	str := strings.Split(jdbc.ConnStr, "/")
+	if len(str) == 2 {
+		/* THIS IS A VALID CONNECTION STRING */
+		return str[1] /* TODO: IMPROVE VALIDATION ? */
+	} else {
+		return ""
+	}
+}
+
+// func CheckDatabaseExists(connStr string) (exits bool) {
+// 	// _, err := os.Stat(fmt.Sprintf("%s/%s", DES_JOB_DATABASES, db_name))
+// 	_, err := os.Stat(fmt.Sprintf(connStr))
+// 	if !os.IsNotExist(err) {
+// 		exits = true
+// 	}
+// 	return
+// }

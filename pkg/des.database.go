@@ -155,6 +155,16 @@ func (adb ADMINDatabase) CreateDESDatabase() (err error) {
 /* IF ANY REQURIRED DIRECTORY FAILS TO EXIST, ACTIVELY DISAGREE */
 func ConfirmDESDirectories() (err error) {
 
+	/* THIS IS HERE FOR TESTING **************************/
+	ents, err := os.ReadDir(DES_JOB_DATABASES)
+	if err != nil {
+		LogErr(err)
+	}
+	for _, ent := range ents {
+		fmt.Println(ent.Name())
+	}
+	/********************************************************/
+
 	if err = ConfirmDirectory(DES_JOB_DATABASES); err != nil {
 		return LogErr(err)
 	}
@@ -186,13 +196,14 @@ func ConfirmDESDirectories() (err error) {
 	return
 }
 func ConfirmDirectory(name string) (err error) {
-	if err = os.Mkdir(name, os.ModePerm); err != nil {
-		if strings.Contains(err.Error(), "exists") {
-			// if (strings.Contains(err.Error(), os.ErrExist.Error())) {
-			// fmt.Printf("%s : %s\n", name, os.ErrExist.Error())
-			err = nil
+	_, err = os.Stat(name)
+	if os.IsNotExist(err) {
+		if err = os.Mkdir(name, os.ModePerm); err != nil {
+			return LogErr(err)
 		}
 	}
+	
+	fmt.Printf("ConfirmDirectory( %s ): CONFIRMED\n", name)
 	return
 }
 
