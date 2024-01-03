@@ -198,6 +198,8 @@ func ConfirmDESDirectories() (err error) {
 func ConfirmDirectory(name string) (err error) {
 	_, err = os.Stat(name)
 	if os.IsNotExist(err) {
+		err = nil
+		fmt.Printf("ConfirmDirectory( %s ): CREATING\n", name)
 		if err = os.Mkdir(name, os.ModePerm); err != nil {
 			return LogErr(err)
 		}
