@@ -3,9 +3,6 @@ package c001v001
 import (
 	"fmt"
 	"sort"
-
-	// "strings"
-
 	"time"
 
 	"github.com/leehayford/des/pkg"
@@ -168,9 +165,6 @@ func (device *Device) InitializeDB(name string) (err error) {
 		return
 	}
 	if err = WriteEVT(device.EVT, &dbc); err != nil {
-		return
-	}
-	if err = WriteSMP(device.SMP, &dbc); err != nil {
 		return
 	}
 
