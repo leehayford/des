@@ -39,14 +39,18 @@ func main() {
 
 
 	if *cleanDB {
+		
+		/* ARCHIVE ALL DEVICE / JOB DIRECTORIES */
+		pkg.ArchiveDESDirectories()
+		
 		/* DROP ALL DATABASES */
 		pkg.ADB.DropAllDatabases()
 		
-		/* CONFIRM REQUIRED DIRECTORIES EXIST */
-		pkg.ConfirmDESDirectories()
+		// /* CONFIRM REQUIRED DIRECTORIES EXIST */
+		// pkg.ConfirmDESDirectories()
 
-		/* ARCHIVE ALL DEVICE / JOB DIRECTORIES */
-		pkg.ArchiveDESDirectories()
+		// /* ARCHIVE ALL DEVICE / JOB DIRECTORIES */
+		// pkg.ArchiveDESDirectories()
 	}
 
 	/* CONFIRM REQUIRED DIRECTORIES EXIST */

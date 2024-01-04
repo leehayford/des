@@ -25,6 +25,7 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 		/* DEVICE-OPERATOR-LEVEL OPERATIONS */
 		router.Post("/start", pkg.DesAuth, HandleStartJobRequest)
 		router.Post("/end", pkg.DesAuth, HandleEndJobRequest)
+		// router.Post("/report", pkg.DesAuth, HandleDeviceReportRequest)
 		router.Post("/admin", pkg.DesAuth, HandleSetAdminRequest)
 		router.Post("/state", pkg.DesAuth, HandleSetStateRequest)
 		router.Post("/header", pkg.DesAuth, HandleSetHeaderRequest)
@@ -195,6 +196,37 @@ func HandleEndJobRequest(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
+// /**/
+// func HandleDeviceReportRequest(c *fiber.Ctx) (err error) {
+// 	fmt.Printf("\nHandleDeviceReportRequest( )\n")
+
+// 	/* CHECK USER PERMISSION */
+// 	if !pkg.UserRole_Operator(c.Locals("role")) {
+// 		return c.Status(fiber.StatusForbidden).
+// 			SendString(pkg.ERR_AUTH_OPERATOR + ": View device status")
+// 	}
+
+// 	/* PARSE AND VALIDATE REQUEST DATA */
+// 	device := Device{}
+// 	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
+// 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+// 	} // pkg.Json("HandleSetAdminRequest(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
+
+// 	/* CHECK DEVICE AVAILABILITY */
+// 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
+// 		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
+// 	}
+
+// 	/* ENSURE WE ARE CONNECTED TO THE DB AND MQTT CLIENTS */
+// 	device.GetMappedClients()
+
+// 	/* SEND SET REPORT REQUEST */
+// 	device.MQTTPublication_DeviceClient_CMDReport()
+
+// 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &device})
+
+// }
+
 /*
 	USED TO ALTER THE ADMIN SETTINGS FOR A GIVEN DEVICE
 
@@ -225,7 +257,7 @@ func HandleSetAdminRequest(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	} // pkg.Json("HandleSetAdminRequest(): -> device.SetAdminRequest(...) -> device.ADM", device.ADM)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &device})
 }
 
 /*
@@ -261,7 +293,7 @@ func HandleSetStateRequest(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	} // pkg.Json("HandleSetStateRequest(): -> device.SetStateRequest(...) -> device", device)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &device})
 }
 
 /*
@@ -294,7 +326,7 @@ func HandleSetHeaderRequest(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	} // pkg.Json("HandleSetHeaderRequest(): -> device.SetHeaderRequest(...) -> device.HDR", device.HDR)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &device})
 }
 
 /*
@@ -327,7 +359,7 @@ func HandleSetConfigRequest(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	} // pkg.Json("HandleSetConfigRequest(): -> device.SetConfigRequest(...) -> device.CFG", device.CFG)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &device})
 }
 
 /*
@@ -361,7 +393,7 @@ func HandleSetEventRequest(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	} // pkg.Json("HandleSetEventRequest( ): -> device.CreateEventRequest(...) -> device.EVT", device.EVT)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &device})
 }
 
 func HandleQryActiveJobEvents(c *fiber.Ctx) (err error) {

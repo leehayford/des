@@ -35,7 +35,7 @@ type JobDBClient struct {
 
 func GetJobDBClient(db_name string) (dbc JobDBClient, err error) {
 	dbc = JobDBClient{ConnStr: fmt.Sprintf("%s/%s/%s", DATA_DIR, JOB_DB_DIR, db_name)}
-	err = dbc.ConfirmDBFile()
+	// err = dbc.ConfirmDBFile()
 	return
 }
 
@@ -48,6 +48,7 @@ func (jdbc *JobDBClient) ConfirmDBFile() (err error) {
 			return os_err
 		}
 		f.Close()
+		err = nil
 	}
 	return
 }
