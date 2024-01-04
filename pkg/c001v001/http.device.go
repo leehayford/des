@@ -25,7 +25,7 @@ func InitializeDeviceRoutes(app, api *fiber.App) {
 		/* DEVICE-OPERATOR-LEVEL OPERATIONS */
 		router.Post("/start", pkg.DesAuth, HandleStartJobRequest)
 		router.Post("/end", pkg.DesAuth, HandleEndJobRequest)
-		// router.Post("/report", pkg.DesAuth, HandleDeviceReportRequest)
+		router.Post("/report", pkg.DesAuth, HandleDeviceReportRequest)
 		router.Post("/admin", pkg.DesAuth, HandleSetAdminRequest)
 		router.Post("/state", pkg.DesAuth, HandleSetStateRequest)
 		router.Post("/header", pkg.DesAuth, HandleSetHeaderRequest)
@@ -196,36 +196,35 @@ func HandleEndJobRequest(c *fiber.Ctx) (err error) {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"device": &device})
 }
 
-// /**/
-// func HandleDeviceReportRequest(c *fiber.Ctx) (err error) {
-// 	fmt.Printf("\nHandleDeviceReportRequest( )\n")
+/**/
+func HandleDeviceReportRequest(c *fiber.Ctx) (err error) {
+	fmt.Printf("\nHandleDeviceReportRequest( )\n")
 
-// 	/* CHECK USER PERMISSION */
-// 	if !pkg.UserRole_Operator(c.Locals("role")) {
-// 		return c.Status(fiber.StatusForbidden).
-// 			SendString(pkg.ERR_AUTH_OPERATOR + ": View device status")
-// 	}
+	/* CHECK USER PERMISSION */
+	if !pkg.UserRole_Operator(c.Locals("role")) {
+		return c.Status(fiber.StatusForbidden).
+			SendString(pkg.ERR_AUTH_OPERATOR + ": View device status")
+	}
 
-// 	/* PARSE AND VALIDATE REQUEST DATA */
-// 	device := Device{}
-// 	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
-// 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
-// 	} // pkg.Json("HandleSetAdminRequest(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
+	/* PARSE AND VALIDATE REQUEST DATA */
+	device := Device{}
+	if err = ValidatePostRequestBody_Device(c, &device); err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	} // pkg.Json("HandleSetAdminRequest(): -> c.BodyParser(&device) -> device.ADM", device.ADM)
 
-// 	/* CHECK DEVICE AVAILABILITY */
-// 	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
-// 		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
-// 	}
+	/* CHECK DEVICE AVAILABILITY */
+	if ok := DevicePingsMapRead(device.DESDevSerial).OK; !ok {
+		return c.Status(fiber.StatusBadRequest).SendString(pkg.ERR_MQTT_DEVICE_CONN)
+	}
 
-// 	/* ENSURE WE ARE CONNECTED TO THE DB AND MQTT CLIENTS */
-// 	device.GetMappedClients()
+	/* SEND REPORT REQUEST */
+	uid := (c.Locals("sub").(string))
+	if err = device.DeviceReportRequest(uid); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
 
-// 	/* SEND SET REPORT REQUEST */
-// 	device.MQTTPublication_DeviceClient_CMDReport()
-
-// 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &device})
-
-// }
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"device": &device})
+}
 
 /*
 	USED TO ALTER THE ADMIN SETTINGS FOR A GIVEN DEVICE

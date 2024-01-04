@@ -976,6 +976,24 @@ func (device *Device) OfflineJobEnd(smp Sample) {
 	fmt.Printf("\n(*Device) OfflineJobEnd( ): COMPLETE. \n")
 }
 
+func (device *Device) DeviceReportRequest(uid string) (err error) {
+
+	/* ENSURE WE ARE CONNECTED TO THE DB AND MQTT CLIENTS */
+	device.GetMappedClients()
+
+	/* SEND SET REPORT REQUEST */
+	device.MQTTPublication_DeviceClient_CMDReport()
+
+	user, err := pkg.GetUserByID(uid)
+	if err != nil {
+		return
+	}
+
+	pkg.LogDESError(device.DESDevSerial, "User requested CMD sent to report topic", user.FilterUserRecord())
+
+	return
+}
+
 /* SAMPLE HANDLING ************************************************************************************/
 
 /*
