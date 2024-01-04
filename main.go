@@ -37,10 +37,14 @@ func main() {
 	sim := flag.Bool("sim", false, "Run as device simulator only")
 	flag.Parse()
 
+
 	if *cleanDB {
 		/* DROP ALL DATABASES */
 		pkg.ADB.DropAllDatabases()
 		
+		/* CONFIRM REQUIRED DIRECTORIES EXIST */
+		pkg.ConfirmDESDirectories()
+
 		/* ARCHIVE ALL DEVICE / JOB DIRECTORIES */
 		pkg.ArchiveDESDirectories()
 	}

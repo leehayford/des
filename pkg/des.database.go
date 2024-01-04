@@ -155,46 +155,40 @@ func (adb ADMINDatabase) CreateDESDatabase() (err error) {
 /* IF ANY REQURIRED DIRECTORY FAILS TO EXIST, ACTIVELY DISAGREE */
 func ConfirmDESDirectories() (err error) {
 
-	if err = ConfirmDirectory(DES_JOB_DATABASES); err != nil {
+	if err = ConfirmDirectory(DATA_DIR); err != nil {
 		return LogErr(err)
 	}
 
-	if err = ConfirmDirectory(DES_JOB_DATABASES_ARCHIVE); err != nil {
+	if err = ConfirmDirectory(ARCHIVE_DIR); err != nil {
 		return LogErr(err)
 	}
 
-	if err = ConfirmDirectory(DES_JOB_FILES); err != nil {
+	if err = ConfirmDirectory(JOB_DB_DIR); err != nil {
 		return LogErr(err)
 	}
 
-	if err = ConfirmDirectory(DES_JOB_FILES_ARCHIVE); err != nil {
+	if err = ConfirmDirectory(JOB_FILE_DIR); err != nil {
 		return LogErr(err)
 	}
 
-	if err = ConfirmDirectory(DES_JOB_DATABASES); err != nil {
-		return LogErr(err)
-	}
-
-	if err = ConfirmDirectory(DES_DEVICE_FILES); err != nil {
-		return LogErr(err)
-	}
-
-	if err = ConfirmDirectory(DES_DEVICE_FILES_ARCHIVE); err != nil {
+	if err = ConfirmDirectory(DEVICE_FILE_DIR); err != nil {
 		return LogErr(err)
 	}
 
 	return
 }
+
 func ConfirmDirectory(name string) (err error) {
-	_, err = os.Stat(name)
-	if os.IsNotExist(err) {
-		err = nil
-		fmt.Printf("ConfirmDirectory( %s ): CREATING\n", name)
-		if err = os.Mkdir(name, os.ModePerm); err != nil {
-			return LogErr(err)
+
+	// fmt.Printf("ConfirmDirectory( %s ): CREATING\n", name)
+	if err = os.Mkdir(name, os.ModePerm); err != nil {
+		if !os.IsExist(err) {
+			/* THERE'S SOME OTHER ISSUE */
+			fmt.Printf("ConfirmDirectory( %s ): ERROR: %s\n", name, err.Error())
+			return
 		}
+		err = nil
 	}
-	
 	fmt.Printf("ConfirmDirectory( %s ): CONFIRMED\n", name)
 	return
 }
@@ -203,23 +197,37 @@ func ConfirmDirectory(name string) (err error) {
 func ArchiveDESDirectories() (err error) {
 
 	/* TIME OF ARCHIVING ALL EXISTING JOB / DEVICE DATA */
-	arc_time := time.Now().UTC().UnixMilli()
+	t := time.Now().UTC()
+	y := t.Year()
+	m := int(t.Month())
+	d := t.Day()
+	h := t.Hour()
+	min := t.Minute()
+	s := t.Second()
+	arc_time := fmt.Sprintf("%d%02d%02d_%02d%02d%02d", y, m, d, h, min, s)
+	fmt.Printf("ArchiveDESDirectories( ): %s\n", arc_time)
+
+	
+	arc := fmt.Sprintf("%s/%s", ARCHIVE_DIR, arc_time)
+	if err = ConfirmDirectory(arc); err != nil {
+		return LogErr(err)
+	}
 
 	/* ARCHIVE ALL EXISTING JOB DATABASES */
-	jdba := fmt.Sprintf("%s/%d", DES_JOB_DATABASES_ARCHIVE, arc_time)
-	if err := ArchiveDirectory(DES_JOB_DATABASES, jdba); err != nil {
+	jdba := fmt.Sprintf("%s/%s", ARCHIVE_DIR, arc_time)
+	if err := ArchiveDirectory(JOB_DB_DIR, jdba); err != nil {
 		return LogErr(err)
 	}
 
 	/* ARCHIVE ALL EXISTING JOB FILEES */
-	jfa := fmt.Sprintf("%s/%d", DES_JOB_FILES_ARCHIVE, arc_time)
-	if err := ArchiveDirectory(DES_JOB_FILES, jfa); err != nil {
+	jfa := fmt.Sprintf("%s/%s", JOB_FILE_ARCHIVE, arc_time)
+	if err := ArchiveDirectory(JOB_FILE_DIR, jfa); err != nil {
 		return LogErr(err)
 	}
 
 	/* ARCHIVE ALL EXISTING DEVICE FILES */
-	dfa := fmt.Sprintf("%s/%d", DES_DEVICE_FILES_ARCHIVE, arc_time)
-	if err := ArchiveDirectory(DES_DEVICE_FILES, dfa); err != nil {
+	dfa := fmt.Sprintf("%s/%s", DEVICE_FILE_ARCHIVE, arc_time)
+	if err := ArchiveDirectory(DEVICE_FILE_DIR, dfa); err != nil {
 		return LogErr(err)
 	}
 
@@ -230,23 +238,24 @@ func ArchiveDESDirectories() (err error) {
 	return
 }
 func ArchiveDirectory(dir, arc string) (err error) {
-	if err := os.Rename(dir, arc); err != nil {
-		if strings.Contains(err.Error(), "cannot find the file") {
-			/* TODO: IDENTIFY CORRECT os.Err...
-			- IT'S NONE OF THESE, AND THAT'S THE WHOLE LIST...
-			*/
-			// fmt.Printf("%s : %s\n", dir, err.Error())
-			// fmt.Printf("%s : %s\n", dir, os.ErrClosed.Error())
-			// fmt.Printf("%s : %s\n", dir, os.ErrDeadlineExceeded.Error())
-			// fmt.Printf("%s : %s\n", dir, os.ErrExist.Error())
-			// fmt.Printf("%s : %s\n", dir, os.ErrInvalid.Error())
-			// fmt.Printf("%s : %s\n", dir, os.ErrNoDeadline.Error())
-			// fmt.Printf("%s : %s\n", dir, os.ErrNotExist.Error())
-			// fmt.Printf("%s : %s\n", dir, os.ErrPermission.Error())
-			// fmt.Printf("%s : %s\n", dir, os.ErrProcessDone.Error())
-			err = nil
-		}
 
+	/* ONLY ARCHIVE dir IF IT EXISTS */
+	if _, err = os.Stat(dir); err != nil {
+		fmt.Printf("ArchiveDirectory( %s ): ERROR: %s\n", dir, err.Error())
+		if !os.IsExist(err) {
+			/* THERE'S SOME OTHER ISSUE */
+			fmt.Printf("ArchiveDirectory( %s ): ERROR: %s\n", dir, err.Error())
+			return
+		}
+	}
+
+	// if err = ConfirmDirectory(arc); err != nil {
+	// 	return LogErr(err)
+	// }
+
+	/* dir EXISTS, ARCHIVE IT */
+	if err = os.Rename(dir, arc); err != nil {
+		return
 	}
 	return
 }

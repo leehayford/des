@@ -1,4 +1,3 @@
-
 /* Data Exchange Server (DES) is a component of the Datacan Data2Desk (D2D) Platform.
 License:
 
@@ -25,9 +24,9 @@ import (
 /* JSON FILES ***********************************************************************************/
 
 /*
-	CONVERTS MODEL TO JSON STRING AND WRITES TO ~/DES_DEVICE_FILES/dirName/fileName.json
+CONVERTS MODEL TO JSON STRING AND WRITES TO ~/DES_DEVICE_FILES/dirName/fileName.json
 
-	MODELS APPENDED TO A SINGLE JSON ARRAY [ { 1 }, { 2 }, { 3 } ]
+MODELS APPENDED TO A SINGLE JSON ARRAY [ { 1 }, { 2 }, { 3 } ]
 */
 func WriteModelToJSONFile(dirName, fileName string, mod interface{}) (err error) {
 	if fileName == "" {
@@ -38,14 +37,12 @@ func WriteModelToJSONFile(dirName, fileName string, mod interface{}) (err error)
 		LogErr(err)
 	}
 
-	dir := fmt.Sprintf("%s/%s",DES_DEVICE_FILES , dirName)
+	dir := fmt.Sprintf("%s/%s/%s", DATA_DIR, DEVICE_FILE_DIR, dirName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		LogErr(err)
 	}
 
 	path := fmt.Sprintf("%s/%s.json", dir, fileName)
-	
-	
 
 	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -75,12 +72,12 @@ func ReadModelBytesFromJSONFile(dirName, fileName string) (buf []byte, err error
 	if fileName == "" {
 		return nil, LogErr(fmt.Errorf(ERR_FILE_NAME_EMPTY))
 	}
-	dir := fmt.Sprintf("%s/%s",DES_DEVICE_FILES , dirName)
+	dir := fmt.Sprintf("%s/%s/%s", DATA_DIR, DEVICE_FILE_DIR, dirName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/%s.json", dir, fileName), os.O_RDONLY, 0600)
 	if err != nil {
 		return nil, LogErr(err)
 	}
-	
+
 	buf, err = ioutil.ReadAll(f)
 	f.Close()
 	return
@@ -93,7 +90,7 @@ func WriteModelBytesToHEXFile(dirName, fileName string, buf []byte) (err error) 
 	if fileName == "" {
 		return LogErr(fmt.Errorf(ERR_FILE_NAME_EMPTY))
 	}
-	dir := fmt.Sprintf("%s/%s",DES_DEVICE_FILES , dirName)
+	dir := fmt.Sprintf("%s/%s/%s", DATA_DIR, DEVICE_FILE_DIR, dirName)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		LogErr(err)
 	}
@@ -118,7 +115,7 @@ func ReadModelBytesFromHEXFile(dirName, fileName string) (buf []byte, arr error)
 	if fileName == "" {
 		return nil, LogErr(fmt.Errorf(ERR_FILE_NAME_EMPTY))
 	}
-	dir := fmt.Sprintf("%s/%s",DES_DEVICE_FILES , dirName)
+	dir := fmt.Sprintf("%s/%s/%s", DATA_DIR, DEVICE_FILE_DIR, dirName)
 	f, err := os.OpenFile(fmt.Sprintf("%s/%s.bin", dir, fileName), os.O_RDONLY, 0600)
 	if err != nil {
 		return nil, LogErr(err)

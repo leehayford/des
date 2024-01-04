@@ -34,12 +34,11 @@ type JobDBClient struct {
 }
 
 func GetJobDBClient(db_name string) (dbc JobDBClient, err error) {
-	dbc = JobDBClient{ConnStr: fmt.Sprintf("%s/%s", DES_JOB_DATABASES, db_name)}
+	dbc = JobDBClient{ConnStr: fmt.Sprintf("%s/%s/%s", DATA_DIR, JOB_DB_DIR, db_name)}
 	err = dbc.ConfirmDBFile()
 	return
 }
 
-/* GIT BRANCH: empdbfile -> testing create empty db file if not found*/
 func (jdbc *JobDBClient) ConfirmDBFile() (err error) {
 	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
 	_, err = os.Stat(fmt.Sprintf(jdbc.ConnStr))
@@ -49,14 +48,6 @@ func (jdbc *JobDBClient) ConfirmDBFile() (err error) {
 			return os_err
 		}
 		f.Close()
-		
-		if err = jdbc.Connect(); err != nil {
-			return
-		}
-		
-		if err = jdbc.Disconnect(); err != nil {
-			return
-		}
 	}
 	return
 }
