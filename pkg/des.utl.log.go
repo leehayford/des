@@ -151,8 +151,7 @@ func (src *DESMessageSource) ValidateSRC_CMD(dev_src DESMessageSource, uid strin
 	}
 
 	/* COMMANDS CAN NOT ORIGINATE FROM DEVICES */
-	
-	fmt.Printf("(*DESMessageSource) ValidateSRC_CMD(): -> src.%s == dev_src.%s\n", src.UserID, dev_src.UserID)
+	// fmt.Printf("(*DESMessageSource) ValidateSRC_CMD(): -> src.%s != dev_src.%s\n", src.UserID, dev_src.UserID)
 	if src.UserID == dev_src.UserID {
 		LogDESError(dev_src.UserID, ERR_INVALID_SRC_SIG, mod)
 		src.UserID = usrc.UserID

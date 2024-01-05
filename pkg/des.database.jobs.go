@@ -35,47 +35,45 @@ type JobDBClient struct {
 }
 
 func GetJobDBClient(db_name string) (jdbc JobDBClient, err error) {
-	jdbc = JobDBClient{ConnStr: fmt.Sprintf("%s/%s/%s", DATA_DIR, JOB_DB_DIR, db_name)}
-	jdbc.RWM = &sync.RWMutex{}
-	// err = jdbc.ConfirmDBFile()
+	jdbc = JobDBClient{
+		ConnStr: fmt.Sprintf("%s/%s/%s", DATA_DIR, JOB_DB_DIR, db_name),
+		RWM: &sync.RWMutex{},
+	}
 	return
 }
 
-// func (jdbc *JobDBClient) ConfirmDBFile() (err error) {
-// 	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
-// 	_, err = os.Stat(fmt.Sprintf(jdbc.ConnStr))
-// 	if os.IsNotExist(err) {
-// 		f, os_err := os.Create(jdbc.ConnStr)
-// 		if os_err != nil {
-// 			return os_err
-// 		}
-// 		f.Close()
-// 		err = nil
-// 	}
-// 	return
-// }
 func (jdbc *JobDBClient) Connect() (err error) {
 
 	if jdbc.ConnStr == "" {
 		return fmt.Errorf("JobDBClient connection string is empty")
 	}
 
+	/* THIS JobDBClient SHOULD ALREADY HAVE A RWMutex 
+	BUT WE'LL JUST MAKE SURE BEFORE TRYING TO LOCK IT */
 	if jdbc.RWM == nil {
 		jdbc.RWM = &sync.RWMutex{}
 	}
 
+	jdbc.RWM.Lock()
 	if jdbc.DB, err = gorm.Open(sqlite.Open(jdbc.ConnStr), &gorm.Config{}); err != nil {
 		// fmt.Printf("\n(*JobDBClient) Connect() -> %s -> FAILED! \n", jdbc.GetDBName())
 		return LogErr(err)
 	}
 	// jdbc.DB.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
 	jdbc.DB.Logger = logger.Default.LogMode(logger.Error)
+	jdbc.RWM.Unlock()
 
 	// fmt.Printf("\n(*JobDBClient) Connect() -> %s -> connected... \n", jdbc.GetDBName())
 	return err
 }
 func (jdbc *JobDBClient) Disconnect() (err error) {
 
+	/* THIS JobDBClient SHOULD ALREADY HAVE A RWMutex 
+	BUT WE'LL JUST MAKE SURE BEFORE TRYING TO LOCK IT */
+	if jdbc.RWM != nil {
+		jdbc.RWM.Lock()
+	}
+	
 	db, err := jdbc.DB.DB()
 	if err != nil {
 		return LogErr(err)
@@ -84,15 +82,18 @@ func (jdbc *JobDBClient) Disconnect() (err error) {
 		return LogErr(err)
 	}
 	// fmt.Printf("\n(*JobDBClient) Disconnect() -> %s -> connection closed. \n", jdbc.GetDBName())
-	jdbc = &JobDBClient{}
-	jdbc.RWM = &sync.RWMutex{}
+
+	/*  WE DON'T UNLOCK BECAUSE THE OLD RWMutex IS GONE, 
+	ALONG WITH ANY PENDING DB OPERATIONS  */
+	jdbc = &JobDBClient{RWM: &sync.RWMutex{}}
+
 	return
 }
 func (jdbc *JobDBClient) GetDBNameFromConnStr() string {
 	str := strings.Split(jdbc.ConnStr, "/")
-	if len(str) == 2 {
+	if len(str) == 3 {
 		/* THIS IS A VALID CONNECTION STRING */
-		return str[1] /* TODO: IMPROVE VALIDATION ? */
+		return str[2] /* TODO: IMPROVE VALIDATION ? */
 	} else {
 		return ""
 	}

@@ -694,8 +694,7 @@ func (device *Device) StartJob(start StartJob) (err error) {
 	/* CREATE DESJobSearch RECORD */
 	device.Create_DESJobSearch(device.DESRegistration)
 
-	// pkg.LogChk(fmt.Sprintf("COMPLETE: %s\n", device.JobDBC.GetDBName()))
-	return fmt.Errorf("(*Device) StartJob( ): OK; CONNECTED TO: %s\n", device.JobDBC.GetDBNameFromConnStr())
+	return fmt.Errorf("JOB START OK; %s CONNECTED TO: %s\n", device.DESDevSerial, device.JobDBC.GetDBNameFromConnStr())
 }
 
 /*

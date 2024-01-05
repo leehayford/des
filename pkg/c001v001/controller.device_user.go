@@ -25,6 +25,7 @@ type DeviceUserClient struct {
 	SID         uuid.UUID     `json:"sid"`
 	MQTTClientID string `json:"mqtt_id"`
 	pkg.DESMQTTClient `json:"-"`
+	/* TODO: TEST / ADD WMutex FOR DataOut CHAN */
 	DataOut     chan string   `json:"-"`
 	Close       chan struct{} `json:"-"`
 	CloseSend   chan struct{} `json:"-"`
