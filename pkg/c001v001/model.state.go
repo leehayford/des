@@ -2,7 +2,7 @@ package c001v001
 
 import (
 	"fmt"
-
+	"sync"
 	"github.com/leehayford/des/pkg"
 )
 
@@ -42,10 +42,26 @@ func WriteSTA(sta State, jdbc *pkg.JobDBClient) (err error) {
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
 	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
-	// dbc.WG.Add(1)
-	sta.StaID = 0
+	if jdbc.RWM == nil {
+		jdbc.RWM = &sync.RWMutex{}
+	}
+	jdbc.RWM.Lock()
 	res := jdbc.Create(&sta)
-	// dbc.WG.Done()
+	jdbc.RWM.Unlock()
+
+	return res.Error
+}
+func ReadLastSTA(sta *State, jdbc *pkg.JobDBClient) (err error) {
+	
+	/* WHEN Read IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
+	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	*/
+	if jdbc.RWM == nil {
+		jdbc.RWM = &sync.RWMutex{}
+	}
+	jdbc.RWM.Lock()
+	res := jdbc.Last(&sta)
+	jdbc.RWM.Unlock()
 
 	return res.Error
 }

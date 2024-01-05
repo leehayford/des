@@ -139,36 +139,39 @@ func (device *Device) RegisterDevice(src string) (err error) {
 func (device *Device) InitializeDB(name string) (err error) {
 
 	/* CREATE DATABASE CONNECTION AND OPEN */
-	dbc, err := pkg.GetJobDBClient(name)
+	jdbc, err := pkg.GetJobDBClient(name)
 	if err != nil {
 		return
 	}
-	dbc.Connect()
+
+	if err = jdbc.Connect(); err != nil {
+		return
+	}
 
 	/* CREATE CMDARCHIVE DB TABLES */
-	if err = CreateJobDBTables(&dbc); err != nil {
+	if err = CreateJobDBTables(&jdbc); err != nil {
 		return
 	}
 
 	/* CREATE INITIAL RECORDS  */
-	if err = WriteADM(device.ADM, &dbc); err != nil {
+	if err = WriteADM(device.ADM, &jdbc); err != nil {
 		return
 	}
-	if err = WriteSTA(device.STA, &dbc); err != nil {
+	if err = WriteSTA(device.STA, &jdbc); err != nil {
 		return
 	}
-	if err = WriteHDR(device.HDR, &dbc); err != nil {
+	if err = WriteHDR(device.HDR, &jdbc); err != nil {
 		return
 	}
-	if err = WriteCFG(device.CFG, &dbc); err != nil {
+	if err = WriteCFG(device.CFG, &jdbc); err != nil {
 		return
 	}
-	if err = WriteEVT(device.EVT, &dbc); err != nil {
+	if err = WriteEVT(device.EVT, &jdbc); err != nil {
 		return
 	}
 
 	/* CLOSE DB CONNECTION */
-	dbc.Disconnect()
+	jdbc.Disconnect()
 
 	return
 }
@@ -178,7 +181,7 @@ func (device *Device) GetDeviceIntitializationFiles() (err error) {
 		return pkg.LogErr(err)
 	}
 
-	/* TODO: ERR CHECKING */
+	/* TODO: USE RWMutex */
 	device.CmdDBC.First(&device.ADM)
 	device.CmdDBC.First(&device.STA)
 	device.CmdDBC.First(&device.HDR)
@@ -588,11 +591,11 @@ func (device *Device) StartJobRequest(src, uid string) (err error) {
 	device.EVT.CMDValidate(device, uid)
 
 	/* LOG START JOB REQUEST TO CMDARCHIVE */
-	device.CmdDBC.Create(&device.ADM) /* TODO: USE WriteADM... */
-	device.CmdDBC.Create(&device.STA) /* TODO: USE WriteSTA... */
-	device.CmdDBC.Create(&device.HDR) /* TODO: USE WriteHDR... */
-	device.CmdDBC.Create(&device.CFG) /* TODO: USE WriteCFG... */
-	device.CmdDBC.Create(&device.EVT) /* TODO: USE WriteEVT... */
+	WriteADM(device.ADM, &device.CmdDBC) 
+	WriteSTA(device.STA, &device.CmdDBC) 
+	WriteHDR(device.HDR, &device.CmdDBC)
+	WriteCFG(device.CFG, &device.CmdDBC)
+	WriteEVT(device.EVT, &device.CmdDBC)
 
 	/* MQTT PUB CMD: ADM, HDR, CFG, EVT */
 	fmt.Printf("\nStartJobRequest( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -614,11 +617,11 @@ func (device *Device) StartJob(start StartJob) (err error) {
 	// pkg.Json("(*Device) StartJobX(start StartJob): ", start)
 
 	/* TODO: ADD MUTEX TO JobDBClient SO WE CAN CALL DB WRITE IN GOROUTINE */
-	WriteADM(start.ADM, &device.CmdDBC)
-	WriteSTA(start.STA, &device.CmdDBC)
-	WriteHDR(start.HDR, &device.CmdDBC)
-	WriteCFG(start.CFG, &device.CmdDBC)
-	WriteEVT(start.EVT, &device.CmdDBC)
+	go WriteADM(start.ADM, &device.CmdDBC)
+	go WriteSTA(start.STA, &device.CmdDBC)
+	go WriteHDR(start.HDR, &device.CmdDBC)
+	go WriteCFG(start.CFG, &device.CmdDBC)
+	go WriteEVT(start.EVT, &device.CmdDBC)
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
 	device.JobDBC.Disconnect()
@@ -639,9 +642,6 @@ func (device *Device) StartJob(start StartJob) (err error) {
 		fmt.Printf("\n(*Device) StartJob() -> INVALID VALID LOCATION\n")
 		device.DESJobLng = DEFAULT_GEO_LNG
 		device.DESJobLat = DEFAULT_GEO_LAT
-		/*
-			TODO: SEND LOCATION REQUEST
-		*/
 	} else {
 		device.DESJobLng = start.HDR.HdrGeoLng
 		device.DESJobLat = start.HDR.HdrGeoLat
@@ -682,11 +682,11 @@ func (device *Device) StartJob(start StartJob) (err error) {
 	device.STA = start.STA
 
 	/* TODO: ADD MUTEX TO JobDBClient SO WE CAN CALL DB WRITE IN GOROUTINE */
-	WriteADM(start.ADM, &device.JobDBC)
-	WriteSTA(start.STA, &device.JobDBC)
-	WriteHDR(start.HDR, &device.JobDBC)
-	WriteCFG(start.CFG, &device.JobDBC)
-	WriteEVT(start.EVT, &device.JobDBC)
+	go WriteADM(start.ADM, &device.JobDBC)
+	go WriteSTA(start.STA, &device.JobDBC)
+	go WriteHDR(start.HDR, &device.JobDBC)
+	go WriteCFG(start.CFG, &device.JobDBC)
+	go WriteEVT(start.EVT, &device.JobDBC)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
 	DevicesMapWrite(device.DESDevSerial, *device)
@@ -790,16 +790,17 @@ func (device *Device) EndJobRequest(src, uid string) (err error) {
 
 	endTime := time.Now().UTC().UnixMilli()
 
+	device.GetMappedSTA()
 	sta := device.STA
 	sta.StaTime = endTime
 	sta.StaAddr = src
 	sta.StaUserID = device.DESJobRegUserID
 	sta.StaApp = device.DESJobRegApp
-	sta.StaSerial = device.DESDevSerial
-	sta.StaVersion = DEVICE_VERSION
-	sta.StaClass = DEVICE_CLASS
+	// sta.StaSerial = device.DESDevSerial
+	// sta.StaVersion = DEVICE_VERSION
+	// sta.StaClass = DEVICE_CLASS
 	sta.StaLogging = OP_CODE_JOB_END_REQ // This means there is a pending request for the device to end the current job
-	sta.StaJobName = device.CmdArchiveName()
+	// sta.StaJobName = device.DESJobName
 	if err = sta.CMDValidate(device, uid); err != nil {
 		return
 	}
@@ -823,15 +824,12 @@ func (device *Device) EndJobRequest(src, uid string) (err error) {
 	}
 
 	/* LOG END JOB REQUEST TO CMDARCHIVE */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.CmdArchiveName())
-	device.CmdDBC.Create(&device.STA)       /* TODO: USE WriteSTA(device.STA, &device.CmdDBC) ... */
-	device.CmdDBC.Create(&device.EVT)       /* TODO: USE WriteEVT(device.EVT, &device.CmdDBC) ... */
+	WriteSTA(device.STA, &device.CmdDBC) 
+	WriteEVT(device.EVT, &device.CmdDBC) 
 
 	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
-	device.STA.StaID = 0
-	device.JobDBC.Create(&device.STA) /* TODO: USE WriteSTA(device.STA, &device.JobDBC) ... */
-
-	device.EVT.EvtID = 0
-	device.JobDBC.Create(&device.EVT) /* TODO: USE WriteEVT(device.EVT, &device.JobDBC) ... */
+	WriteSTA(device.STA, &device.JobDBC) 
+	WriteEVT(device.EVT, &device.JobDBC) 
 
 	/* MQTT PUB CMD: EVT */
 	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
@@ -854,11 +852,18 @@ func (device *Device) EndJob(sta State) {
 
 	/* GET THE FINAL JOB RECORDS BEFORE CLEARING THE ACTIVE JOB DATABASE CONNECTION */
 	d := device
-	device.JobDBC.Last(&d.ADM)
-	device.JobDBC.Last(&d.STA)
-	device.JobDBC.Last(&d.HDR)
-	device.JobDBC.Last(&d.CFG)
-	device.JobDBC.Last(&d.EVT)
+	ReadLastADM(&d.ADM, &device.JobDBC)
+	ReadLastSTA(&d.STA, &device.JobDBC)
+	ReadLastHDR(&d.HDR, &device.JobDBC)
+	ReadLastCFG(&d.CFG, &device.JobDBC)
+	ReadLastEVT(&d.EVT, &device.JobDBC)
+	
+	/* TODO: go ReadLastXXX(device.XXX, &device.JobDBC) */
+	// device.JobDBC.Last(&d.ADM)
+	// device.JobDBC.Last(&d.STA)
+	// device.JobDBC.Last(&d.HDR)
+	// device.JobDBC.Last(&d.CFG)
+	// device.JobDBC.Last(&d.EVT)
 	d.SMP = Sample{SmpTime: d.STA.StaTime, SmpJobName: d.STA.StaJobName}
 
 	/* CLEAR THE ACTIVE JOB DATABASE CONNECTION */
@@ -939,6 +944,7 @@ func (device *Device) OfflineJobEnd(smp Sample) {
 	fmt.Printf("\n(*Device) OfflineJobEnd( )... \n")
 
 	/* AVOID REPEAT CALLS WHILE WE END THE ACTIVE JOB */
+	device.GetMappedSTA()
 	sta := device.STA
 	sta.StaTime = smp.SmpTime
 	sta.StaAddr = device.DESDevSerial

@@ -16,8 +16,9 @@ package pkg
 
 import (
 	"fmt"
-	"os"
+	// "os"
 	"strings"
+	"sync"
 
 	/* https://gorm.io/docs/ */
 	"gorm.io/gorm" // go get gorm.io/gorm
@@ -30,29 +31,38 @@ type JobDBClient struct {
 	ConnStr string
 	*gorm.DB
 
-	/* TODO: ADD RWMUTEXT */
+	RWM *sync.RWMutex
 }
 
-func GetJobDBClient(db_name string) (dbc JobDBClient, err error) {
-	dbc = JobDBClient{ConnStr: fmt.Sprintf("%s/%s/%s", DATA_DIR, JOB_DB_DIR, db_name)}
-	// err = dbc.ConfirmDBFile()
+func GetJobDBClient(db_name string) (jdbc JobDBClient, err error) {
+	jdbc = JobDBClient{ConnStr: fmt.Sprintf("%s/%s/%s", DATA_DIR, JOB_DB_DIR, db_name)}
+	jdbc.RWM = &sync.RWMutex{}
+	// err = jdbc.ConfirmDBFile()
 	return
 }
 
-func (jdbc *JobDBClient) ConfirmDBFile() (err error) {
-	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
-	_, err = os.Stat(fmt.Sprintf(jdbc.ConnStr))
-	if os.IsNotExist(err) {
-		f, os_err := os.Create(jdbc.ConnStr)
-		if os_err != nil {
-			return os_err
-		}
-		f.Close()
-		err = nil
-	}
-	return
-}
+// func (jdbc *JobDBClient) ConfirmDBFile() (err error) {
+// 	/* WE AVOID CREATING IF THE DATABASE WAS PRE-EXISTING, LOG TO CMDARCHIVE  */
+// 	_, err = os.Stat(fmt.Sprintf(jdbc.ConnStr))
+// 	if os.IsNotExist(err) {
+// 		f, os_err := os.Create(jdbc.ConnStr)
+// 		if os_err != nil {
+// 			return os_err
+// 		}
+// 		f.Close()
+// 		err = nil
+// 	}
+// 	return
+// }
 func (jdbc *JobDBClient) Connect() (err error) {
+
+	if jdbc.ConnStr == "" {
+		return fmt.Errorf("JobDBClient connection string is empty")
+	}
+
+	if jdbc.RWM == nil {
+		jdbc.RWM = &sync.RWMutex{}
+	}
 
 	if jdbc.DB, err = gorm.Open(sqlite.Open(jdbc.ConnStr), &gorm.Config{}); err != nil {
 		// fmt.Printf("\n(*JobDBClient) Connect() -> %s -> FAILED! \n", jdbc.GetDBName())
@@ -75,6 +85,7 @@ func (jdbc *JobDBClient) Disconnect() (err error) {
 	}
 	// fmt.Printf("\n(*JobDBClient) Disconnect() -> %s -> connection closed. \n", jdbc.GetDBName())
 	jdbc = &JobDBClient{}
+	jdbc.RWM = &sync.RWMutex{}
 	return
 }
 func (jdbc *JobDBClient) GetDBNameFromConnStr() string {

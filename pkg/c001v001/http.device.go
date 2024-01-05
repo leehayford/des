@@ -493,8 +493,7 @@ func HandleDeviceUserClient_Connect(ws *websocket.Conn) {
 /**************************************************************************************************************/
 
 /*
-	 TODO: TEST *** DO NOT USE ***
-		USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
+	USED WHEN DATACAN ADMIN WEB CLIENTS REGISTER NEW C001V001 DEVICES ON THIS DES
 
 PERFORMS DES DEVICE REGISTRATION
 PERFORMS CLASS/VERSION SPECIFIC REGISTRATION ACTIONS

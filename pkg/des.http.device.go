@@ -56,12 +56,6 @@ func HandleRegisterDESDevice(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusBadRequest).SendString(txt)
 	}
 
-	/* TODO: VALIDATE SERIAL# ( TO UPPER ):
-	!= ""
-	DOESN'T ALREADY EXIST
-	LENGTH < 10
-	*/
-
 	/*
 		CREATE A DEVICE RECORD IN THE DES DB FOR THIS DEVICE
 		 CREATE A JOB RECORD IN THE DES DB FOR THIS DEVICE CMDARCHIVE

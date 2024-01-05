@@ -3,7 +3,7 @@ package c001v001
 import (
 	// "encoding/json"
 	"fmt"
-
+	"sync"
 	"github.com/leehayford/des/pkg"
 )
 
@@ -32,10 +32,26 @@ func WriteSMP(smp Sample, jdbc *pkg.JobDBClient) (err error) {
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
 	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
-	// dbc.WG.Add(1)
-	smp.SmpID = 0
+	if jdbc.RWM == nil {
+		jdbc.RWM = &sync.RWMutex{}
+	}
+	jdbc.RWM.Lock()
 	res := jdbc.Create(&smp)
-	// dbc.WG.Done()
+	jdbc.RWM.Unlock()
+
+	return res.Error
+}
+func ReadLastSMP(smp *Sample, jdbc *pkg.JobDBClient) (err error) {
+	
+	/* WHEN Read IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
+	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	*/
+	if jdbc.RWM == nil {
+		jdbc.RWM = &sync.RWMutex{}
+	}
+	jdbc.RWM.Lock()
+	res := jdbc.Last(&smp)
+	jdbc.RWM.Unlock()
 
 	return res.Error
 }

@@ -1,6 +1,7 @@
 package c001v001
 
 import (
+	"sync"
 	"github.com/leehayford/des/pkg"
 )
 
@@ -27,11 +28,26 @@ func WriteEVT(evt Event, jdbc *pkg.JobDBClient) (err error) {
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
 	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
-	// dbc.WG.Add(1)
-	// evt.EvtID = 0
+	if jdbc.RWM == nil {
+		jdbc.RWM = &sync.RWMutex{}
+	}
+	jdbc.RWM.Lock()
 	res := jdbc.Create(&evt)
-	// evt.EvtID = 0
-	// dbc.WG.Done()
+	jdbc.RWM.Unlock()
+
+	return res.Error
+}
+func ReadLastEVT(evt *Event, jdbc *pkg.JobDBClient) (err error) {
+	
+	/* WHEN Read IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
+	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
+	*/
+	if jdbc.RWM == nil {
+		jdbc.RWM = &sync.RWMutex{}
+	}
+	jdbc.RWM.Lock()
+	res := jdbc.Last(&evt)
+	jdbc.RWM.Unlock()
 
 	return res.Error
 }
@@ -170,10 +186,12 @@ func WriteETYP(etyp EventTyp, jdbc *pkg.JobDBClient) (err error) {
 	/* WHEN Write IS CALLED IN A GO ROUTINE, SEVERAL TRANSACTIONS MAY BE PENDING
 	WE WANT TO PREVENT DISCONNECTION UNTIL THIS TRANSACTION HAS FINISHED
 	*/
-	// dbc.WG.Add(1)
-	// etyp.EvtTypID = 0
+	if jdbc.RWM == nil {
+		jdbc.RWM = &sync.RWMutex{}
+	}
+	jdbc.RWM.Lock()
 	res := jdbc.Create(&etyp)
-	// dbc.WG.Done()
+	jdbc.RWM.Unlock()
 
 	return res.Error
 }
