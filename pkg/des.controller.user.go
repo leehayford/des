@@ -37,6 +37,9 @@ type UserSession struct {
 	REFTok    string        `json:"ref_token"`
 	ACCTok    string        `json:"acc_token"`
 	USR       UserResponse  `json:"user"`
+	
+	/* MUTEXT TO PREVENT RACE ON LOGOUT / DISCONNECT */
+	RWMChan *sync.RWMutex
 	DataOut   chan string   `json:"-"`
 	Close     chan struct{} `json:"-"`
 	CloseSend chan struct{} `json:"-"`
@@ -81,6 +84,17 @@ func UserSessionsMapRemove(usid string) {
 	UserSessionsMapRWMutex.Lock()
 	delete(UserSessionsMap, usid)
 	UserSessionsMapRWMutex.Unlock()
+}
+
+
+func (us *UserSession) WriteDataOut(data string) {
+
+	if us.RWMChan == nil {
+		us.RWMChan = &sync.RWMutex{}
+	}
+	us.RWMChan.Lock()
+	us.DataOut <- string(data)
+	us.RWMChan.Unlock()
 }
 
 /* USED TO REFRESH ACCESS TOKENS */
@@ -364,6 +378,7 @@ func (us *UserSession) UserSessionWS_Connect(ws *websocket.Conn) {
 
 	start := time.Now().Unix()
 
+	us.RWMChan = &sync.RWMutex{}
 	us.DataOut = make(chan string)
 	us.Close = make(chan struct{})
 	us.CloseSend = make(chan struct{})
@@ -385,6 +400,7 @@ func (us *UserSession) UserSessionWS_Connect(ws *websocket.Conn) {
 	for open {
 		select {
 		case <-us.Close:
+			us.RWMChan.Lock()
 			if us.CloseKeep != nil {
 				us.CloseKeep = nil
 			}
@@ -394,6 +410,7 @@ func (us *UserSession) UserSessionWS_Connect(ws *websocket.Conn) {
 			if us.DataOut != nil {
 				us.DataOut = nil
 			}
+			us.RWMChan.Unlock()
 			open = false
 		}
 	}
@@ -413,8 +430,10 @@ func (us *UserSession) ListenForMessages(ws *websocket.Conn, start int64) {
 		}
 		/* CHECK IF USER HAS CLOSED THE CONNECTION */
 		if string(msg) == "close" {
+			us.RWMChan.Lock()
 			us.CloseKeep <- struct{}{}
 			us.CloseSend <- struct{}{}
+			us.RWMChan.Unlock()
 			listen = false
 		}
 	} // fmt.Printf("\n(*UserSession) ListenForMessages() -> %s : %d -> DONE.\n", us.USR.Name, start)
@@ -438,7 +457,7 @@ func (us *UserSession) RunKeepAlive(start int64) {
 				if err != nil {
 					LogErr(err)
 				}
-				us.DataOut <- string(js)
+				us.WriteDataOut(string(js))
 				count = 0
 			}
 			time.Sleep(time.Second * 1)

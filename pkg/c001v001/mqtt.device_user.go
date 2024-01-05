@@ -100,7 +100,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_StartJob(topic st
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGStartJob(...) -> start :", start)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 
 		},
 	}
@@ -126,7 +126,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEndJob() pkg.M
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGEndJob(...) -> sta :", sta)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 
 		},
 	}
@@ -152,7 +152,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_CMDEndJob() pkg.M
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_CMDEndJob(...) -> evt :", evt)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 
 		},
 	}
@@ -180,7 +180,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESDeviceClientPi
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_DESDeviceClientPing(...) -> ping :", ping)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 
 		},
 	}
@@ -207,7 +207,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_DESDevicePing( /*
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_DESDevicePing(...) -> ping :", js)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 
 		},
 	}
@@ -234,7 +234,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGAdmin( /* TODO
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGAdmin(...) -> adm :", adm)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 
 		},
 	}
@@ -261,7 +261,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGState( /* TODO
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGState(...) -> sta :", sta)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 
 		},
 	}
@@ -288,7 +288,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGHeader( /* TOD
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGHeader(...) -> hdr :", hdr)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 
 		},
 	}
@@ -315,7 +315,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGConfig( /* TOD
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGConfig(...) -> cfg :", cfg)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 
 		},
 	}
@@ -342,7 +342,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGEvent( /* TODO
 			} // pkg.Json("MQTTSubscription_DeviceUserClient_SIGEvent(...) -> evt :", evt)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 
 		},
 	}
@@ -377,7 +377,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGSample( /* TOD
 			} else {
 				// pkg.Json("MQTTSubscription_DeviceUserClient_SIGSample:", js)
 				/* SEND WSMessage AS JSON STRING */
-				duc.DataOut <- string(js)
+				duc.WriteDataOut(string(js))
 			}
 
 		},
@@ -393,7 +393,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGDiagSample( /*
 		Handler: func(c phao.Client, msg phao.Message) {
 			/* WRANGLE WS DATA */
 			/* SEND WS DATA */
-			duc.DataOut <- "diag_sample data..."
+			// duc.WriteDataOut(string(js))
 		},
 	}
 }
@@ -419,7 +419,7 @@ func (duc *DeviceUserClient) MQTTSubscription_DeviceUserClient_SIGMsgLimit() pkg
 			} // pkg.Json("MQTTSubscription_DemoDeviceClient_SIGMsgLimit(...) -> kafka :", kafka)
 
 			/* SEND WSMessage AS JSON STRING */
-			duc.DataOut <- string(js)
+			duc.WriteDataOut(string(js))
 		},
 	}
 }

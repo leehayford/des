@@ -25,7 +25,9 @@ type DeviceUserClient struct {
 	SID         uuid.UUID     `json:"sid"`
 	MQTTClientID string `json:"mqtt_id"`
 	pkg.DESMQTTClient `json:"-"`
-	/* TODO: TEST / ADD WMutex FOR DataOut CHAN */
+	
+	/* MUTEXT TO PREVENT RACE ON LOGOUT / DISCONNECT */
+	RWMChan *sync.RWMutex
 	DataOut     chan string   `json:"-"`
 	Close       chan struct{} `json:"-"`
 	CloseSend   chan struct{} `json:"-"`
@@ -72,6 +74,16 @@ func DeviceUserClientsMapRemove(mcid string) {
 	DeviceUserClientMapRWMutex.Unlock()
 }
 
+func (duc *DeviceUserClient) WriteDataOut(data string) {
+
+	if duc.RWMChan == nil {
+		duc.RWMChan = &sync.RWMutex{}
+	}
+	duc.RWMChan.Lock()
+	duc.DataOut <- string(data)
+	duc.RWMChan.Unlock()
+}
+
 /* CONNECTED DEVICE USER CLIENT *** DO NOT RUN IN GO ROUTINE *** */
 func (duc *DeviceUserClient) DeviceUserClient_Connect(ws *websocket.Conn, sid string) {
 
@@ -80,6 +92,7 @@ func (duc *DeviceUserClient) DeviceUserClient_Connect(ws *websocket.Conn, sid st
 	sid_node := strings.Split(sid, "-")[4]
 	duc.MQTTClientID = fmt.Sprintf("%s-%s", sid_node, duc.DESDevSerial)
 
+	duc.RWMChan = &sync.RWMutex{}
 	duc.DataOut = make(chan string)
 	duc.Close = make(chan struct{})
 	duc.CloseSend = make(chan struct{})
@@ -111,6 +124,7 @@ func (duc *DeviceUserClient) DeviceUserClient_Connect(ws *websocket.Conn, sid st
 			/* WE WANT TO ENSURE  MQTT CLIENT IS DISCONNECTED
 				BEFORE WE START CLOSING CHANELS */
 			time.Sleep(time.Second * 1)
+			duc.RWMChan.Lock()
 			if duc.CloseKeep != nil {
 				duc.CloseKeep = nil
 			}
@@ -120,6 +134,7 @@ func (duc *DeviceUserClient) DeviceUserClient_Connect(ws *websocket.Conn, sid st
 			if duc.DataOut != nil {
 				duc.DataOut = nil
 			}
+			duc.RWMChan.Unlock()
 			open = false
 		}
 	}
@@ -140,8 +155,10 @@ func (duc *DeviceUserClient) ListenForMessages(ws *websocket.Conn, start int64) 
 		}
 		/* CHECK IF USER HAS CLOSED THE CONNECTION */
 		if string(msg) == "close" { 
+			duc.RWMChan.Lock()
 			duc.CloseKeep <- struct{}{}
 			duc.CloseSend <- struct{}{}
+			duc.RWMChan.Unlock()
 			listen = false
 		}
 	} // fmt.Printf("\n(*DeviceUserClient) ListenForMessages() -> %s : %d -> DONE.\n", duc.MQTTClientID, start)
@@ -165,7 +182,7 @@ func (duc *DeviceUserClient) RunKeepAlive(start int64) {
 				if err != nil {
 					pkg.LogErr(err)
 				}
-				duc.DataOut <- string(js)
+				duc.WriteDataOut(string(js))
 				count = 0
 			}
 			time.Sleep(time.Second * 1)
@@ -216,7 +233,7 @@ func (duc *DeviceUserClient) GetPingsOnConnect() {
 	} // pkg.Json("(*DeviceUserClient) GetPingsOnConnect(...) -> des_ping_js :", des_ping_js)
 
 	/* SEND WSMessage AS JSON STRING */
-	duc.DataOut <- string(des_ping_js)
+	duc.WriteDataOut(string(des_ping_js))
 
 	/* GET LAST DEVICE PING FROM MAP */
 	device_ping := DevicePingsMapRead(duc.DESDevSerial)
@@ -235,7 +252,7 @@ func (duc *DeviceUserClient) GetPingsOnConnect() {
 	} // pkg.Json("(*DeviceUserClient) GetPingsOnConnect(...) -> device_ping_js :", device_ping_js)
 
 	/* SEND WSMessage AS JSON STRING */
-	duc.DataOut <- string(device_ping_js)
+	duc.WriteDataOut(string(device_ping_js))
 }
 
 

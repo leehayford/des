@@ -31,6 +31,7 @@ type JobDBClient struct {
 	ConnStr string
 	*gorm.DB
 
+	/* MUTEXT TO PREVENT RACE ON WRITE TO DB */
 	RWM *sync.RWMutex
 }
 

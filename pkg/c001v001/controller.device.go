@@ -822,16 +822,18 @@ func (device *Device) EndJobRequest(src, uid string) (err error) {
 		return
 	}
 
-	/* LOG END JOB REQUEST TO CMDARCHIVE */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.CmdArchiveName())
+	/* LOG END JOB REQUEST TO CMDARCHIVE */ 
+	// fmt.Printf("\n(*Device) EndJobRequest() -> Write to CmdDB %s \n", device.CmdDBC.GetDBNameFromConnStr())
 	WriteSTA(device.STA, &device.CmdDBC) 
 	WriteEVT(device.EVT, &device.CmdDBC) 
 
-	/* LOG END JOB REQUEST TO ACTIVE JOB */ // fmt.Printf("\nHandleEndJob( ) -> Write to %s \n", device.DESJobName)
+	/* LOG END JOB REQUEST TO ACTIVE JOB */ 
+	// fmt.Printf("\n(*Device) EndJobRequest() -> Write to JobDB %s \n", device.JobDBC.GetDBNameFromConnStr())
 	WriteSTA(device.STA, &device.JobDBC) 
 	WriteEVT(device.EVT, &device.JobDBC) 
 
 	/* MQTT PUB CMD: EVT */
-	fmt.Printf("\nHandleEndJob( ) -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
+	fmt.Printf("\n(*Device) EndJobRequest() -> Publishing to %s with MQTT device client: %s\n\n", device.DESDevSerial, device.MQTTClientID)
 	device.MQTTPublication_DeviceClient_CMDEndJob(device.EVT)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
