@@ -29,6 +29,11 @@ import (
 
 func main() {
 
+	/* EMQX API TEST */
+	if err := pkg.EMQXAPITest(pkg.MQTT_GET_STATUS); err != nil {
+		panic(pkg.LogErr(err)) 
+	}
+
 	/* ADMIN DB - CONNECT TO THE ADMIN DATABASE */
 	pkg.ADB.Connect()
 	defer pkg.ADB.Disconnect()

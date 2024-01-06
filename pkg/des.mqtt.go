@@ -15,8 +15,10 @@ License:
 package pkg
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	phao "github.com/eclipse/paho.mqtt.golang"
@@ -48,9 +50,9 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 		// fmt.Printf("\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connected...\n", desm.MQTTClientID)
 	}
 	desm.OnConnectionLost = func(c phao.Client, err error) {
-		if ( err.Error() != "EOF" ) {
+		if err.Error() != "EOF" {
 			fmt.Printf(
-				"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connection lost...\n%s\n", 
+				"\n(desm *DESMQTTClient) DESMQTTClient_Connect( ): %s -> connection lost...\n%s\n",
 				desm.MQTTClientID,
 				err.Error(),
 			)
@@ -75,6 +77,7 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 
 	return err
 }
+
 /* TODO: FIND OUT WHY THIS NEVER RETURNS... */
 func (desm *DESMQTTClient) DESMQTTClient_Disconnect() {
 	// desm.WG.Wait()
@@ -143,5 +146,43 @@ func ModelToJSONString(mod interface{}) (msg string, err error) {
 	}
 	// fmt.Printf("\n%s\n", string(js))
 	msg = string(js)
-	return 
+	return
+}
+
+/* EMQX API *******************************************************************************/
+
+const MQTT_GET_STATUS = "status"
+const MQTT_GET_DELAYED_STATUS = "mqtt/topic_metrics"
+const MQTT_GET_TOPIC_METRICS_LIST = "mqtt/topic_metrics"
+
+func EMQXAPITest(end string) (err error) {
+	url := MQTT_API_URL + end
+	fmt.Println(url)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return
+	}
+	req.SetBasicAuth(MQTT_API_KEY, MQTT_SECRET)
+	req.Header.Set("Content-Type", "application/text")
+
+	client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        return
+    }
+    defer resp.Body.Close()
+
+	fmt.Printf("EMQX API response code: %v\n", resp.Status)
+
+	buf := new(bytes.Buffer)
+    _, err = buf.ReadFrom(resp.Body)
+    if err != nil {
+        return
+    }
+
+    var data interface{}
+    json.Unmarshal(buf.Bytes(), &data)
+    Json("EMQX API response body: \n\n", data)
+	return
 }
