@@ -658,6 +658,13 @@ func (device *Device) StartJob(start StartJob) (err error) {
 		pkg.LogErr(err)
 	}
 
+	/* UPDATE THE DEVICE STATE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB */
+	device.ADM = start.ADM
+	device.HDR = start.HDR
+	device.CFG = start.CFG
+	device.EVT = start.EVT
+	device.STA = start.STA
+
 	/* CREATE JOB DATABASE */
 	if err := device.InitializeDB(device.DESJobName); err != nil {
 		if err.Error() == pkg.ERR_DB_EXISTS {
@@ -671,22 +678,6 @@ func (device *Device) StartJob(start StartJob) (err error) {
 		device.JobDBC = device.CmdDBC
 		return fmt.Errorf("(*Device) StartJob( ): CONNECTION FAILED! *** LOGGING TO: %s\n", device.JobDBC.GetDBNameFromConnStr())
 	}
-
-	/* UPDATE THE DEVICE STATE, ENABLING MQTT MESSAGE WRITES TO ACTIVE JOB DB
-	AFTER WE HAVE WRITTEN THE INITIAL JOB RECORDS
-	*/
-	device.ADM = start.ADM
-	device.HDR = start.HDR
-	device.CFG = start.CFG
-	device.EVT = start.EVT
-	device.STA = start.STA
-
-	/* TODO: ADD MUTEX TO JobDBClient SO WE CAN CALL DB WRITE IN GOROUTINE */
-	go WriteADM(start.ADM, &device.JobDBC)
-	go WriteSTA(start.STA, &device.JobDBC)
-	go WriteHDR(start.HDR, &device.JobDBC)
-	go WriteCFG(start.CFG, &device.JobDBC)
-	go WriteEVT(start.EVT, &device.JobDBC)
 
 	/* UPDATE THE DEVICES CLIENT MAP */
 	DevicesMapWrite(device.DESDevSerial, *device)
