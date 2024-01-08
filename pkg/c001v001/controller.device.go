@@ -795,32 +795,42 @@ func (device *Device) EndJobRequest(src, uid string) (err error) {
 	sta.StaAddr = src
 	sta.StaUserID = device.DESJobRegUserID
 	sta.StaApp = device.DESJobRegApp
-	// sta.StaSerial = device.DESDevSerial
-	// sta.StaVersion = DEVICE_VERSION
-	// sta.StaClass = DEVICE_CLASS
 	sta.StaLogging = OP_CODE_JOB_END_REQ // This means there is a pending request for the device to end the current job
-	// sta.StaJobName = device.DESJobName
 	if err = sta.CMDValidate(device, uid); err != nil {
+		return
+	}
+
+	evt := Event{
+		EvtTime:   endTime,
+		EvtAddr:   src,
+		EvtUserID: device.DESJobRegUserID,
+		EvtApp:    device.DESJobRegApp,
+		EvtCode:   OP_CODE_JOB_END_REQ,
+		EvtTitle:  GetEventTypeByCode(OP_CODE_JOB_END_REQ),
+		EvtMsg:    device.DESJobName,
+	}
+	if err = evt.CMDValidate(device, uid); err != nil {
 		return
 	}
 
 	/* SYNC DEVICE WITH DevicesMap */
 	d := DevicesMapRead(device.DESDevSerial)
 	d.STA = sta
+	d.EVT = evt
 	device = &d
 
-	device.EVT = Event{
-		EvtTime:   endTime,
-		EvtAddr:   src,
-		EvtUserID: sta.StaUserID,
-		EvtApp:    sta.StaApp,
-		EvtCode:   OP_CODE_JOB_END_REQ,
-		EvtTitle:  GetEventTypeByCode(OP_CODE_JOB_END_REQ),
-		EvtMsg:    device.DESJobName,
-	}
-	if err = device.EVT.CMDValidate(device, uid); err != nil {
-		return
-	}
+	// device.EVT = Event{
+	// 	EvtTime:   endTime,
+	// 	EvtAddr:   src,
+	// 	EvtUserID: sta.StaUserID,
+	// 	EvtApp:    sta.StaApp,
+	// 	EvtCode:   OP_CODE_JOB_END_REQ,
+	// 	EvtTitle:  GetEventTypeByCode(OP_CODE_JOB_END_REQ),
+	// 	EvtMsg:    device.DESJobName,
+	// }
+	// if err = device.EVT.CMDValidate(device, uid); err != nil {
+	// 	return
+	// }
 
 	/* LOG END JOB REQUEST TO CMDARCHIVE */ 
 	// fmt.Printf("\n(*Device) EndJobRequest() -> Write to CmdDB %s \n", device.CmdDBC.GetDBNameFromConnStr())

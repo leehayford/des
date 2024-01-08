@@ -36,6 +36,7 @@ func WriteSMP(smp Sample, jdbc *pkg.JobDBClient) (err error) {
 		jdbc.RWM = &sync.RWMutex{}
 	}
 	jdbc.RWM.Lock()
+	smp.SmpID = 0
 	res := jdbc.Create(&smp)
 	jdbc.RWM.Unlock()
 

@@ -253,20 +253,21 @@ func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Connect() (err error) {
 }
 func (demo *DemoDeviceClient) MQTTDemoDeviceClient_Disconnect() (err error) {
 
-	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
-	demo.MQTTSubscription_DemoDeviceClient_CMDStartJob().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDEndJob().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDReport().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDState().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
+	if demo.DESMQTTClient.Client != nil {
+		/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
+		demo.MQTTSubscription_DemoDeviceClient_CMDStartJob().UnSub(demo.DESMQTTClient)
+		demo.MQTTSubscription_DemoDeviceClient_CMDEndJob().UnSub(demo.DESMQTTClient)
+		demo.MQTTSubscription_DemoDeviceClient_CMDReport().UnSub(demo.DESMQTTClient)
+		demo.MQTTSubscription_DemoDeviceClient_CMDAdmin().UnSub(demo.DESMQTTClient)
+		demo.MQTTSubscription_DemoDeviceClient_CMDState().UnSub(demo.DESMQTTClient)
+		demo.MQTTSubscription_DemoDeviceClient_CMDHeader().UnSub(demo.DESMQTTClient)
+		demo.MQTTSubscription_DemoDeviceClient_CMDConfig().UnSub(demo.DESMQTTClient)
+		demo.MQTTSubscription_DemoDeviceClient_CMDEvent().UnSub(demo.DESMQTTClient)
 
-	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
-	demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().UnSub(demo.DESMQTTClient)
-	demo.MQTTSubscription_DemoDeviceClient_CMDTestOLS().UnSub(demo.DESMQTTClient)
-
+		/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+		demo.MQTTSubscription_DemoDeviceClient_CMDMsgLimit().UnSub(demo.DESMQTTClient)
+		demo.MQTTSubscription_DemoDeviceClient_CMDTestOLS().UnSub(demo.DESMQTTClient)
+	}
 	/* DISCONNECT THE DESMQTTCLient */
 	demo.DESMQTTClient_Disconnect()
 

@@ -80,8 +80,9 @@ func (desm *DESMQTTClient) DESMQTTClient_Connect(falseToResub, autoReconn bool) 
 
 /* TODO: FIND OUT WHY THIS NEVER RETURNS... */
 func (desm *DESMQTTClient) DESMQTTClient_Disconnect() {
-	// desm.WG.Wait()
-	desm.Client.Disconnect(10) // Wait 10 milliseconds
+	if desm.Client != nil {
+		desm.Client.Disconnect(10) // Wait 10 milliseconds
+	}
 }
 
 /* ALL MQTT SUBSCRIPTIONS ON THE DES ARE MANAGED USING THIS STRUCTURE */

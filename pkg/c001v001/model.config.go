@@ -64,6 +64,7 @@ func ReadLastCFG(cfg *Config, jdbc *pkg.JobDBClient) (err error) {
 		jdbc.RWM = &sync.RWMutex{}
 	}
 	jdbc.RWM.Lock()
+	cfg.CfgID = 0
 	res := jdbc.Last(&cfg)
 	jdbc.RWM.Unlock()
 

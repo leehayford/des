@@ -86,6 +86,7 @@ func ReadLastADM(adm *Admin, jdbc *pkg.JobDBClient) (err error) {
 		jdbc.RWM = &sync.RWMutex{}
 	}
 	jdbc.RWM.Lock()
+	adm.AdmID = 0
 	res := jdbc.Last(&adm)
 	jdbc.RWM.Unlock()
 

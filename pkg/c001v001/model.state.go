@@ -46,6 +46,7 @@ func WriteSTA(sta State, jdbc *pkg.JobDBClient) (err error) {
 		jdbc.RWM = &sync.RWMutex{}
 	}
 	jdbc.RWM.Lock()
+	sta.StaID = 0
 	res := jdbc.Create(&sta)
 	jdbc.RWM.Unlock()
 

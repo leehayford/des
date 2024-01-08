@@ -54,18 +54,19 @@ func (device *Device) MQTTDeviceClient_Connect() (err error) {
 }
 func (device *Device) MQTTDeviceClient_Disconnect() (err error) {
 
-	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
-	device.MQTTSubscription_DeviceClient_SIGStartJob().UnSub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGEndJob().UnSub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGDevicePing().UnSub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGAdmin().UnSub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGState().UnSub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGHeader().UnSub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGConfig().UnSub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGEvent().UnSub(device.DESMQTTClient)
-	device.MQTTSubscription_DeviceClient_SIGSample().UnSub(device.DESMQTTClient)
-	// device.MQTTSubscription_DeviceClient_SIGDiagSample() //.UnSub(device.DESMQTTClient)
-
+	if device.DESMQTTClient.Client != nil {
+		/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
+		device.MQTTSubscription_DeviceClient_SIGStartJob().UnSub(device.DESMQTTClient)
+		device.MQTTSubscription_DeviceClient_SIGEndJob().UnSub(device.DESMQTTClient)
+		device.MQTTSubscription_DeviceClient_SIGDevicePing().UnSub(device.DESMQTTClient)
+		device.MQTTSubscription_DeviceClient_SIGAdmin().UnSub(device.DESMQTTClient)
+		device.MQTTSubscription_DeviceClient_SIGState().UnSub(device.DESMQTTClient)
+		device.MQTTSubscription_DeviceClient_SIGHeader().UnSub(device.DESMQTTClient)
+		device.MQTTSubscription_DeviceClient_SIGConfig().UnSub(device.DESMQTTClient)
+		device.MQTTSubscription_DeviceClient_SIGEvent().UnSub(device.DESMQTTClient)
+		device.MQTTSubscription_DeviceClient_SIGSample().UnSub(device.DESMQTTClient)
+		// device.MQTTSubscription_DeviceClient_SIGDiagSample() //.UnSub(device.DESMQTTClient)
+	}
 	/* DISCONNECT THE DESMQTTCLient */
 	device.DESMQTTClient_Disconnect()
 

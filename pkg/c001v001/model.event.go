@@ -32,6 +32,7 @@ func WriteEVT(evt Event, jdbc *pkg.JobDBClient) (err error) {
 		jdbc.RWM = &sync.RWMutex{}
 	}
 	jdbc.RWM.Lock()
+	evt.EvtID = 0
 	res := jdbc.Create(&evt)
 	jdbc.RWM.Unlock()
 

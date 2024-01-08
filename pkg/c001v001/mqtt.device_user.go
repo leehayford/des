@@ -22,6 +22,7 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect() (err error) {
 
 	duc.MQTTUser = user
 	duc.MQTTPW = pw
+	// fmt.Printf("\n(*DeviceUserClient) MQTTDeviceUserClient_Connect() -> duc.MQTTClientID: %s\n", duc.MQTTClientID)
 
 	/* DEVICE USER CLIENTS ***DO NOT*** AUTOMATICALLY RESUBSCRIBE */
 	if err = duc.DESMQTTClient.DESMQTTClient_Connect(true, false); err != nil {
@@ -53,24 +54,27 @@ func (duc *DeviceUserClient) MQTTDeviceUserClient_Connect() (err error) {
 }
 func (duc *DeviceUserClient) MQTTDeviceUserClient_Disconnect() {
 
-	/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
-	duc.MQTTSubscription_DeviceUserClient_StartJob(duc.MQTTTopic_SIGStartJob()).UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_StartJob(duc.MQTTTopic_CMDStartJob()).UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_SIGEndJob().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_CMDEndJob().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_DESDeviceClientPing().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_DESDevicePing().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_SIGAdmin().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_SIGState().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_SIGHeader().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_SIGConfig().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_SIGEvent().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_SIGSample().UnSub(duc.DESMQTTClient)
-	duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().UnSub(duc.DESMQTTClient)
+	if duc.DESMQTTClient.Client != nil {
 
-	/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
-	duc.MQTTSubscription_DeviceUserClient_SIGMsgLimit().UnSub(duc.DESMQTTClient)
-
+		/* UNSUBSCRIBE FROM ALL MQTTSubscriptions */
+		duc.MQTTSubscription_DeviceUserClient_StartJob(duc.MQTTTopic_SIGStartJob()).UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_StartJob(duc.MQTTTopic_CMDStartJob()).UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_SIGEndJob().UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_CMDEndJob().UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_DESDeviceClientPing().UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_DESDevicePing().UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_SIGAdmin().UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_SIGState().UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_SIGHeader().UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_SIGConfig().UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_SIGEvent().UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_SIGSample().UnSub(duc.DESMQTTClient)
+		duc.MQTTSubscription_DeviceUserClient_SIGDiagSample().UnSub(duc.DESMQTTClient)
+	
+		/* MESSAGE LIMIT TEST ***TODO: REMOVE AFTER DEVELOPMENT*** */
+		duc.MQTTSubscription_DeviceUserClient_SIGMsgLimit().UnSub(duc.DESMQTTClient)
+	
+	}
 	/* DISCONNECT THE DESMQTTCLient */
 	duc.DESMQTTClient_Disconnect()
 

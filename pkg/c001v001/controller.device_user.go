@@ -23,7 +23,6 @@ SUBSCRIBES TO ALL SIGNALS FOR A SINGLE DEVICE
 type DeviceUserClient struct {
 	Device `json:"device"`
 	SID         uuid.UUID     `json:"sid"`
-	MQTTClientID string `json:"mqtt_id"`
 	pkg.DESMQTTClient `json:"-"`
 	
 	/* MUTEXT TO PREVENT RACE ON LOGOUT / DISCONNECT */
@@ -89,15 +88,14 @@ func (duc *DeviceUserClient) DeviceUserClient_Connect(ws *websocket.Conn, sid st
 
 	start := time.Now().Unix()
 
-	sid_node := strings.Split(sid, "-")[4]
-	duc.MQTTClientID = fmt.Sprintf("%s-%s", sid_node, duc.DESDevSerial)
-
 	duc.RWMChan = &sync.RWMutex{}
 	duc.DataOut = make(chan string)
 	duc.Close = make(chan struct{})
 	duc.CloseSend = make(chan struct{})
 	duc.CloseKeep = make(chan struct{})
 
+	sid_node := strings.Split(sid, "-")[4]
+	duc.MQTTClientID = fmt.Sprintf("%s-%s", sid_node, duc.DESDevSerial)
 	duc.MQTTDeviceUserClient_Connect( /* TODO: PASS IN USER ROLE */ )
 
 	/* LISTEN FOR MESSAGES FROM CONNECTED DEVICE USER */
@@ -148,9 +146,13 @@ func (duc *DeviceUserClient) ListenForMessages(ws *websocket.Conn, start int64) 
 	for listen {
 		_, msg, err := ws.ReadMessage()
 		if err != nil { 
-			// fmt.Printf("\n(DeviceUserClient) ListenForMessages() %s -> ERROR: %s\n", duc.MQTTClientID, err.Error())
 			if strings.Contains(err.Error(), "close") {
+			// if err == websocket.ErrCloseSent {
 				msg = []byte("close")
+			} else {
+				fmt.Printf("\n(*DeviceUserClient) ListenForMessages() %s -> ERROR: %s\n", duc.MQTTClientID, err.Error())
+				pkg.LogDESError(duc.MQTTClientID, err.Error(), duc.STA)
+				break
 			}
 		}
 		/* CHECK IF USER HAS CLOSED THE CONNECTION */

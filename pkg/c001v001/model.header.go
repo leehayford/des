@@ -45,6 +45,7 @@ func WriteHDR(hdr Header, jdbc *pkg.JobDBClient) (err error) {
 		jdbc.RWM = &sync.RWMutex{}
 	}
 	jdbc.RWM.Lock()
+	hdr.HdrID = 0
 	res := jdbc.Create(&hdr)
 	jdbc.RWM.Unlock()
 

@@ -422,9 +422,12 @@ func (us *UserSession) ListenForMessages(ws *websocket.Conn, start int64) {
 	for listen {
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
-			// fmt.Printf("\n(*UserSession) ListenForMessages() %s -> ERROR: %s\n", us.USR.Email, err.Error())
 			if strings.Contains(err.Error(), "close") {
 				msg = []byte("close")
+			} else {
+				fmt.Printf("\n(*UserSession) ListenForMessages() %s -> ERROR: %s\n", us.USR.Email, err.Error())
+				LogDESError(us.USR.Email, err.Error(), us.USR)
+				break
 			}
 		}
 		/* CHECK IF USER HAS CLOSED THE CONNECTION */
