@@ -10,7 +10,7 @@ import (
 func InitializeJobRoutes(app, api *fiber.App) (err error) {
 
 	api.Route("/001/001/job", func(router fiber.Router) {
-		router.Get("/event/list", HandleGetEventTypeLists)
+		router.Get("/event/list", pkg.DesAuth, HandleGetEventTypeLists)
 
 		router.Get("/list", pkg.DesAuth, HandleGetJobList)
 		router.Post("/data", pkg.DesAuth, HandleGetJobData)
@@ -38,48 +38,38 @@ func ValidatePostRequestBody_Job(c *fiber.Ctx, job *Job) (err error) {
 RETURNS THE LIST OF EVENT TYPES FOR A CLASS 001 VERSION 001 DEVICE / JOB
 */
 func HandleGetEventTypeLists(c *fiber.Ctx) (err error) {
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "You are a tolerable person!",
-		"data":    fiber.Map{"event_types": EVENT_TYPES},
-	})
+
+	/* CHECK USER PERMISSION */
+	if !pkg.UserRole_Viewer(c.Locals("role")) {
+		return c.Status(fiber.StatusForbidden).
+			SendString(pkg.ERR_AUTH_VIEWER + ": View event type list")
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"event_types": EVENT_TYPES})
 }
 
-/* RETURNS THE LIST OF COMPLETED JOBS REGISTERED TO THIS DES, 
-EXCLUDING CMDARCHIVES AND ACTIVE JOBS */
+/*
+	RETURNS THE LIST OF DESRegistration OBJECTS FOR COMPLETED JOBS REGISTERED TO THIS DES,
+
+	EXCLUDES CMDARCHIVES AND ACTIVE JOBS
+*/
 func HandleGetJobList(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleGetJobList( )\n")
 
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(c.Locals("role")) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "fail",
-			"message": "You must be a registered user to view job list",
-		})
+		return c.Status(fiber.StatusForbidden).
+		SendString(pkg.ERR_AUTH_VIEWER + ": View job list")
 	}
 
 	regs, err := GetJobList()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "fail",
-			"message": fmt.Sprintf("GetJobList(...) -> query failed:\n%s\n", err),
-			"data":    fiber.Map{"jobs": regs},
-		})
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
 
-	stat := "fail"
-	msg := fmt.Sprintf("GetJobs(...) -> NO JOBS.\n")
 	jobs := GetJobs(regs)
-	if len(jobs) > 0 {
-		stat = "success"
-		msg = "You are a tolerable person!"
-	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  stat,
-		"message": msg,
-		"data":    fiber.Map{"jobs": jobs},
-	})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"jobs": jobs})
 }
 
 /*
@@ -93,7 +83,7 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Viewer(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString("You must be a registered user to view job data.")
+			SendString("You must be a registered user to view job data.")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -106,7 +96,7 @@ func HandleGetJobData(c *fiber.Ctx) (err error) {
 	if err = job.ConnectDBC(); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
-	
+
 	/* ENSURE DATABASE CONNECTION CLOSES AFTER THIS REQUEST */
 	defer job.DBC.Disconnect()
 
@@ -128,7 +118,7 @@ func HandleNewReport(c *fiber.Ctx) (err error) {
 	/* CHECK USER PERMISSION */
 	if !pkg.UserRole_Operator(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-		SendString("You must be an operator user to create a report")
+			SendString("You must be an operator user to create a report")
 	}
 
 	/* PARSE AND VALIDATE REQUEST DATA */
@@ -274,10 +264,11 @@ func HandleNewReportEvent(c *fiber.Ctx) (err error) {
 	})
 }
 
+/*
+	RETURNS THE LIST OF ALL JOBS REGISTERED TO THIS DES,
 
-
-/* RETURNS THE LIST OF ALL JOBS REGISTERED TO THIS DES,
-INCLUDING CMDARCHIVES AND ACTIVE JOBS */
+INCLUDING CMDARCHIVES AND ACTIVE JOBS
+*/
 func HandleGetAdminJobList(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
@@ -286,7 +277,7 @@ func HandleGetAdminJobList(c *fiber.Ctx) (err error) {
 		return c.Status(fiber.StatusForbidden).SendString(txt)
 	}
 
-	regs, err := GetAdminJobList( )
+	regs, err := GetAdminJobList()
 	if err != nil {
 		txt := fmt.Sprintf("Failed to retrieve jobs from server: %s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).SendString(txt)

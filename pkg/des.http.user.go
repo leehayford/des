@@ -4,12 +4,13 @@ import (
 	// "encoding/json"
 	"fmt"
 	"net/url"
+
 	// "reflect"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
-// 	"github.com/go-playground/validator/v10" // go get github.com/go-playground/validator/v10
+	// 	"github.com/go-playground/validator/v10" // go get github.com/go-playground/validator/v10
 )
 
 func InitializeDESUserRoutes(app, api *fiber.App) {
@@ -50,7 +51,7 @@ func DesAuth(c *fiber.Ctx) (err error) {
 
 	claims, err := GetClaimsFromTokenString(tokenString)
 	if err != nil {
-		txt := fmt.Sprintf("Authorization failed; JWT claims error: %s", err.Error() )
+		txt := fmt.Sprintf("Authorization failed; JWT claims error: %s", err.Error())
 		return c.Status(fiber.StatusUnauthorized).SendString(txt)
 	}
 
@@ -61,29 +62,32 @@ func DesAuth(c *fiber.Ctx) (err error) {
 }
 func ValidatePostRequestBody_UserResponse(c *fiber.Ctx, ur *UserResponse) (err error) {
 
-	if err = ParseRequestBody(c, ur); err != nil { return }
+	if err = ParseRequestBody(c, ur); err != nil {
+		return
+	}
 
-	if !ValidateUUIDString(ur.ID.String()){ 
+	if !ValidateUUIDString(ur.ID.String()) {
 		err = fmt.Errorf("Invalid user ID: %s", ur.ID.String())
-		return 
+		return
 	}
 
 	return
 }
 func ValidatePostRequestBody_UserSession(c *fiber.Ctx, us *UserSession) (err error) {
 
-	if err = ParseRequestBody(c, us); err != nil { return }
+	if err = ParseRequestBody(c, us); err != nil {
+		return
+	}
 
-	if !ValidateUUIDString(us.SID.String()){ 
+	if !ValidateUUIDString(us.SID.String()) {
 		err = fmt.Errorf("Invalid session ID: %s", us.SID.String())
-		return 
+		return
 	}
 
 	*us, err = UserSessionsMapRead(us.SID.String())
 
 	return
 }
-
 
 func HandleWSUpgrade(c *fiber.Ctx) error {
 	if websocket.IsWebSocketUpgrade(c) {
@@ -163,7 +167,7 @@ func HandleRefreshAccessToken(c *fiber.Ctx) (err error) {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"user_session": us})
-} 
+}
 
 /* CONNECT USERSESSION WEBSOCKET */
 func HandleUserSessionWS_Connect(ws *websocket.Conn) {
@@ -198,15 +202,14 @@ func HandleUserSessionWS_Connect(ws *websocket.Conn) {
 	us.UserSessionWS_Connect(ws)
 }
 
-
 func HandleLogoutUser(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleLogoutUser( )\n")
 
 	/* PARSE AND VALIDATE REQUEST DATA */
 	us := UserSession{}
-	if err = ValidatePostRequestBody_UserSession(c, &us); err != nil { 
+	if err = ValidatePostRequestBody_UserSession(c, &us); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
-	}  // Json("HandleLogoutUser(): -> c.BodyParser(&us) -> user session", us)
+	} // Json("HandleLogoutUser(): -> c.BodyParser(&us) -> user session", us)
 
 	us.LogoutUser()
 
@@ -224,11 +227,10 @@ func HandleTerminateUserSessions(c *fiber.Ctx) (err error) {
 	}
 
 	ur := UserResponse{}
-	/* PARSE AND VALIDATE REQUEST DATA */ 
-	if err = ValidatePostRequestBody_UserResponse(c, &ur); err != nil { 
+	/* PARSE AND VALIDATE REQUEST DATA */
+	if err = ValidatePostRequestBody_UserResponse(c, &ur); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	} // Json("HandleTerminateUserSessions( ) -> ValidatePostRequestData( ) -> ur", ur)
-
 
 	txt := fmt.Sprintf("%d user sessions terminated.", TerminateUserSessions(ur))
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": txt})

@@ -150,14 +150,21 @@ func ModelToJSONString(mod interface{}) (msg string, err error) {
 }
 
 /* EMQX API *******************************************************************************/
-
+/*  https://www.emqx.io/docs/en/v5.2/admin/api-docs.html
+ */
 const MQTT_GET_STATUS = "status"
+
+const MQTT_GET_ALARMS = "alarms"
+
+const MQTT_GET_SUBS = "subscriptions"
+const MQTT_GET_AUTOSUBS = "mqtt/auto_subscribe"
+
 const MQTT_GET_DELAYED_STATUS = "mqtt/topic_metrics"
 const MQTT_GET_TOPIC_METRICS_LIST = "mqtt/topic_metrics"
 
-func EMQXAPITest(end string) (err error) {
-	url := MQTT_API_URL + end
-	fmt.Println(url)
+func EMQX_API_Get(end_point string) (err error) {
+	url := MQTT_API_URL + end_point
+	fmt.Printf("\n\n%s", url)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -167,22 +174,22 @@ func EMQXAPITest(end string) (err error) {
 	req.Header.Set("Content-Type", "application/text")
 
 	client := &http.Client{}
-    resp, err := client.Do(req)
-    if err != nil {
-        return
-    }
-    defer resp.Body.Close()
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
 
-	fmt.Printf("EMQX API response code: %v\n", resp.Status)
+	fmt.Printf("\nEMQX API response code: %v", resp.Status)
 
 	buf := new(bytes.Buffer)
-    _, err = buf.ReadFrom(resp.Body)
-    if err != nil {
-        return
-    }
+	_, err = buf.ReadFrom(resp.Body)
+	if err != nil {
+		return
+	}
 
-    var data interface{}
-    json.Unmarshal(buf.Bytes(), &data)
-    Json("EMQX API response body: \n\n", data)
+	var data interface{}
+	json.Unmarshal(buf.Bytes(), &data)
+	Json("EMQX API response body", data)
 	return
 }

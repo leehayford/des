@@ -77,9 +77,9 @@ func HandleGetDeviceList(c *fiber.Ctx) (err error) {
 	// fmt.Printf("\nHandleGetDeviceList( )\n")
 
 	/* CHECK USER PERMISSION */
-	if !pkg.UserRole_Operator(c.Locals("role")) {
+	if !pkg.UserRole_Viewer(c.Locals("role")) {
 		return c.Status(fiber.StatusForbidden).
-			SendString(pkg.ERR_AUTH_OPERATOR + ": View device list")
+			SendString(pkg.ERR_AUTH_VIEWER + ": View device list")
 	}
 
 	regs, err := GetDeviceList()

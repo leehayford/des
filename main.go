@@ -29,11 +29,6 @@ import (
 
 func main() {
 
-	/* EMQX API TEST */
-	if err := pkg.EMQXAPITest(pkg.MQTT_GET_STATUS); err != nil {
-		panic(pkg.LogErr(err)) 
-	}
-
 	/* ADMIN DB - CONNECT TO THE ADMIN DATABASE */
 	pkg.ADB.Connect()
 	defer pkg.ADB.Disconnect()
@@ -42,20 +37,14 @@ func main() {
 	sim := flag.Bool("sim", false, "Run as device simulator only")
 	flag.Parse()
 
-
 	if *cleanDB {
-		
+
 		/* ARCHIVE ALL DEVICE / JOB DIRECTORIES */
 		pkg.ArchiveDESDirectories()
-		
+
 		/* DROP ALL DATABASES */
 		pkg.ADB.DropAllDatabases()
-		
-		// /* CONFIRM REQUIRED DIRECTORIES EXIST */
-		// pkg.ConfirmDESDirectories()
 
-		// /* ARCHIVE ALL DEVICE / JOB DIRECTORIES */
-		// pkg.ArchiveDESDirectories()
 	}
 
 	/* CONFIRM REQUIRED DIRECTORIES EXIST */
@@ -101,7 +90,7 @@ func main() {
 
 		/* DES ROUTES *************************************************************************************/
 		/****************************************************************************************************/
-		
+
 		/*DES AUTH & USER ROUTES */
 		pkg.InitializeDESUserRoutes(app, api)
 
@@ -112,7 +101,7 @@ func main() {
 
 		/* C001V001 ROUTES ******************************************************************************/
 		/****************************************************************************************************/
-		
+
 		/* C001V001 DEVICE ROUTES */
 		c001v001.InitializeDeviceRoutes(app, api)
 

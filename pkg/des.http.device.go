@@ -2,12 +2,13 @@ package pkg
 
 import (
 	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 )
 
 func InitializeDESDeviceRoutes(app, api *fiber.App) {
 	api.Route("/device", func(router fiber.Router) {
-			
+
 		router.Post("/validate_serial", DesAuth, HandleValidateSerialNumber)
 
 	})
@@ -16,7 +17,7 @@ func InitializeDESDeviceRoutes(app, api *fiber.App) {
 /********************************************************************************************************/
 
 /* NOT IMPLEMENTED: INTENDED AS API ENDPOINT FOR D2D CORE  *******************************/
-func HandleValidateSerialNumber(c * fiber.Ctx) (err error) {
+func HandleValidateSerialNumber(c *fiber.Ctx) (err error) {
 
 	/* CHECK USER PERMISSION */
 	if !UserRole_Viewer(c.Locals("role")) {

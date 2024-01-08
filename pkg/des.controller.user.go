@@ -33,13 +33,13 @@ import (
 const USER_SESSION_WS_KEEP_ALIVE_SEC = 30
 
 type UserSession struct {
-	SID       uuid.UUID     `json:"sid"`
-	REFTok    string        `json:"ref_token"`
-	ACCTok    string        `json:"acc_token"`
-	USR       UserResponse  `json:"user"`
-	
+	SID    uuid.UUID    `json:"sid"`
+	REFTok string       `json:"ref_token"`
+	ACCTok string       `json:"acc_token"`
+	USR    UserResponse `json:"user"`
+
 	/* MUTEXT TO PREVENT RACE ON LOGOUT / DISCONNECT */
-	RWMChan *sync.RWMutex
+	RWMChan   *sync.RWMutex
 	DataOut   chan string   `json:"-"`
 	Close     chan struct{} `json:"-"`
 	CloseSend chan struct{} `json:"-"`
@@ -85,7 +85,6 @@ func UserSessionsMapRemove(usid string) {
 	delete(UserSessionsMap, usid)
 	UserSessionsMapRWMutex.Unlock()
 }
-
 
 func (us *UserSession) WriteDataOut(data string) {
 
@@ -194,7 +193,7 @@ func RegisterUser(runp RegisterUserInput) (user User, err error) {
 		Name:     runp.Name,
 		Email:    strings.ToLower(runp.Email),
 		Password: string(pwHash),
-		Role:     "user",
+		Role:     ROLE_VIEWER,
 		Photo:    runp.Photo,
 	}
 

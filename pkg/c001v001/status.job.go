@@ -1,14 +1,14 @@
 package c001v001
 
 import (
-	// "fmt"
+	"fmt"
 	// "sync"
 
 	"github.com/leehayford/des/pkg"
 )
 
 /* GET THE DESRegistration FOR ALL COMPLETED JOBS ON THIS DES */
-func GetJobList() (jobs []pkg.DESRegistration, err error) {
+func GetJobList() (regs []pkg.DESRegistration, err error) {
 
 	qry := pkg.DES.DB.
 		Table("des_jobs").
@@ -18,8 +18,11 @@ func GetJobList() (jobs []pkg.DESRegistration, err error) {
 		Where("des_jobs.des_job_end != 0").
 		Order("des_devs.des_dev_id ASC, des_jobs.des_job_start DESC")
 
-	res := qry.Scan(&jobs)
-	err = res.Error
+	res := qry.Scan(&regs)
+	if res.Error != nil {
+		err = fmt.Errorf("Failed to retrieve jobs from database: %s", res.Error.Error())
+		return
+	} // pkg.Json("GetJobList(): DESRegistrations", regs)
 	return
 }
 
